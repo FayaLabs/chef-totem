@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { LayoutGrid, RefreshCw, ShoppingCart, UtensilsCrossed } from 'lucide-react'
+import { LayoutGrid, RefreshCw, ShoppingCart, UtensilsCrossed, X } from 'lucide-react'
 import { BottomBar, Chip, TotemButton } from '@/design'
 import { brl, cartCount, cartTotalCents, useCart } from '@/cart/useCart'
 import { useCatalog } from '@/menu/useCatalog'
@@ -167,9 +167,10 @@ function Header({ ticket, onCancel }: { ticket: string | null; onCancel: () => v
         type="button"
         data-testid="reset"
         onClick={onCancel}
-        className="press absolute right-[4cqw] top-[4cqw] rounded-full border-2 border-white/40 px-[3cqw] uppercase tracking-[0.2em] text-white/80"
-        style={{ fontSize: 'var(--step-label)', minHeight: 'var(--tap)' }}
+        className="press absolute right-[4cqw] top-[4cqw] flex items-center gap-[1.5cqw] rounded-totem border-2 border-white/35 px-[3.5cqw] uppercase tracking-[0.18em] text-white/85"
+        style={{ fontSize: 'var(--step-label)', height: 'var(--tap)' }}
       >
+        <X strokeWidth={3} className="size-[2.2cqw]" />
         Cancelar
       </button>
       <h1

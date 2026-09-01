@@ -22,11 +22,15 @@ export interface TotemMedia {
   posterUrl?: string
 }
 
+import type { TotemTheme } from '@/design/theme'
+
 export interface TotemConfig {
   totemId: string
   tenantId: string
   unitId: string
   brand: { name: string; tagline: string }
+  /** Partial override of the default palette/type. See design/theme.ts. */
+  theme?: Partial<TotemTheme>
   media: TotemMedia
   currency: string
   locale: string

@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 
 // ---------------------------------------------------------------------------
 // The bottom sheet. Product detail, cart, payment method — all of it.
@@ -7,10 +7,19 @@ import { useEffect, type ReactNode } from 'react'
 // the menu: they are mid-decision, and a full-screen navigation makes "go back
 // and compare" cost two taps and a scroll position.
 //
-// The scrim is heavy (60%) on purpose: it is the thing that says the menu
-// behind is inert. A light scrim on a bright food photo reads as decoration and
+// DRAG TO DISMISS. Everyone arrives at a kiosk carrying a phone's muscle
+// memory, and on a phone a bottom sheet is dragged away. Making the panel obey
+// the gesture people already try is worth more here than on a phone, because a
+// customer who feels the panel "doesn't work" gives up in front of a queue
+// instead of hunting for the close button.
+//
+// The scrim is heavy (60%) on purpose: it is what says the menu behind is
+// inert. A light scrim on a bright food photo reads as decoration, and
 // customers keep tapping the dish underneath.
 // ---------------------------------------------------------------------------
+
+/** Past this many pixels the sheet is going away; below it, it springs back. */
+const DISMISS_AFTER = 140
 
 export interface SheetProps {
   open: boolean
@@ -23,9 +32,13 @@ export interface SheetProps {
 }
 
 export function Sheet({ open, onClose, footer, title, children, ...rest }: SheetProps) {
-  // Escape closes it — for the operator with a keyboard, and for Playwright.
+  const [drag, setDrag] = useState(0)
+  const start = useRef<number | null>(null)
+  const body = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     if (!open) return
+    setDrag(0)
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose()
     }
@@ -35,6 +48,28 @@ export function Sheet({ open, onClose, footer, title, children, ...rest }: Sheet
 
   if (!open) return null
 
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    // Only start a drag when the body is already at the top. Otherwise a
+    // customer scrolling a long modifier list would fling the sheet away
+    // mid-read.
+    if ((body.current?.scrollTop ?? 0) > 0) return
+    start.current = event.clientY
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (start.current === null) return
+    // Downward only: dragging up must not detach the sheet from its edge.
+    setDrag(Math.max(0, event.clientY - start.current))
+  }
+
+  const onPointerUp = () => {
+    if (start.current === null) return
+    start.current = null
+    if (drag > DISMISS_AFTER) onClose()
+    else setDrag(0)
+  }
+
   return (
     <div className="absolute inset-0 z-40 flex flex-col justify-end">
       <button
@@ -43,6 +78,7 @@ export function Sheet({ open, onClose, footer, title, children, ...rest }: Sheet
         data-testid="sheet-scrim"
         onClick={onClose}
         className="absolute inset-0 bg-black/60"
+        style={{ opacity: Math.max(0.35, 1 - drag / 400) }}
       />
 
       <div
@@ -50,20 +86,40 @@ export function Sheet({ open, onClose, footer, title, children, ...rest }: Sheet
         aria-modal="true"
         aria-label={title}
         data-testid={rest['data-testid'] ?? 'sheet'}
-        // Enters from the bottom edge it is anchored to. Exit is handled by
-        // unmount — a kiosk never needs to watch a sheet leave.
         className="relative flex max-h-[86%] flex-col overflow-hidden rounded-t-sheet bg-white motion-safe:animate-[sheet-in_260ms_cubic-bezier(0.16,1,0.3,1)]"
+        style={{
+          transform: drag ? `translateY(${drag}px)` : undefined,
+          // No transition while the finger is down — the sheet must track it
+          // exactly — and a spring back when it lifts.
+          transition: start.current === null ? 'transform 220ms cubic-bezier(0.16,1,0.3,1)' : 'none',
+        }}
       >
-        {title ? (
-          <h2
-            className="shrink-0 px-[6cqw] pb-[2cqw] pt-[5cqw] text-center font-display uppercase tracking-tight"
-            style={{ fontSize: 'var(--step-title)' }}
-          >
-            {title}
-          </h2>
-        ) : null}
+        {/* The grab area: the handle plus the title, so the whole top of the
+            sheet is draggable rather than a 4px bar nobody can hit. */}
+        <div
+          data-testid="sheet-handle"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          className="shrink-0 cursor-grab touch-none pt-[2.5cqw]"
+        >
+          <span aria-hidden className="mx-auto block h-[0.7cqw] w-[12cqw] rounded-full bg-edge/40" />
+          {title ? (
+            <h2
+              className="px-[6cqw] pb-[2cqw] pt-[2.5cqw] text-center font-display uppercase tracking-tight"
+              style={{ fontSize: 'var(--step-title)' }}
+            >
+              {title}
+            </h2>
+          ) : (
+            <span className="block pb-[2cqw]" />
+          )}
+        </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-[6cqw] pb-[4cqw]">{children}</div>
+        <div ref={body} className="min-h-0 flex-1 overflow-y-auto px-[6cqw] pb-[4cqw]">
+          {children}
+        </div>
 
         {footer ? <div className="shrink-0">{footer}</div> : null}
       </div>

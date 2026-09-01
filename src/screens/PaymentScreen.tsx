@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Banknote, CreditCard, QrCode, X } from 'lucide-react'
+import { Banknote, Check, CreditCard, QrCode, X } from 'lucide-react'
 import { BottomBar, TotemButton } from '@/design'
 import { brl, cartTotalCents, useCart } from '@/cart/useCart'
 import { paymentTerminal, type PaymentMethod, type PaymentStatus } from '@/payment'
@@ -7,9 +7,9 @@ import { placeOrder } from '@/orders/place-order'
 import { useTotemSession } from '@/session/useTotemSession'
 
 const METHODS: { id: PaymentMethod; label: string; icon: React.ReactNode; hint: string }[] = [
-  { id: 'card', label: 'Cartão', icon: <CreditCard strokeWidth={2} className="size-[7cqw]" />, hint: 'na maquininha' },
-  { id: 'pix', label: 'Pix', icon: <QrCode strokeWidth={2} className="size-[7cqw]" />, hint: 'QR na tela' },
-  { id: 'cash', label: 'Dinheiro', icon: <Banknote strokeWidth={2} className="size-[7cqw]" />, hint: 'no caixa' },
+  { id: 'card', label: 'Cartão', icon: <CreditCard strokeWidth={2} className="size-[5cqw]" />, hint: 'na maquininha ao lado' },
+  { id: 'pix', label: 'Pix', icon: <QrCode strokeWidth={2} className="size-[5cqw]" />, hint: 'QR code aqui na tela' },
+  { id: 'cash', label: 'Dinheiro', icon: <Banknote strokeWidth={2} className="size-[5cqw]" />, hint: 'pague no caixa' },
 ]
 
 const SAYS: Record<PaymentStatus, string> = {
@@ -67,35 +67,64 @@ export function PaymentScreen() {
         <h1 className="font-display uppercase leading-[0.9] tracking-tight" style={{ fontSize: 'var(--step-display)' }}>
           Como quer pagar?
         </h1>
-        <p className="tnum mt-[2cqw] font-bold text-action" style={{ fontSize: 'var(--step-title)' }}>
-          {brl(totalCents)}
-        </p>
+
+        {/* The amount is the biggest thing on the screen. It is the one number
+            a customer must not be surprised by at the terminal. */}
+        <div className="mt-[4cqw] rounded-totem bg-ink px-[5cqw] py-[4cqw] text-white">
+          <p className="uppercase tracking-[0.3em] text-white/55" style={{ fontSize: 'var(--step-label)' }}>
+            Total a pagar
+          </p>
+          <p className="tnum font-display leading-none" style={{ fontSize: 'var(--step-hero)' }}>
+            {brl(totalCents)}
+          </p>
+          <p className="mt-[1cqw] uppercase tracking-[0.2em] text-white/55" style={{ fontSize: 'var(--step-label)' }}>
+            {lines.reduce((n, l) => n + l.quantity, 0)} {lines.reduce((n, l) => n + l.quantity, 0) === 1 ? 'item' : 'itens'}
+          </p>
+        </div>
 
         <div className="mt-auto pt-[6cqw]">
-          <div className="grid grid-cols-3 gap-[3cqw]">
-            {METHODS.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                data-testid={`pay-${option.id}`}
-                aria-pressed={method === option.id}
-                disabled={busy}
-                onClick={() => setMethod(option.id)}
-                className={[
-                  'press flex min-h-[26cqw] flex-col items-center justify-center gap-[2cqw] rounded-totem',
-                  method === option.id ? 'bg-ink text-white' : 'bg-white text-ink border-2 border-edge',
-                  'disabled:opacity-50',
-                ].join(' ')}
-              >
-                {option.icon}
-                <span className="font-semibold uppercase tracking-[0.12em]" style={{ fontSize: 'var(--step-body)' }}>
-                  {option.label}
-                </span>
-                <span className="uppercase tracking-[0.2em] opacity-60" style={{ fontSize: 'var(--step-label)' }}>
-                  {option.hint}
-                </span>
-              </button>
-            ))}
+          {/* One method per row, not a grid of squares: the label and the
+              instruction ("na maquininha ao lado") sit side by side, and the
+              chosen one is unmistakable rather than one dark tile among three. */}
+          <div className="flex flex-col gap-[2cqw]">
+            {METHODS.map((option) => {
+              const chosen = method === option.id
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  data-testid={`pay-${option.id}`}
+                  aria-pressed={chosen}
+                  disabled={busy}
+                  onClick={() => setMethod(option.id)}
+                  className={[
+                    'press flex min-h-[var(--tap-lg)] items-center gap-[3cqw] rounded-totem px-[4cqw] text-left',
+                    chosen ? 'bg-ink text-white' : 'bg-white text-ink border-2 border-edge',
+                    'disabled:opacity-50',
+                  ].join(' ')}
+                >
+                  <span className={chosen ? 'text-white' : 'text-ink'}>{option.icon}</span>
+                  <span className="min-w-0 flex-1">
+                    <span
+                      className="block font-semibold uppercase tracking-[0.12em]"
+                      style={{ fontSize: 'var(--step-body)' }}
+                    >
+                      {option.label}
+                    </span>
+                    <span
+                      className={['block uppercase tracking-[0.18em]', chosen ? 'text-white/60' : 'text-muted'].join(' ')}
+                      style={{ fontSize: 'var(--step-label)' }}
+                    >
+                      {option.hint}
+                    </span>
+                  </span>
+                  <Check
+                    strokeWidth={3}
+                    className={['size-[3.4cqw] shrink-0', chosen ? 'opacity-100' : 'opacity-0'].join(' ')}
+                  />
+                </button>
+              )
+            })}
           </div>
 
           {status !== 'idle' ? (

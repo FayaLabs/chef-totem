@@ -7,25 +7,27 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: '#0B0B0C',
-        surface: '#FFFFFF',
-        page: '#F4F4F5',
-        action: '#DC2626',
-        gold: '#A16207',
+        // Each maps to a CSS variable so a tenant theme can override it at
+        // runtime (see src/design/theme.ts). The literal here is the default.
+        ink: 'var(--color-ink, #0B0B0C)',
+        surface: 'var(--color-surface, #FFFFFF)',
+        page: 'var(--color-page, #F4F4F5)',
+        action: 'var(--color-action, #DC2626)',
+        gold: 'var(--color-accent, #A16207)',
         muted: '#6B7280',
         // Dividers only — never the sole boundary of something tappable.
         hairline: '#E4E4E7',
-        // The boundary of an outlined CONTROL. 4.0:1 against the page, because
-        // white-on-near-white leaves the border carrying the whole affordance.
-        edge: '#71717A',
+        // The boundary of an outlined CONTROL. Must clear 3:1 against the page,
+        // because white-on-near-white leaves the border carrying the affordance.
+        edge: 'var(--color-edge, #71717A)',
         // Disabled is a neutral, not a faded accent: a pale red button reads
         // as "red button, dim screen", and the customer keeps tapping it.
         'disabled-bg': '#E4E4E7',
         'disabled-fg': '#52525B',
       },
       fontFamily: {
-        display: ['Anton', 'Archivo', 'Impact', 'sans-serif'],
-        body: ['Archivo', 'system-ui', 'sans-serif'],
+        display: ['var(--font-display)', 'Anton', 'Impact', 'sans-serif'],
+        body: ['var(--font-body)', 'Archivo', 'system-ui', 'sans-serif'],
       },
       // Touch sizes, not spacing. 88px is the kiosk floor (~27mm at 82 DPI);
       // 44px would be 13mm, under the 19mm standard.
@@ -34,7 +36,7 @@ export default {
         'tap-lg': '104px',
         'tap-bar': '120px',
       },
-      borderRadius: { totem: '28px', sheet: '40px' },
+      borderRadius: { totem: 'var(--radius-totem, 28px)', sheet: '40px' },
     },
   },
   plugins: [],

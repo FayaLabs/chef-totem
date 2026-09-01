@@ -179,3 +179,55 @@ test.describe('M1 · design system', () => {
     expect(onTop).not.toBe('reach-toggle')
   })
 })
+
+test.describe('M1 · sheet e tema', () => {
+  test('arrastar o sheet para baixo fecha', async ({ page }) => {
+    // Everyone arrives carrying a phone's muscle memory, and on a phone a
+    // bottom sheet is dragged away. A panel that ignores the gesture people
+    // already try reads as broken in front of a queue.
+    await page.goto('/?design')
+    await page.getByTestId('btn-open-sheet').scrollIntoViewIfNeeded()
+    await page.getByTestId('btn-open-sheet').tap()
+    await expect(page.getByTestId('sheet')).toBeVisible()
+
+    const handle = (await page.getByTestId('sheet-handle').boundingBox())!
+    const x = handle.x + handle.width / 2
+    await page.mouse.move(x, handle.y + 10)
+    await page.mouse.down()
+    for (const dy of [50, 120, 200, 260]) await page.mouse.move(x, handle.y + 10 + dy)
+    await page.mouse.up()
+
+    await expect(page.getByTestId('sheet')).toHaveCount(0)
+  })
+
+  test('um arrasto curto volta, não fecha', async ({ page }) => {
+    // Otherwise a customer who brushes the sheet while reaching for a chip
+    // loses their place.
+    await page.goto('/?design')
+    await page.getByTestId('btn-open-sheet').scrollIntoViewIfNeeded()
+    await page.getByTestId('btn-open-sheet').tap()
+
+    const handle = (await page.getByTestId('sheet-handle').boundingBox())!
+    const x = handle.x + handle.width / 2
+    await page.mouse.move(x, handle.y + 10)
+    await page.mouse.down()
+    await page.mouse.move(x, handle.y + 50)
+    await page.mouse.up()
+    await page.waitForTimeout(300)
+
+    await expect(page.getByTestId('sheet')).toBeVisible()
+  })
+
+  test('um tema de tenant que reprova em contraste é denunciado', async ({ page }) => {
+    // A restaurant picking their brand colour is not thinking about a dining
+    // room at 2pm by the window. "Our red is a bit lighter" is how a Pagar
+    // button becomes unreadable.
+    await page.goto('/?design')
+    const warnings = await page.evaluate(async () => {
+      const { checkTheme, defaultTheme } = await import('/src/design/theme.ts')
+      return checkTheme({ ...defaultTheme, action: '#FF9AA2', edge: '#F2F2F3' }).map((w) => w.token)
+    })
+    expect(warnings).toContain('action')
+    expect(warnings).toContain('edge')
+  })
+})

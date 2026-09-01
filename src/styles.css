@@ -102,8 +102,8 @@
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
     touch-action: manipulation;
-    font-family: 'Archivo', system-ui, sans-serif;
-    color: #0b0b0c;
+    font-family: var(--font-body, 'Archivo', system-ui, sans-serif);
+    color: var(--color-ink, #0b0b0c);
   }
 
   /* Prices must not shift width as digits change under a stepper. */

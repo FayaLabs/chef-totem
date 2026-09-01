@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { MediaBackdrop } from '@/design'
 import { totemConfig } from '@/config/totem.config'
+import { prefetchCatalog } from '@/menu/useCatalog'
 import { useTotemSession } from '@/session/useTotemSession'
 
 // ---------------------------------------------------------------------------
@@ -13,6 +15,14 @@ import { useTotemSession } from '@/session/useTotemSession'
 export function AttractScreen() {
   const start = useTotemSession((s) => s.start)
   const { brand, media } = totemConfig
+
+  // Sign the device in and pull the menu while nobody is waiting. By the time
+  // the customer has chosen dine-in and skipped identification, it is there.
+  useEffect(() => {
+    void prefetchCatalog().catch(() => {
+      // Surfaced by the menu screen with a retry; the attract loop stays quiet.
+    })
+  }, [])
 
   return (
     <button

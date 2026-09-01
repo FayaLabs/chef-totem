@@ -79,6 +79,14 @@ export function ProductSheet({
         </TotemButton>
       }
     >
+      {product.imageUrl ? (
+        // Confirms, at a glance, that the sheet is about the card that was
+        // tapped. Without it the customer has to re-read the name to be sure.
+        <div className="mb-[3cqw] h-[34cqw] overflow-hidden rounded-totem bg-hairline">
+          <img src={product.imageUrl} alt="" className="size-full object-cover" data-testid="sheet-image" />
+        </div>
+      ) : null}
+
       {product.description ? (
         <p className="text-muted" style={{ fontSize: 'var(--step-body)' }}>
           {product.description}
@@ -93,7 +101,7 @@ export function ProductSheet({
       </div>
 
       {product.modifierGroups.map((group) => (
-        <section key={group.id} className="mt-[5cqw]">
+        <section key={group.id} className="mt-[4cqw]">
           <h3
             className="mb-[2cqw] uppercase tracking-[0.25em] text-muted"
             style={{ fontSize: 'var(--step-label)' }}
@@ -101,10 +109,12 @@ export function ProductSheet({
             {group.name}
             {group.required ? <span className="text-action"> · obrigatório</span> : null}
           </h3>
-          <div className="grid grid-cols-2 gap-[2cqw]">
+          {/* Three to a row: a five-option group used to be a scroll. */}
+          <div className="grid grid-cols-3 gap-[1.5cqw]">
             {group.modifiers.map((modifier) => (
               <Chip
                 key={modifier.id}
+                compact
                 data-testid={`mod-${modifier.id}`}
                 selected={(chosen[group.id] ?? []).includes(modifier.id)}
                 surchargeCents={modifier.surchargeCents || undefined}

@@ -138,3 +138,54 @@ cliente continua tocando no prato de trás.
 - `prefers-reduced-motion` zera tudo, inclusive o vídeo de fundo.
 - Um elemento em movimento por tela. Vídeo de fundo não conta como movimento de
   interface.
+
+## Tema por tenant
+
+Toda cor, fonte e raio é uma variável CSS. Um restaurante novo é um objeto de
+configuração (`totemConfig.theme`), não um fork.
+
+```ts
+theme: { action: '#0F766E', ink: '#111827', accent: '#F59E0B', radius: 20 }
+```
+
+**O que NÃO é tematizável, de propósito:**
+
+- **Tamanho de toque** (88 / 104 / 120px). Isso é ergonomia, não marca. Um
+  tenant que quer "botões mais justos" quer um painel onde as pessoas erram.
+- **O piso de contraste.** `checkTheme()` roda antes da primeira pintura e
+  reprova o que falha em AA. Um restaurante escolhendo a cor da marca não está
+  pensando no salão às 14h contra a janela — "nosso vermelho é um pouco mais
+  claro" é como o botão de Pagar fica ilegível.
+
+Reprovar avisa no console em vez de lançar: uma marca levemente fora do padrão
+deve subir com reclamação, não deixar a loja sem vender.
+
+## Sheet: arrastar para baixo fecha
+
+Todo mundo chega ao totem carregando a memória muscular do celular, e no
+celular um sheet se arrasta para fora. Obedecer ao gesto que a pessoa já tenta
+vale mais aqui do que no telefone: um cliente que sente que "o totem não
+funciona" desiste na frente da fila em vez de procurar o botão de fechar.
+
+- Só arrasta se o corpo já está no topo — senão, rolar uma lista longa de
+  modificadores jogaria o sheet fora no meio da leitura.
+- 140px é o limite. Abaixo disso volta, para que um esbarrão não custe o lugar.
+
+## Velocidade
+
+O cardápio é buscado no **attract**, não quando a tela de menu monta. Carregar
+ali media **3,2s** — login do aparelho mais seis queries — com o cliente
+olhando um esqueleto depois de já ter feito tudo o que foi pedido dele.
+
+Como o cliente leva três toques para chegar, o prefetch cabe inteiro nesse
+intervalo:
+
+| | espera pelo cardápio |
+|---|---|
+| sem prefetch | 3.174 ms |
+| robô (3 toques instantâneos) | 786 ms |
+| **ritmo humano (1,5s por toque)** | **2 ms** |
+
+O carrinho é local e instantâneo — não há request para ser otimista. A única
+escrita de rede é o pedido, e essa **não** deve ser otimista: é dinheiro, e o
+cliente precisa saber se falhou.
