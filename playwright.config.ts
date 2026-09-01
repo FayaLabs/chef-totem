@@ -30,10 +30,16 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
+  // Locally this reuses whatever is already on :5310; on CI there is nothing
+  // running, so Playwright starts (and owns) the dev server itself.
   webServer: {
     command: 'npm run dev',
     url: BASE_URL,
-    reuseExistingServer: true,
-    timeout: 120_000,
+    reuseExistingServer: !process.env.CI,
+    timeout: 180_000,
+    stdout: 'ignore',
+    stderr: 'pipe',
   },
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 1 : 0,
 })
