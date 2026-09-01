@@ -96,7 +96,7 @@ export function MenuScreen() {
             </div>
 
             <div
-              data-testid="product-grid"
+              data-testid="menu-grid"
               className="grid min-h-0 flex-1 auto-rows-min grid-cols-2 gap-[3cqw] overflow-y-auto px-[3cqw] pb-[calc(var(--tap-bar)+4cqw)]"
             >
               {products.length === 0 ? (
@@ -218,6 +218,11 @@ function RailButton({
 }
 
 function ProductCard({ product, onOpen }: { product: TotemProduct; onOpen: () => void }) {
+  // A photo URL that 404s must fall back to the icon, not leave an empty grey
+  // box. On a panel whose whole pitch is the food imagery, a silently broken
+  // image reads as a broken product.
+  const [imageBroken, setImageBroken] = useState(false)
+
   return (
     <button
       type="button"
@@ -228,8 +233,15 @@ function ProductCard({ product, onOpen }: { product: TotemProduct; onOpen: () =>
       className="press flex min-h-[34cqw] flex-col overflow-hidden rounded-totem bg-white text-left disabled:opacity-60"
     >
       <div className="relative h-[18cqw] shrink-0 bg-hairline">
-        {product.imageUrl ? (
-          <img src={product.imageUrl} alt="" className="size-full object-cover" />
+        {product.imageUrl && !imageBroken ? (
+          <img
+            src={product.imageUrl}
+            alt=""
+            loading="lazy"
+            data-testid={`img-${product.id}`}
+            onError={() => setImageBroken(true)}
+            className="size-full object-cover"
+          />
         ) : (
           <div className="grid size-full place-items-center text-muted">
             <UtensilsCrossed strokeWidth={1.5} className="size-[6cqw]" />

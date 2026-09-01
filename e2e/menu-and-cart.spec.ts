@@ -5,7 +5,7 @@ async function toMenu(page: Page) {
   await page.getByTestId('attract').tap()
   await page.getByTestId('mode-dine-in').tap()
   await page.getByTestId('identify-skip').tap()
-  await expect(page.getByTestId('product-grid')).toBeVisible()
+  await expect(page.getByTestId('menu-grid')).toBeVisible()
 }
 
 test.describe('M3 · cardápio', () => {

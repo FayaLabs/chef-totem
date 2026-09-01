@@ -9,9 +9,15 @@ import type { CatalogProvider, TotemCatalog, TotemModifierGroup } from '@/menu/t
 // totem never edits the menu — if a dish is wrong, it is wrong in ChefControl.
 //
 // The shape here is the restaurant pool's, which is older than plugin-menu's
-// menus/sections model: a menu category is `categories WHERE kind =
-// 'menu_category'`, an item is a `products` row, and the restaurant-specific
+// menus/sections model: an item is a `products` row and the restaurant-specific
 // bits (sold out, featured, prep time) live in `menu_items` keyed by product.
+//
+// Categories are read regardless of `kind`, and then filtered to the ones that
+// actually have something sellable in them. Keying on kind = 'menu_category'
+// looked right and was wrong: Artorius sells real food out of a category with
+// kind = 'product' (it grew out of a shop), while its three `menu_category`
+// rows are inactive and empty. A totem should not care which noun a tenant
+// happened to file its food under — it should show the food.
 // ---------------------------------------------------------------------------
 
 const CENTS = (value: unknown): number => Math.round(Number(value ?? 0) * 100)
@@ -25,9 +31,8 @@ export function createSupabaseCatalog(): CatalogProvider {
       const [categories, products, menuItems, groups, modifiers, links] = await Promise.all([
         supabase
           .from('categories')
-          .select('id,name,icon,sort_order')
+          .select('id,name,icon,sort_order,kind')
           .eq('tenant_id', tenantId)
-          .eq('kind', 'menu_category')
           .eq('is_active', true)
           .order('sort_order'),
         supabase
@@ -97,14 +102,7 @@ export function createSupabaseCatalog(): CatalogProvider {
         groupsByProduct.set(row.product_id as string, list)
       }
 
-      return {
-        categories: (categories.data ?? []).map((row) => ({
-          id: row.id as string,
-          name: row.name as string,
-          icon: (row.icon as string | null) ?? undefined,
-          sortOrder: Number(row.sort_order ?? 0),
-        })),
-        products: (products.data ?? [])
+      const sellable = (products.data ?? [])
           .map((row) => {
             const item = itemByProduct.get(row.id as string)
             const metadata = (row.metadata ?? {}) as Record<string, unknown>
@@ -127,9 +125,24 @@ export function createSupabaseCatalog(): CatalogProvider {
               modifierGroups: groupsByProduct.get(row.id as string) ?? [],
             }
           })
-          // A dish with no price is an ingredient someone typed into the
-          // catalog, not something a customer can buy.
-          .filter((product) => product.priceCents > 0),
+        // A dish with no price is an ingredient someone typed into the
+        // catalog, not something a customer can buy.
+        .filter((product) => product.priceCents > 0)
+
+      // Only categories that lead somewhere. An empty tab on a kiosk is a dead
+      // end the customer has to back out of, in front of a queue.
+      const populated = new Set(sellable.map((product) => product.categoryId).filter(Boolean))
+
+      return {
+        categories: (categories.data ?? [])
+          .filter((row) => populated.has(row.id as string))
+          .map((row) => ({
+            id: row.id as string,
+            name: row.name as string,
+            icon: (row.icon as string | null) ?? undefined,
+            sortOrder: Number(row.sort_order ?? 0),
+          })),
+        products: sellable,
       }
     },
   }
