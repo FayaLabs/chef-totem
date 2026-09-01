@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* --------------------------------------------------------------------------
+   Type and space scale.
+
+   Sized in `cqw` against the 9:16 stage (see TotemViewport), not `vw` against
+   the window — so the composition is identical on the 1080x1920 panel and in a
+   1080x1920 Playwright screenshot on a laptop. At 1080 wide, 1cqw = 10.8px.
+   -------------------------------------------------------------------------- */
+@layer base {
+  :root {
+    --step-hero: 9cqw;
+    --step-display: 6cqw;
+    --step-title: 3.4cqw;
+    --step-body: 1.9cqw;
+    --step-label: 1.3cqw;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+    background: #000;
+  }
+
+  body {
+    /* No text selection, no callout, no tap highlight, no pull-to-refresh.
+       A customer's finger should only ever do what a button says it does. */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+    touch-action: manipulation;
+    font-family: theme('fontFamily.body');
+    color: theme('colors.ink');
+  }
+
+  /* Prices and totals must not shift width as digits change under a stepper. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  /* Kiosk press feedback. There is no hover on a panel: a :hover rule here
+     would stick to the last-touched element and read as a stuck selection. */
+  .press {
+    transition: transform 120ms ease-out, opacity 120ms ease-out;
+  }
+  .press:active {
+    transform: scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
