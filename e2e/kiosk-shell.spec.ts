@@ -21,6 +21,12 @@ test.describe('M0 · casca de quiosque', () => {
     await page.getByTestId('attract').tap()
     await expect(page.getByTestId('screen-mode')).toBeVisible()
 
+    await page.getByTestId('mode-dine-in').tap()
+    await page.getByTestId('identify-skip').tap()
+    await expect(page.getByTestId('screen-menu')).toBeVisible()
+
+    // `reset` is the single door out of a visit — the idle timeout (M7), the
+    // cancel button and the receipt countdown all go through it.
     await page.getByTestId('reset').tap()
     await expect(page.getByTestId('attract')).toBeVisible()
   })
@@ -38,8 +44,8 @@ test.describe('M0 · casca de quiosque', () => {
     // 300ms, so tapping two modifier chips in a row lost the second one.
     await page.goto('/')
     await page.getByTestId('attract').tap()
-    await page.getByTestId('reset').tap()
-    await expect(page.getByTestId('attract')).toBeVisible()
+    await page.getByTestId('mode-dine-in').tap()
+    await expect(page.getByTestId('screen-identify')).toBeVisible()
   })
 
   test('o viewport não trava o zoom do sistema', async ({ page }) => {

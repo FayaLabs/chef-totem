@@ -14,10 +14,20 @@ export interface TotemFlags {
   printer: boolean
 }
 
+/** What the attract loop plays. Supplied by the tenant, not by the app. */
+export interface TotemMedia {
+  /** Looping video. Optional — a still is a perfectly good attract loop. */
+  videoUrl?: string
+  /** Shown while the video loads, and INSTEAD of it if the video ever fails. */
+  posterUrl?: string
+}
+
 export interface TotemConfig {
   totemId: string
   tenantId: string
   unitId: string
+  brand: { name: string; tagline: string }
+  media: TotemMedia
   currency: string
   locale: string
   timeZone: string
@@ -34,6 +44,10 @@ export const totemConfig: TotemConfig = {
   totemId: env.VITE_TOTEM_ID ?? 'totem-dev',
   tenantId: env.VITE_TENANT_ID ?? '',
   unitId: env.VITE_UNIT_ID ?? '',
+  brand: { name: 'Chef', tagline: 'Feito na hora para você' },
+  // Dev placeholder; the tenant's own media replaces this. See
+  // public/dev-media/README.md.
+  media: { posterUrl: '/dev-media/attract.jpg' },
   currency: 'BRL',
   locale: 'pt-BR',
   timeZone: 'America/Sao_Paulo',

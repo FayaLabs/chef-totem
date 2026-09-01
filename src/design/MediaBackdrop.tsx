@@ -44,7 +44,10 @@ export function MediaBackdrop({ videoSrc, posterSrc, scrim = 55 }: MediaBackdrop
   }, [showVideo])
 
   return (
-    <div className="absolute inset-0 -z-10 overflow-hidden bg-ink" data-testid="media-backdrop">
+    // z-0, not -z-10: a negative index puts this BEHIND the stage's own
+    // background, which paints over it and leaves a black panel. Content that
+    // sits on top must be `relative z-10`.
+    <div className="absolute inset-0 z-0 overflow-hidden bg-ink" data-testid="media-backdrop">
       {showVideo ? (
         <video
           ref={videoRef}

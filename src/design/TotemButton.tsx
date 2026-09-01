@@ -9,7 +9,7 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react'
 // `bar` is the full-width commit at the bottom of the screen.
 // ---------------------------------------------------------------------------
 
-type Tone = 'action' | 'ink' | 'ghost' | 'quiet'
+type Tone = 'action' | 'ink' | 'ghost' | 'quiet' | 'bar-quiet'
 type Size = 'base' | 'lg' | 'bar'
 
 const TONES: Record<Tone, string> = {
@@ -20,6 +20,10 @@ const TONES: Record<Tone, string> = {
   ghost: 'border-2 border-white/70 bg-white/10 text-white backdrop-blur-sm',
   // The out. Same height as its sibling so "skip" never reads as second-class.
   quiet: 'bg-white text-ink border-2 border-edge',
+  // The neutral half of a split bottom bar. No border: inside a full-bleed bar
+  // a bordered pill reads as a mistake, and the stray edge made the two halves
+  // 2px different, which is exactly the kind of "same weight" that is not.
+  'bar-quiet': 'bg-page text-ink',
 }
 
 const SIZES: Record<Size, string> = {

@@ -94,8 +94,17 @@ vidro — e não pode encolher porque alguém montou um painel menor.
 
 ## Zona de alcance
 
-**Nada interativo acima de 40% da altura.** O topo é vitrine: foto, título,
-marca. O comando mora embaixo.
+**O caminho primário mora abaixo de 40% da altura.** O topo é vitrine: foto,
+título, marca.
+
+Primário é o que faz o pedido andar — escolher o modo, digitar, confirmar,
+finalizar. Controle **secundário** (seletor de tipo, filtro de categoria) pode
+ficar mais alto; é para isso que o modo acessível existe.
+
+A regra estava escrita como "nada interativo acima de 40%" e eu mesmo a quebrei
+na primeira tela com teclado. `e2e/reach-zone.spec.ts` mede, por tela, quais
+`testid` são primários — mudar isso agora custa um teste vermelho, não uma
+lembrança.
 
 ### Modo acessível
 O botão de acessibilidade (canto inferior esquerdo, dentro da `BottomBar`)
