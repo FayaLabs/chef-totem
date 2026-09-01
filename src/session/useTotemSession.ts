@@ -21,6 +21,14 @@ export interface TotemCustomer {
   name?: string
 }
 
+/** What the receipt screen needs, handed over by the payment screen. */
+export interface CompletedOrder {
+  orderId: string
+  ticket: string
+  referenceNumber: string
+  totalCents: number
+}
+
 interface TotemSessionState {
   step: TotemStep
   mode: ServiceMode | null
@@ -29,11 +37,13 @@ interface TotemSessionState {
   ticket: string | null
   /** Bumped on every reset so effects keyed on it re-run for a fresh visit. */
   visitId: number
+  placed: CompletedOrder | null
 
   start: () => void
   chooseMode: (mode: ServiceMode) => void
   identify: (customer: TotemCustomer | null) => void
   goTo: (step: TotemStep) => void
+  completeOrder: (order: CompletedOrder) => void
   reset: () => void
 }
 
@@ -47,6 +57,7 @@ const emptyVisit = {
   mode: null,
   customer: null,
   ticket: null,
+  placed: null,
 }
 
 export const useTotemSession = create<TotemSessionState>((set, get) => ({
@@ -60,6 +71,11 @@ export const useTotemSession = create<TotemSessionState>((set, get) => ({
   identify: (customer) => set({ customer, step: 'menu' }),
 
   goTo: (step) => set({ step }),
+
+  // The ticket is REPLACED by the one the shared sequence minted: until this
+  // point it was a placeholder, and the number the customer walks away with
+  // has to be the number the kitchen sees.
+  completeOrder: (order) => set({ placed: order, ticket: order.ticket, step: 'receipt' }),
 
   reset: () => set({ ...emptyVisit, visitId: get().visitId + 1 }),
 }))

@@ -53,6 +53,10 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_TENANT_ID: ${{ vars.VITE_TENANT_ID }}
           VITE_UNIT_ID: ${{ vars.VITE_UNIT_ID }}
+          # A runner has no device credentials for the tenant, so the screens
+          # are exercised against the demo menu. The live provider's shape is
+          # covered by e2e/catalog-contract.spec.ts.
+          VITE_TOTEM_CATALOG: demo
 
       - name: Upload the failure trace
         if: failure()
