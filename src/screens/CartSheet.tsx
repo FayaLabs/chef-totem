@@ -1,6 +1,7 @@
 import { ArrowRight, Trash2 } from 'lucide-react'
 import { Sheet, Stepper, TotemButton } from '@/design'
 import { brl, cartTotalCents, useCart } from '@/cart/useCart'
+import { useMenuUi } from '@/menu/useMenuUi'
 import { useTotemSession } from '@/session/useTotemSession'
 
 export function CartSheet({ open, onClose }: { open: boolean; onClose: () => void }) {

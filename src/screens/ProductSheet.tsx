@@ -1,53 +1,32 @@
-import { useEffect, useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { Chip, Sheet, Stepper, TotemButton } from '@/design'
-import { brl, lineUnitCents, useCart } from '@/cart/useCart'
-import type { TotemModifier, TotemProduct } from '@/menu/types'
+import { brl, useCart } from '@/cart/useCart'
+import {
+  draftBlocking,
+  draftModifiers,
+  draftUnitCents,
+  useProductDraft,
+} from '@/menu/useProductDraft'
+import type { TotemProduct } from '@/menu/types'
 
 // Customising a dish without leaving the menu. The price recalculates as the
 // customer taps, so the total is never a surprise at the till.
-export function ProductSheet({
-  product,
-  onClose,
-}: {
-  product: TotemProduct | null
-  onClose: () => void
-}) {
+//
+// A pure renderer over `useProductDraft`: everything it shows, the assistant
+// can also set — which is what lets a spoken "sem cebola" light the chip up.
+export function ProductSheet({ product, onClose }: { product: TotemProduct | null; onClose: () => void }) {
   const add = useCart((s) => s.add)
-  const [quantity, setQuantity] = useState(1)
-  const [chosen, setChosen] = useState<Record<string, string[]>>({})
-
-  useEffect(() => {
-    setQuantity(1)
-    setChosen({})
-  }, [product?.id])
-
-  const selected: TotemModifier[] = useMemo(() => {
-    if (!product) return []
-    return product.modifierGroups.flatMap((group) =>
-      group.modifiers.filter((modifier) => (chosen[group.id] ?? []).includes(modifier.id)),
-    )
-  }, [product, chosen])
+  const quantity = useProductDraft((s) => s.quantity)
+  const chosen = useProductDraft((s) => s.chosen)
+  const setQuantity = useProductDraft((s) => s.setQuantity)
+  const toggle = useProductDraft((s) => s.toggle)
 
   if (!product) return null
 
   // A required group that is not satisfied blocks the commit AND says which
   // one — a button that is simply grey teaches nothing.
-  const missing = product.modifierGroups.find(
-    (group) => group.required && (chosen[group.id] ?? []).length < Math.max(1, group.minSelections),
-  )
-
-  const unit = lineUnitCents(product, selected)
-
-  const toggle = (groupId: string, modifierId: string, max: number) => {
-    setChosen((current) => {
-      const list = current[groupId] ?? []
-      if (list.includes(modifierId)) return { ...current, [groupId]: list.filter((id) => id !== modifierId) }
-      if (max === 1) return { ...current, [groupId]: [modifierId] }
-      if (list.length >= max) return current
-      return { ...current, [groupId]: [...list, modifierId] }
-    })
-  }
+  const missing = draftBlocking(product, chosen)
+  const unit = draftUnitCents(product, chosen)
 
   return (
     <Sheet
@@ -62,12 +41,12 @@ export function ProductSheet({
           data-testid="add-to-order"
           disabled={Boolean(missing)}
           onClick={() => {
-            add(product, quantity, selected)
+            add(product, quantity, draftModifiers(product, chosen))
             onClose()
           }}
         >
           {missing ? (
-            `Escolha: ${missing.name}`
+            `Escolha: ${missing.groupName}`
           ) : (
             <>
               <Plus strokeWidth={3} className="size-[2.4cqw]" /> Adicionar ·{' '}

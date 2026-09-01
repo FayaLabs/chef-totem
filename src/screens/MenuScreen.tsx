@@ -3,12 +3,12 @@ import { LayoutGrid, RefreshCw, ShoppingCart, UtensilsCrossed, X } from 'lucide-
 import { BottomBar, Chip, TotemButton } from '@/design'
 import { brl, cartCount, cartTotalCents, useCart } from '@/cart/useCart'
 import { useCatalog } from '@/menu/useCatalog'
+import { useMenuUi } from '@/menu/useMenuUi'
+import { useProductDraft } from '@/menu/useProductDraft'
 import type { TotemProduct } from '@/menu/types'
 import { ProductSheet } from '@/screens/ProductSheet'
 import { CartSheet } from '@/screens/CartSheet'
 import { useTotemSession } from '@/session/useTotemSession'
-
-type Filter = 'all' | 'promo' | 'featured'
 
 // ---------------------------------------------------------------------------
 // Where the customer spends 80% of their time.
@@ -23,10 +23,20 @@ export function MenuScreen() {
   const reset = useTotemSession((s) => s.reset)
   const clearCart = useCart((s) => s.clear)
   const lines = useCart((s) => s.lines)
-  const [categoryId, setCategoryId] = useState<string | null>(null)
-  const [filter, setFilter] = useState<Filter>('all')
-  const [open, setOpen] = useState<TotemProduct | null>(null)
-  const [cartOpen, setCartOpen] = useState(false)
+
+  // Screen state lives in stores, not in this component, so the assistant can
+  // move the actual screen instead of silently editing the cart behind it.
+  const categoryId = useMenuUi((s) => s.categoryId)
+  const filter = useMenuUi((s) => s.filter)
+  const cartOpen = useMenuUi((s) => s.cartOpen)
+  const openCategory = useMenuUi((s) => s.openCategory)
+  const setFilter = useMenuUi((s) => s.setFilter)
+  const setCartOpen = useMenuUi((s) => s.setCartOpen)
+  const resetMenuUi = useMenuUi((s) => s.reset)
+
+  const openProductId = useProductDraft((s) => s.productId)
+  const openDraft = useProductDraft((s) => s.open)
+  const closeDraft = useProductDraft((s) => s.close)
 
   const products = useMemo(() => {
     if (state.status !== 'ready') return []
@@ -38,6 +48,11 @@ export function MenuScreen() {
     })
   }, [state, categoryId, filter])
 
+  const openProduct = useMemo(() => {
+    if (state.status !== 'ready' || !openProductId) return null
+    return state.catalog.products.find((product) => product.id === openProductId) ?? null
+  }, [state, openProductId])
+
   const count = cartCount(lines)
 
   return (
@@ -46,6 +61,8 @@ export function MenuScreen() {
         ticket={ticket}
         onCancel={() => {
           clearCart()
+          resetMenuUi()
+          closeDraft()
           reset()
         }}
       />
@@ -64,7 +81,7 @@ export function MenuScreen() {
               icon={<LayoutGrid strokeWidth={2.5} className="size-[4cqw]" />}
               label="Todos"
               testId="cat-all"
-              onClick={() => setCategoryId(null)}
+              onClick={() => openCategory(null)}
             />
             {state.catalog.categories.map((category) => (
               <RailButton
@@ -73,7 +90,7 @@ export function MenuScreen() {
                 icon={<UtensilsCrossed strokeWidth={2.5} className="size-[4cqw]" />}
                 label={category.name}
                 testId={`cat-${category.id}`}
-                onClick={() => setCategoryId(category.id)}
+                onClick={() => openCategory(category.id)}
               />
             ))}
           </nav>
@@ -105,7 +122,7 @@ export function MenuScreen() {
                 </p>
               ) : null}
               {products.map((product) => (
-                <ProductCard key={product.id} product={product} onOpen={() => setOpen(product)} />
+                <ProductCard key={product.id} product={product} onOpen={() => openDraft(product.id)} />
               ))}
             </div>
           </div>
@@ -136,7 +153,7 @@ export function MenuScreen() {
         </TotemButton>
       </BottomBar>
 
-      <ProductSheet product={open} onClose={() => setOpen(null)} />
+      <ProductSheet product={openProduct} onClose={closeDraft} />
       <CartSheet open={cartOpen} onClose={() => setCartOpen(false)} />
     </div>
   )

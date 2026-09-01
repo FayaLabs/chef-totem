@@ -39,6 +39,11 @@ jobs:
           VITE_TENANT_ID: ${{ vars.VITE_TENANT_ID }}
           VITE_UNIT_ID: ${{ vars.VITE_UNIT_ID }}
 
+      # The waiter's brain: pure TypeScript over the stores, no DOM, no audio,
+      # no network. Runs before the browser is even installed.
+      - name: Unit (cérebro do garçom)
+        run: npm test
+
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
