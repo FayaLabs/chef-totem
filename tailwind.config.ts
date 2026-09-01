@@ -13,7 +13,15 @@ export default {
         action: '#DC2626',
         gold: '#A16207',
         muted: '#6B7280',
+        // Dividers only — never the sole boundary of something tappable.
         hairline: '#E4E4E7',
+        // The boundary of an outlined CONTROL. 4.0:1 against the page, because
+        // white-on-near-white leaves the border carrying the whole affordance.
+        edge: '#71717A',
+        // Disabled is a neutral, not a faded accent: a pale red button reads
+        // as "red button, dim screen", and the customer keeps tapping it.
+        'disabled-bg': '#E4E4E7',
+        'disabled-fg': '#52525B',
       },
       fontFamily: {
         display: ['Anton', 'Archivo', 'Impact', 'sans-serif'],
