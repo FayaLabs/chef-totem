@@ -5,7 +5,6 @@ import type { WaiterTransport } from '@/waiter/transport'
 
 export { WaiterDock, WAITER_DOCK_HEIGHT } from '@/waiter/WaiterDock'
 export { WaiterPanel } from '@/waiter/WaiterPanel'
-export { WaiterOrb } from '@/waiter/WaiterOrb'
 export { VoiceOrb } from '@/waiter/VoiceOrb'
 export { useWaiter, lastWaiterLine, type WaiterPhase, type WaiterTurn } from '@/waiter/useWaiter'
 export { buildSnapshot, type WaiterSnapshot } from '@/waiter/snapshot'

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ArrowUp } from 'lucide-react'
-import { Sheet, TotemButton } from '@/design'
-import { WaiterOrb } from '@/waiter/WaiterOrb'
+import { Sheet } from '@/design'
+import { VoiceOrb } from '@/waiter/VoiceOrb'
 import { useWaiter } from '@/waiter/useWaiter'
 
 // The whole conversation, when the customer wants to see it — plus a keyboard,
@@ -24,10 +24,33 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
 
   return (
     <Sheet open={expanded} onClose={() => setExpanded(false)} data-testid="waiter-panel">
+      {/* O MESMO orbe da barra, não um segundo desenho. Duas representações do
+          mesmo assistente na mesma tela é o cliente perguntando qual das duas
+          está ouvindo — e aqui elas apareciam juntas: o círculo escuro no
+          cabeçalho e o orbe colorido logo atrás do scrim. */}
       <div className="flex items-center gap-[3cqw] pb-[3cqw]">
-        <WaiterOrb size="10cqw" />
-        <span className="font-display uppercase tracking-tight" style={{ fontSize: 'var(--step-title)' }}>
-          Garçom
+        <VoiceOrb size="11cqw" />
+        <span className="min-w-0 flex-1">
+          <span
+            className="block font-display uppercase leading-none tracking-tight"
+            style={{ fontSize: 'var(--step-title)' }}
+          >
+            Garçom
+          </span>
+          {/* mt: a display tem leading-none e a cedilha de "Garçom" desce em
+              cima da linha de estado sem esta folga. */}
+          <span
+            className="mt-[1.2cqw] block uppercase tracking-[0.28em] text-muted"
+            style={{ fontSize: 'var(--step-label)' }}
+          >
+            {phase === 'listening'
+              ? 'ouvindo'
+              : phase === 'thinking'
+                ? 'só um instante'
+                : phase === 'speaking'
+                  ? 'falando'
+                  : 'pronto quando você estiver'}
+          </span>
         </span>
       </div>
 
@@ -73,7 +96,17 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
         ) : null}
       </div>
 
-      <div className="mt-[4cqw] flex items-center gap-[2cqw]">
+      {/* Campo e botão numa peça só, como toda caixa de chat que a pessoa já
+          usou. Separados por um gutter, o botão lia como uma terceira ação da
+          tela em vez de "enviar isto"; e o campo com borda de 2px era mais
+          pesado do que o texto que ele ia receber. */}
+      <div
+        className={[
+          'mt-[4cqw] flex items-center gap-[2cqw] rounded-[3cqw] bg-white/70 p-[1.4cqw] pl-[4cqw] backdrop-blur-xl',
+          'shadow-[inset_0_0.14cqw_0_rgba(255,255,255,0.9),0_0.25cqw_0.8cqw_rgba(11,11,12,0.10)]',
+          'focus-within:bg-white',
+        ].join(' ')}
+      >
         <input
           data-testid="waiter-input"
           value={draft}
@@ -83,12 +116,25 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
           }}
           placeholder="Ou escreva aqui"
           disabled={phase === 'thinking'}
-          className="min-h-[var(--tap)] flex-1 rounded-totem border-2 border-edge bg-white px-[3cqw] text-ink disabled:bg-disabled-bg"
+          className="min-h-[var(--tap)] min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-muted disabled:opacity-50"
           style={{ fontSize: 'var(--step-body)' }}
         />
-        <TotemButton tone="ink" data-testid="waiter-send" onClick={send} disabled={phase === 'thinking'}>
-          <ArrowUp strokeWidth={3} className="size-[2.8cqw]" />
-        </TotemButton>
+        {/* Só acende com algo escrito. Um botão de enviar sempre preto convida
+            o toque que não manda nada, e o cliente conclui que travou. */}
+        <button
+          type="button"
+          aria-label="Enviar"
+          data-testid="waiter-send"
+          onClick={send}
+          disabled={phase === 'thinking' || draft.trim().length === 0}
+          className={[
+            'press grid size-[var(--tap)] shrink-0 place-items-center rounded-full transition-colors',
+            draft.trim() ? 'bg-ink text-white' : 'bg-black/[0.07] text-ink/35',
+            'disabled:cursor-default',
+          ].join(' ')}
+        >
+          <ArrowUp strokeWidth={3} className="size-[3cqw]" />
+        </button>
       </div>
     </Sheet>
   )
