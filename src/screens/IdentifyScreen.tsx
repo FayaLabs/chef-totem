@@ -3,6 +3,7 @@ import { BottomBar, Chip, NumericKeypad, TotemButton } from '@/design'
 import { recognitionDriver } from '@/session/useCustomerRecognition'
 import { customerLookup, type RecognisedCustomer } from '@/session/customer-lookup'
 import { useTotemSession } from '@/session/useTotemSession'
+import { totemConfig } from '@/config/totem.config'
 
 // ---------------------------------------------------------------------------
 // Identification, and the permission not to.
@@ -108,11 +109,17 @@ export function IdentifyScreen() {
           className="font-display uppercase leading-[0.9] tracking-tight"
           style={{ fontSize: 'var(--step-display)' }}
         >
-          Seu telefone,
-          <br />e a gente cuida
+          {/* A quebra vem do texto do tenant: "Seu telefone,\ne a gente cuida"
+              e "Telefone?\nA gente te acha" quebram em pontos diferentes. */}
+          {totemConfig.copy.identifyTitle.split('\n').map((line, index) => (
+            <span key={line} className="block">
+              {index > 0 ? null : null}
+              {line}
+            </span>
+          ))}
         </h1>
         <p className="mt-[2cqw] text-muted" style={{ fontSize: 'var(--step-body)' }}>
-          Crédito, ofertas do clube e o recibo no WhatsApp. Não é obrigatório.
+          {totemConfig.copy.identifySubtitle}
         </p>
 
         {/* mt-auto pushes the whole input block down to the hand. The rule in

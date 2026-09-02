@@ -43,7 +43,7 @@ const fold = (value: string): string =>
  *  para o mais genérico — "suco de carne"… não existe, mas "prato de peixe"
  *  existe, e `peixe` tem de vencer `prato`. */
 const RULES: readonly (readonly [readonly string[], LucideIcon])[] = [
-  [['pizza'], Pizza],
+  [['pizza', 'calzone'], Pizza],
   [['hamburg', 'burger', 'lanche', 'sanduic'], Sandwich],
   [['peixe', 'frutos do mar', 'salmao', 'sushi'], Fish],
   [['frango', 'aves', 'galeto'], Drumstick],
@@ -53,12 +53,12 @@ const RULES: readonly (readonly [readonly string[], LucideIcon])[] = [
   [['acompanhament', 'porcao', 'entrada', 'petisc', 'aperitiv', 'guarnic'], UtensilsCrossed],
   [['sorvete', 'gelato', 'aca'], IceCreamCone],
   [['sobremesa', 'doce', 'torta', 'bolo', 'cheesecake'], Cake],
-  [['padaria', 'paes', 'croissant', 'salgad'], Croissant],
+  [['padaria', 'paes', 'croissant', 'salgad', 'quitute', 'lanchinho'], Croissant],
   [['biscoito', 'cookie'], Cookie],
-  [['cafe', 'expresso', 'capuccin'], Coffee],
+  [['cafe', 'cafes', 'expresso', 'espresso', 'capuccin', 'cappuccin'], Coffee],
   [['cerveja', 'chopp', 'chope'], Beer],
   [['vinho', 'drink', 'coquetel', 'destilad'], Wine],
-  [['bebida', 'refrigerante', 'suco', 'agua'], CupSoda],
+  [['bebida', 'refrigerante', 'suco', 'agua', 'gelada', 'geladas'], CupSoda],
 ]
 
 export function categoryIcon(name: string): LucideIcon {

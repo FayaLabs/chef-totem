@@ -29,14 +29,14 @@ function reset() {
 
 test('abrir um prato move a tela, não só os dados', () => {
   reset()
-  const out = run('open_product', { product: 'calabresa' })
-  assert.match(out, /Calabresa/)
-  assert.equal(useProductDraft.getState().productId, 'p-calabresa')
+  const out = run('open_product', { product: 'pepperoni' })
+  assert.match(out, /Pepperoni/)
+  assert.equal(useProductDraft.getState().productId, 'zd-p-pepperoni')
 })
 
 test('um grupo obrigatório impede de adicionar, e diz o que falta', () => {
   reset()
-  run('open_product', { product: 'calabresa' })
+  run('open_product', { product: 'pepperoni' })
   const refused = run('add_to_order')
   assert.match(refused, /Falta escolher Tamanho/)
   assert.equal(useCart.getState().lines.length, 0, 'nada pode entrar no pedido incompleto')
@@ -44,28 +44,28 @@ test('um grupo obrigatório impede de adicionar, e diz o que falta', () => {
 
 test('escolher a opção destrava, e o preço soma o adicional', () => {
   reset()
-  run('open_product', { product: 'calabresa' })
+  run('open_product', { product: 'pepperoni' })
   run('choose_option', { option: 'média' })
-  run('choose_option', { option: 'borda' })
-  assert.match(run('add_to_order'), /1× Calabresa/)
+  run('choose_option', { option: 'burrata' })
+  assert.match(run('add_to_order'), /1× Pepperoni/)
 
   const [line] = useCart.getState().lines
   assert.equal(line.unitCents, 5900 + 800 + 900)
-  assert.deepEqual(line.modifiers.map((m) => m.name).sort(), ['Borda recheada', 'Média'])
+  assert.deepEqual(line.modifiers.map((m) => m.name).sort(), ['Burrata', 'Média 30cm'])
 })
 
 test('um grupo de escolha única troca, não acumula', () => {
   reset()
-  run('open_product', { product: 'calabresa' })
+  run('open_product', { product: 'pepperoni' })
   run('choose_option', { option: 'média' })
   run('choose_option', { option: 'grande' })
-  const chosen = useProductDraft.getState().chosen['g-size']
-  assert.deepEqual(chosen, ['m-grande'], 'tamanho é radio, não checkbox')
+  const chosen = useProductDraft.getState().chosen['zd-g-tamanho']
+  assert.deepEqual(chosen, ['zd-m-grande'], 'tamanho é radio, não checkbox')
 })
 
 test('prato esgotado não abre', () => {
   reset()
-  const out = run('open_product', { product: 'cacio' })
+  const out = run('open_product', { product: 'burrata' })
   assert.match(out, /esgotado/i)
   assert.equal(useProductDraft.getState().productId, null)
 })
@@ -78,8 +78,8 @@ test('não inventa prato que não existe', () => {
 
 test('search_menu acha por ingrediente da descrição', () => {
   reset()
-  const out = run('search_menu', { query: 'calabresa' })
-  assert.match(out, /Calabresa/)
+  const out = run('search_menu', { query: 'pepperoni' })
+  assert.match(out, /Pepperoni/)
 })
 
 test('não existe ferramenta que pague', () => {
@@ -91,7 +91,7 @@ test('não existe ferramenta que pague', () => {
 
 test('go_to_payment leva até a tela e PARA', () => {
   reset()
-  run('open_product', { product: 'coca' })
+  run('open_product', { product: 'refrigerante' })
   run('add_to_order')
   run('go_to_payment')
   assert.equal(useTotemSession.getState().step, 'payment')
@@ -106,18 +106,18 @@ test('go_to_payment recusa carrinho vazio', () => {
 
 test('mudar quantidade para zero remove a linha', () => {
   reset()
-  run('open_product', { product: 'coca' })
+  run('open_product', { product: 'refrigerante' })
   run('add_to_order')
-  run('change_line_quantity', { product: 'coca', quantity: 0 })
+  run('change_line_quantity', { product: 'refrigerante', quantity: 0 })
   assert.equal(useCart.getState().lines.length, 0)
 })
 
 test('o snapshot conta o que bloqueia agora', () => {
   reset()
-  run('open_product', { product: 'calabresa' })
+  run('open_product', { product: 'pepperoni' })
   const snap = buildSnapshot(catalog)
   assert.equal(snap.blocking?.groupName, 'Tamanho')
-  assert.equal(snap.openProduct?.name, 'Calabresa')
+  assert.equal(snap.openProduct?.name, 'Pepperoni')
   assert.equal(snap.cart.count, 0)
 })
 
@@ -133,20 +133,20 @@ test('acento não pode derrubar o pedido', () => {
   // acento de forma confiável, e um teclado de totem também não — então o
   // garçom recusaria uma opção que o cliente acabou de dizer.
   reset()
-  run('open_product', { product: 'calabresa' })
+  run('open_product', { product: 'pepperoni' })
   assert.match(run('choose_option', { option: 'media' }), /marcado/i)
-  assert.deepEqual(useProductDraft.getState().chosen['g-size'], ['m-media'])
+  assert.deepEqual(useProductDraft.getState().chosen['zd-g-tamanho'], ['zd-m-media'])
 })
 
 test('acento também não derruba busca nem categoria', () => {
   reset()
   assert.match(run('open_category', { category: 'sobremesas' }), /Sobremesas/)
-  assert.match(run('search_menu', { query: 'agua' }), /Água/)
+  assert.match(run('search_menu', { query: 'tiramisu' }), /Tiramisù/)
 })
 
 test('quantidade fora da faixa é presa no limite', () => {
   reset()
-  run('open_product', { product: 'coca' })
+  run('open_product', { product: 'refrigerante' })
   run('set_quantity', { quantity: 999 })
   assert.equal(useProductDraft.getState().quantity, 99)
   run('set_quantity', { quantity: -3 })

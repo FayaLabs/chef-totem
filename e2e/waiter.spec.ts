@@ -59,11 +59,11 @@ test.describe('V2 · o garçom presente', () => {
   test('um pedido falado monta o carrinho E move a tela', async ({ page }) => {
     await toMenuWithWaiter(page)
     await page.getByTestId('waiter-line').tap()
-    await page.getByTestId('waiter-input').fill('quero uma calabresa com média e borda')
+    await page.getByTestId('waiter-input').fill('quero uma pepperoni com média e burrata')
     await page.getByTestId('waiter-send').tap()
 
     await expect(page.getByTestId('open-cart')).toContainText('(1)')
-    // 59,00 + 8,00 (média) + 9,00 (borda)
+    // 59,00 + 8,00 (média) + 9,00 (burrata)
     await expect(page.getByTestId('checkout')).toContainText('R$ 76,00')
   })
 
@@ -71,7 +71,7 @@ test.describe('V2 · o garçom presente', () => {
     // Um transcript de voz não escreve acento de forma confiável.
     await toMenuWithWaiter(page)
     await page.getByTestId('waiter-line').tap()
-    await page.getByTestId('waiter-input').fill('quero uma calabresa com media')
+    await page.getByTestId('waiter-input').fill('quero uma pepperoni com media')
     await page.getByTestId('waiter-send').tap()
     await expect(page.getByTestId('open-cart')).toContainText('(1)')
   })
@@ -81,7 +81,7 @@ test.describe('V2 · o garçom presente', () => {
     // estacionado por cima do resultado anula isso.
     await toMenuWithWaiter(page)
     await page.getByTestId('waiter-line').tap()
-    await page.getByTestId('waiter-input').fill('quero uma calabresa')
+    await page.getByTestId('waiter-input').fill('quero uma pepperoni')
     await page.getByTestId('waiter-send').tap()
 
     await expect(page.getByTestId('product-sheet')).toBeVisible()
@@ -91,7 +91,7 @@ test.describe('V2 · o garçom presente', () => {
   test('ele não consegue adicionar item com escolha obrigatória em aberto', async ({ page }) => {
     await toMenuWithWaiter(page)
     await page.getByTestId('waiter-line').tap()
-    await page.getByTestId('waiter-input').fill('quero uma calabresa')
+    await page.getByTestId('waiter-input').fill('quero uma pepperoni')
     await page.getByTestId('waiter-send').tap()
 
     await expect(page.getByTestId('open-cart')).toBeDisabled()

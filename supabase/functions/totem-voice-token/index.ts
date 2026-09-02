@@ -9,17 +9,29 @@
 // device que lê o cardápio e grava o pedido), e recebe de volta um segredo que
 // vale um minuto e só serve para abrir UMA sessão de Realtime.
 //
-// `verify_jwt` fica LIGADO nesta função: sem isso ela vira um distribuidor
-// anônimo de minutos de GPT pago pelo lojista.
+// `verify_jwt` fica LIGADO nesta função — mas ele NÃO basta, e essa foi uma
+// suposição errada na primeira versão: a plataforma aceita a chave publicável
+// como JWT válido, e a chave publicável está no bundle de todo totem. Ou seja,
+// `verify_jwt` sozinho deixava qualquer pessoa que abrisse o DevTools cunhar
+// minutos de GPT na conta do lojista.
+//
+// Por isso a função troca o JWT por um USUÁRIO de verdade em /auth/v1/user. O
+// aparelho tem sessão (é a mesma que lê o cardápio); a chave publicável não tem
+// usuário nenhum, e para aí.
 // ---------------------------------------------------------------------------
 
-const OPENAI_KEY = Deno.env.get('OPENAI_API_KEY')
+// `.trim()` não é paranoia: `supabase secrets set` a partir de um arquivo leva
+// o \n junto, e a OpenAI devolve 401 "invalid_api_key" para uma chave certa com
+// uma quebra de linha no fim — um erro que parece chave errada e não é.
+const OPENAI_KEY = Deno.env.get('OPENAI_API_KEY')?.trim()
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
+const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')
 const MODEL = Deno.env.get('TOTEM_REALTIME_MODEL') ?? 'gpt-realtime-2.1'
 const VOICE = Deno.env.get('TOTEM_REALTIME_VOICE') ?? 'marin'
 
 // A lista de origens é fixa e curta: um totem tem endereço conhecido. Deixar
 // `*` aqui é deixar qualquer página da internet gastar a cota do lojista.
-const ALLOWED = (Deno.env.get('TOTEM_ALLOWED_ORIGINS') ?? 'http://localhost:5310,http://localhost:5311')
+const ALLOWED = (Deno.env.get('TOTEM_ALLOWED_ORIGINS') ?? 'http://localhost:5310,http://localhost:5311,http://127.0.0.1:5310')
   .split(',')
   .map((value) => value.trim())
   .filter(Boolean)
@@ -53,6 +65,33 @@ Deno.serve(async (req) => {
   if (!OPENAI_KEY) {
     return new Response(JSON.stringify({ error: 'openai_key_missing' }), {
       status: 503,
+      headers: { ...cors, 'Content-Type': 'application/json' },
+    })
+  }
+
+  // Quem está pedindo tem de ser um usuário, não uma chave. Ver a nota no topo.
+  const authorization = req.headers.get('authorization') ?? ''
+  const jwt = authorization.replace(/^Bearer\s+/i, '')
+  if (!jwt || !SUPABASE_URL || !ANON_KEY) {
+    return new Response(JSON.stringify({ error: 'unauthenticated' }), {
+      status: 401,
+      headers: { ...cors, 'Content-Type': 'application/json' },
+    })
+  }
+
+  const who = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: { Authorization: `Bearer ${jwt}`, apikey: ANON_KEY },
+  })
+  if (!who.ok) {
+    return new Response(JSON.stringify({ error: 'unauthenticated' }), {
+      status: 401,
+      headers: { ...cors, 'Content-Type': 'application/json' },
+    })
+  }
+  const user = (await who.json()) as { id?: string; role?: string }
+  if (!user.id || user.role === 'anon') {
+    return new Response(JSON.stringify({ error: 'unauthenticated' }), {
+      status: 401,
       headers: { ...cors, 'Content-Type': 'application/json' },
     })
   }

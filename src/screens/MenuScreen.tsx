@@ -12,6 +12,7 @@ import { ProductSheet } from '@/screens/ProductSheet'
 import { CartSheet } from '@/screens/CartSheet'
 import { offerLabel } from '@/orders/totals'
 import { useTotemSession, type TotemCustomer } from '@/session/useTotemSession'
+import { totemConfig } from '@/config/totem.config'
 
 // ---------------------------------------------------------------------------
 // Where the customer spends 80% of their time.
@@ -176,7 +177,7 @@ export function MenuScreen() {
           disabled={count === 0}
           onClick={() => setCartOpen(true)}
         >
-          {count === 0 ? 'Escolha um item' : <>Finalizar · <span className="tnum">{brl(cartTotalCents(lines))}</span></>}
+          {count === 0 ? totemConfig.copy.emptyCta : <>Finalizar · <span className="tnum">{brl(cartTotalCents(lines))}</span></>}
         </TotemButton>
       </BottomBar>
 
@@ -265,7 +266,7 @@ function Header({
         className="mt-[1.5cqw] font-display uppercase leading-[0.9] tracking-tight"
         style={{ fontSize: 'var(--step-display)' }}
       >
-        O que vai ser hoje?
+        {totemConfig.copy.menuTitle}
       </h1>
 
       {customer && ((customer.creditCents ?? 0) > 0 || customer.offer) ? (

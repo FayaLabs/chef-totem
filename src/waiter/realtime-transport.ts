@@ -3,6 +3,7 @@ import { executeWaiterTool, WAITER_TOOLS } from '@/waiter/tools'
 import { buildSnapshot } from '@/waiter/snapshot'
 import { waiterContext, waiterInstructions } from '@/waiter/instructions'
 import { useWaiter } from '@/waiter/useWaiter'
+import { activeWaiterPersona } from '@/waiter/persona'
 import type { WaiterTransport } from '@/waiter/transport'
 import type { TotemCatalog } from '@/menu/types'
 
@@ -186,6 +187,7 @@ export function createRealtimeTransport(): WaiterTransport {
         type: 'realtime',
         instructions: `${waiterInstructions(catalog)}\n\n${waiterContext(buildSnapshot(catalog))}`,
         audio: {
+          output: { voice: activeWaiterPersona().voiceId },
           input: {
             transcription: { model: 'gpt-4o-mini-transcribe', language: 'pt' },
             // Push-to-talk: o servidor não decide quando o cliente terminou, o

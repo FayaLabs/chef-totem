@@ -6,6 +6,7 @@ import { paymentTerminal, type PaymentMethod, type PaymentStatus } from '@/payme
 import { placeOrder } from '@/orders/place-order'
 import { computeTotals, offerLabel } from '@/orders/totals'
 import { useTotemSession } from '@/session/useTotemSession'
+import { totemConfig } from '@/config/totem.config'
 
 const METHODS: { id: PaymentMethod; label: string; icon: React.ReactNode; hint: string }[] = [
   { id: 'card', label: 'Cartão', icon: <CreditCard strokeWidth={2} className="size-[5cqw]" />, hint: 'na maquininha ao lado' },
@@ -90,7 +91,7 @@ export function PaymentScreen() {
     <div data-testid="screen-payment" className="absolute inset-0 flex flex-col bg-page">
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[6cqw] pb-[calc(var(--tap-bar)+4cqw)] pt-[8cqw]">
         <h1 className="font-display uppercase leading-[0.9] tracking-tight" style={{ fontSize: 'var(--step-display)' }}>
-          Como quer pagar?
+          {totemConfig.copy.paymentTitle}
         </h1>
 
         {/* The amount is the biggest thing on the screen. It is the one number

@@ -17,7 +17,9 @@ import { waiterTransport } from '@/waiter/index'
 // nothing a stranger said survives into the next person's order.
 // ---------------------------------------------------------------------------
 
-const SUGGESTIONS = ['O que você recomenda?', 'Tem algo sem carne?']
+// As aberturas vêm do tenant: "Qual café você recomenda?" numa cafeteria e
+// "Qual a mais pedida?" numa pizzaria não são a mesma pergunta.
+import { activeWaiterPersona } from '@/waiter/persona'
 
 export function Waiter() {
   const step = useTotemSession((s) => s.step)
@@ -86,7 +88,7 @@ export function Waiter() {
 
   return (
     <>
-      <WaiterDock suggestions={SUGGESTIONS} onSuggestion={send} />
+      <WaiterDock suggestions={activeWaiterPersona().suggestions} onSuggestion={send} />
       <WaiterPanel onSend={send} />
     </>
   )

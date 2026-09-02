@@ -25,19 +25,19 @@ export function ModeScreen() {
           className="mb-[6cqw] text-center font-display uppercase leading-[0.9] tracking-tight"
           style={{ fontSize: 'var(--step-display)' }}
         >
-          Como vai ser?
+          {totemConfig.copy.modeTitle}
         </h1>
 
         <div className="grid grid-cols-2 gap-[4cqw]">
           <ModeCard
             testId="mode-dine-in"
-            label="Comer aqui"
+            label={totemConfig.copy.modeHere}
             icon={<Store strokeWidth={2} className="size-[9cqw]" />}
             onClick={() => chooseMode('dine_in')}
           />
           <ModeCard
             testId="mode-takeaway"
-            label="Levar"
+            label={totemConfig.copy.modeAway}
             icon={<ShoppingBag strokeWidth={2} className="size-[9cqw]" />}
             onClick={() => chooseMode('takeaway')}
           />

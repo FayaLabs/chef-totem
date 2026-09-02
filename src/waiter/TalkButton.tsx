@@ -3,12 +3,11 @@ import { VoiceOrb } from '@/waiter/VoiceOrb'
 import { useWaiter } from '@/waiter/useWaiter'
 
 // ---------------------------------------------------------------------------
-// O assistente, no canto de baixo à esquerda.
+// O assistente, na faixa do garçom.
 //
-// Esse canto era o botão de "baixar a tela" — um bonequinho que ninguém
-// reconhecia. O modo alcance continua existindo no motor; o que mudou é quem
-// fica no lugar mais valioso do painel, que é o mais perto do polegar de quem
-// está de pé.
+// Vive na faixa do garçom (ver WaiterDock), à esquerda da frase que ele está
+// dizendo. Passou pela barra de baixo antes; lá era um círculo solto ao lado de
+// "CARRINHO", pertencendo a nada. Aqui ele é a cara de quem fala.
 //
 // TOCA E FALA, não segura e fala. O push-to-talk protegia contra microfone
 // aberto, mas custava caro no lugar errado: manter o dedo num botão enquanto se

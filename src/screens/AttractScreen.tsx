@@ -72,7 +72,7 @@ export function AttractScreen() {
           className="rounded-full bg-action px-[7cqw] uppercase tracking-[0.2em] motion-safe:animate-[attract-pulse_2.4s_ease-in-out_infinite] grid place-items-center"
           style={{ fontSize: 'var(--step-body)', minHeight: 'var(--tap-bar)' }}
         >
-          Toque para começar
+          {totemConfig.copy.attractCta}
         </span>
 
         {assistantOn ? (

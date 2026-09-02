@@ -5,7 +5,7 @@ async function toPayment(page: Page, url = '/') {
   await page.getByTestId('attract').tap()
   await page.getByTestId('mode-dine-in').tap()
   await page.getByTestId('identify-skip').tap()
-  await page.getByTestId('product-p-coca').tap()
+  await page.getByTestId('product-zd-p-refri').tap()
   await page.getByTestId('add-to-order').tap()
   await page.getByTestId('open-cart').tap()
   await page.getByTestId('to-payment').tap()

@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { ArrowUp } from 'lucide-react'
+import { ArrowUp, Mic, Square } from 'lucide-react'
 import { Sheet } from '@/design'
 import { VoiceOrb } from '@/waiter/VoiceOrb'
 import { useWaiter } from '@/waiter/useWaiter'
+import { activeWaiterPersona } from '@/waiter/persona'
 
 // The whole conversation, when the customer wants to see it — plus a keyboard,
 // because a noisy room, a strong accent or a sore throat should never be the
@@ -13,7 +14,9 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
   const turns = useWaiter((s) => s.turns)
   const live = useWaiter((s) => s.liveTranscript)
   const phase = useWaiter((s) => s.phase)
+  const controls = useWaiter((s) => s.controls)
   const [draft, setDraft] = useState('')
+  const listening = phase === 'listening'
 
   const send = () => {
     const text = draft.trim()
@@ -35,7 +38,7 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
             className="block font-display uppercase leading-none tracking-tight"
             style={{ fontSize: 'var(--step-title)' }}
           >
-            Garçom
+            {activeWaiterPersona().name}
           </span>
           {/* mt: a display tem leading-none e a cedilha de "Garçom" desce em
               cima da linha de estado sem esta folga. */}
@@ -57,7 +60,7 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
       <div className="flex flex-col gap-[2.5cqw]" data-testid="waiter-turns">
         {turns.length === 0 && !live ? (
           <p className="py-[4cqw] text-muted" style={{ fontSize: 'var(--step-body)' }}>
-            Peça como pediria a um garçom: “uma costela grande com bacon, sem cebola”.
+            Peça como pediria a {activeWaiterPersona().name}, com as suas palavras.
           </p>
         ) : null}
 
@@ -102,11 +105,36 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
           pesado do que o texto que ele ia receber. */}
       <div
         className={[
-          'mt-[4cqw] flex items-center gap-[2cqw] rounded-[3cqw] bg-white/70 p-[1.4cqw] pl-[4cqw] backdrop-blur-xl',
+          'mt-[4cqw] flex items-center gap-[2cqw] rounded-[3cqw] bg-white/70 p-[1.4cqw] backdrop-blur-xl',
           'shadow-[inset_0_0.14cqw_0_rgba(255,255,255,0.9),0_0.25cqw_0.8cqw_rgba(11,11,12,0.10)]',
           'focus-within:bg-white',
         ].join(' ')}
       >
+        {/* Falar de dentro do painel. Ele foi aberto para VER a conversa, e
+            fechá-lo só para alcançar o microfone da barra é um passo que só
+            existe por causa de onde nós pusemos os botões. */}
+        {controls ? (
+          <button
+            type="button"
+            aria-label={listening ? 'Parar de falar' : 'Falar'}
+            aria-pressed={listening}
+            data-testid="panel-mic"
+            disabled={phase === 'thinking' || phase === 'speaking'}
+            onClick={listening ? controls.stop : controls.start}
+            className={[
+              'press grid size-[var(--tap)] shrink-0 place-items-center rounded-full transition-colors',
+              listening ? 'bg-action text-white' : 'bg-black/[0.06] text-ink/70',
+              'disabled:opacity-40',
+            ].join(' ')}
+          >
+            {listening ? (
+              <Square strokeWidth={3} className="size-[2.4cqw]" fill="currentColor" />
+            ) : (
+              <Mic strokeWidth={2.5} className="size-[3cqw]" />
+            )}
+          </button>
+        ) : null}
+
         <input
           data-testid="waiter-input"
           value={draft}
@@ -114,7 +142,7 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
           onKeyDown={(event) => {
             if (event.key === 'Enter') send()
           }}
-          placeholder="Ou escreva aqui"
+          placeholder={listening ? 'Ouvindo…' : 'Fale ou escreva aqui'}
           disabled={phase === 'thinking'}
           className="min-h-[var(--tap)] min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-muted disabled:opacity-50"
           style={{ fontSize: 'var(--step-body)' }}

@@ -56,7 +56,7 @@ test.describe('M10 · reconhecimento', () => {
     await identifyAs(page, '11987651111')
 
     // R$ 59,00 de pizza passa do mínimo de R$ 30 da oferta.
-    await page.getByTestId('product-p-calabresa').tap()
+    await page.getByTestId('product-zd-p-pepperoni').tap()
     const mods = page.locator('[data-testid^="mod-"]')
     for (let i = 0; i < (await mods.count()); i++) {
       if (await page.getByTestId('add-to-order').isEnabled()) break
@@ -82,7 +82,7 @@ test.describe('M10 · reconhecimento', () => {
 
   test('o recibo oferece o WhatsApp para quem deu o telefone, e promete sem mentir', async ({ page }) => {
     await identifyAs(page, '11987651111')
-    await page.getByTestId('product-p-coca').tap()
+    await page.getByTestId('product-zd-p-refri').tap()
     await page.getByTestId('add-to-order').tap()
     await page.getByTestId('open-cart').tap()
     await page.getByTestId('to-payment').tap()
@@ -106,7 +106,7 @@ test.describe('M10 · reconhecimento', () => {
     await page.getByTestId('attract').tap()
     await page.getByTestId('mode-dine-in').tap()
     await page.getByTestId('identify-skip').tap()
-    await page.getByTestId('product-p-coca').tap()
+    await page.getByTestId('product-zd-p-refri').tap()
     await page.getByTestId('add-to-order').tap()
     await page.getByTestId('open-cart').tap()
     await page.getByTestId('to-payment').tap()
@@ -131,7 +131,7 @@ test.describe('M10 · cancelar', () => {
     await page.getByTestId('attract').tap()
     await page.getByTestId('mode-dine-in').tap()
     await page.getByTestId('identify-skip').tap()
-    await page.getByTestId('product-p-coca').tap()
+    await page.getByTestId('product-zd-p-refri').tap()
     await page.getByTestId('add-to-order').tap()
 
     await page.getByTestId('reset').tap()

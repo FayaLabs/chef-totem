@@ -20,6 +20,19 @@ export interface WaiterSnapshot {
   step: TotemStep
   mode: ServiceMode | null
   ticket: string | null
+  /**
+   * Quem está do outro lado, quando ele se identificou.
+   *
+   * Faltava, e a falta aparecia na cara: o painel sabia o nome da pessoa e o
+   * garçom continuava dizendo "bom dia" para um estranho. Pior, ele não sabia
+   * do crédito nem da oferta — as duas coisas que mais mudam o que vale a pena
+   * sugerir.
+   */
+  customer: {
+    name: string | null
+    credit: string | null
+    offer: string | null
+  }
   cart: {
     count: number
     total: string
@@ -51,6 +64,21 @@ export function buildSnapshot(catalog: TotemCatalog | null): WaiterSnapshot {
     step: session.step,
     mode: session.mode,
     ticket: session.ticket,
+    customer: {
+      name: session.customer?.name ?? null,
+      credit: (session.customer?.creditCents ?? 0) > 0 ? brl(session.customer!.creditCents!) : null,
+      offer: session.customer?.offer
+        ? `${session.customer.offer.title} (${
+            session.customer.offer.method === 'percentage'
+              ? `${session.customer.offer.value}% off`
+              : `R$ ${session.customer.offer.value.toFixed(2)} off`
+          }${
+            session.customer.offer.minSubtotalCents > 0
+              ? `, a partir de ${brl(session.customer.offer.minSubtotalCents)}`
+              : ''
+          })`
+        : null,
+    },
     cart: {
       count: cartCount(cart.lines),
       total: brl(cartTotalCents(cart.lines)),
