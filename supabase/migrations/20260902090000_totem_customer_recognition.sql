@@ -54,6 +54,10 @@ create index if not exists plg_shop_discounts_customer_group_idx
 create index if not exists plg_shop_customers_phone_key_idx
   on public.plg_shop_customers (tenant_id, public.totem_phone_key(phone));
 
+-- A busca do totem entra por `people`, não por `plg_shop_customers`.
+create index if not exists people_phone_key_idx
+  on public.people (tenant_id, public.totem_phone_key(phone));
+
 create or replace function public.totem_customer_lookup(p_tenant_id uuid, p_phone text)
 returns jsonb
 language plpgsql
@@ -78,37 +82,53 @@ begin
     return jsonb_build_object('found', false);
   end if;
 
-  select c.id, c.person_id, c.first_name
+  -- POR `people`, não por `plg_shop_customers`.
+  --
+  -- A primeira versão procurava na tabela do plugin de loja, e por isso não
+  -- achava ninguém num RESTAURANTE: `shop_tenant_sells` é falso para quem não
+  -- vende online, o espelho não roda e a tabela fica vazia. Um totem de
+  -- restaurante que só reconhece cliente de e-commerce reconhece ninguém.
+  --
+  -- `people` é a espinha: existe em todo tenant, é o que o ChefControl edita, e
+  -- é para onde o plugin de loja espelha quando existe.
+  select p.id as person_id,
+         split_part(btrim(coalesce(p.name, '')), ' ', 1) as first_name
     into v_customer
-    from public.plg_shop_customers c
-   where c.tenant_id = p_tenant_id
-     and public.totem_phone_key(c.phone) = v_key
-   order by c.updated_at desc nulls last
+    from public.people p
+   where p.tenant_id = p_tenant_id
+     and p.merged_into_id is null
+     and public.totem_phone_key(p.phone) = v_key
+   order by p.updated_at desc nulls last
    limit 1;
 
   if not found then
     return jsonb_build_object('found', false);
   end if;
 
-  if v_customer.person_id is not null then
-    select coalesce(vc.credit, 0) into v_credit
-      from public.v_financial_customer_credit vc
-     where vc.tenant_id = p_tenant_id and vc.person_id = v_customer.person_id
-     limit 1;
-  end if;
+  select coalesce(vc.credit, 0) into v_credit
+    from public.v_financial_customer_credit vc
+   where vc.tenant_id = p_tenant_id and vc.person_id = v_customer.person_id
+   limit 1;
 
   select jsonb_build_object(
            'code', d.code,
            'title', d.title,
-           'method', d.method,
-           'type', d.type,
+           -- `method` do painel = `type` do plugin. No shop, `type` diz COMO o
+           -- valor é lido (percentage | fixed_amount) e `method` diz como o
+           -- desconto é reivindicado (code | automatic). O totem só precisa do
+           -- primeiro, e chamá-lo de `method` no cliente foi escolha minha —
+           -- mapear aqui é mais barato que renomear o contrato do app.
+           'method', d.type,
+           'claim', d.method,
            'value', d.value,
            'min_subtotal_cents', round(coalesce(d.min_subtotal, 0) * 100)::int
          )
     into v_offer
     from public.plg_shop_discounts d
     join public.plg_shop_customer_group_members m
-      on m.group_id = d.customer_group_id and m.customer_id = v_customer.id
+      on m.group_id = d.customer_group_id
+    join public.plg_shop_customers c
+      on c.id = m.customer_id and c.person_id = v_customer.person_id
    where d.tenant_id = p_tenant_id
      and d.status = 'active'
      and (d.starts_at is null or d.starts_at <= now())

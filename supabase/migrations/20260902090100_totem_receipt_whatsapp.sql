@@ -86,8 +86,10 @@ begin
   insert into public.plg_conversation_messages (tenant_id, conversation_id, channel, direction, body,
                                                 author, at, delivery_status, sender_kind, sender_label,
                                                 subject_type, subject_id)
-  values (p_tenant_id, v_conversation, 'whatsapp', 'out', p_body,
-          'totem', now(), 'queued', 'system', 'Totem',
+  -- 'outbound', não 'out': o vocabulário é do plugin de conversas e está numa
+  -- check constraint. Abreviar aqui derruba a gravação inteira do recibo.
+  values (p_tenant_id, v_conversation, 'whatsapp', 'outbound', p_body,
+          'totem', now(), 'queued', 'automation', 'Totem',
           'order', p_order_id::text)
   returning id into v_message;
 
