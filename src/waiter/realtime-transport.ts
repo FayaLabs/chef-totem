@@ -179,10 +179,18 @@ export function createRealtimeTransport(): WaiterTransport {
     // Com VAD do servidor, é ELE quem sabe que a pessoa começou e parou de
     // falar. Sem estes dois, o orbe ficaria "ouvindo" durante a resposta.
     if (type === 'input_audio_buffer.speech_started') {
+      // Enquanto o garçom fala, o que o microfone capta é quase sempre o
+      // próprio alto-falante ou o salão. Trocar a fase aqui faria o orbe piscar
+      // "ouvindo" no meio da frase dele — e o orbe é a única coisa na tela que
+      // diz de quem é a vez.
+      if (store().phase === 'speaking') return
       store().setLive('')
       return store().setPhase('listening')
     }
-    if (type === 'input_audio_buffer.speech_stopped') return store().setPhase('thinking')
+    if (type === 'input_audio_buffer.speech_stopped') {
+      if (store().phase === 'speaking') return
+      return store().setPhase('thinking')
+    }
     if (type === 'response.created') return store().setPhase('thinking')
     if (type === 'output_audio_buffer.started') return store().setPhase('speaking')
     if (type === 'response.done' || type === 'output_audio_buffer.stopped') {
@@ -209,6 +217,12 @@ export function createRealtimeTransport(): WaiterTransport {
           output: { voice: activeWaiterPersona().voiceId },
           input: {
             transcription: { model: 'gpt-4o-mini-transcribe', language: 'pt' },
+            // O supressor de ruído da própria Realtime. `near_field` é o perfil
+            // de quem fala A CENTÍMETROS do microfone — que é exatamente a
+            // postura de alguém em pé na frente de um totem. `far_field` é para
+            // microfone de sala de reunião e, num salão, deixa entrar a mesa ao
+            // lado como se fosse o cliente.
+            noise_reduction: { type: 'near_field' },
             // O servidor escuta e decide quando a frase acabou. `eagerness:
             // 'low'` dá mais corda: num salão barulhento, com alguém lendo o
             // cardápio enquanto fala, cortar cedo é pior do que esperar meio
@@ -217,7 +231,16 @@ export function createRealtimeTransport(): WaiterTransport {
               type: 'semantic_vad',
               eagerness: 'low',
               create_response: true,
-              interrupt_response: true,
+              // NÃO se deixa interromper por barulho. Com `true`, qualquer
+              // ruído que o VAD leia como fala cancela a resposta no meio — e
+              // numa praça de alimentação isso é uma bandeja caindo, a mesa ao
+              // lado, o liquidificador. O cliente via o garçom emudecer sem
+              // motivo e concluía que travou.
+              //
+              // O custo é real e é menor: para cortar o garçom, o cliente toca
+              // no orbe. As respostas são de uma ou duas frases de propósito,
+              // então a espera é de segundos, não de um monólogo.
+              interrupt_response: false,
             },
           },
         },
@@ -235,7 +258,20 @@ export function createRealtimeTransport(): WaiterTransport {
     const { key, model } = await mintToken(waiterInstructions(catalog))
 
     mic = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        // Mono: o painel tem um microfone só, e mandar dois canais idênticos
+        // dobra a banda sem dobrar informação.
+        channelCount: 1,
+        // Isolamento de voz do navegador (Chrome 130+, Safari 17.2+). Ele
+        // separa voz de ruído ANTES de a captura sair da máquina, então soma
+        // com o supressor do servidor em vez de competir. Um navegador que não
+        // conhece a chave simplesmente a ignora — por isso não está atrás de
+        // teste de suporte.
+        voiceIsolation: true,
+      } as MediaTrackConstraints,
     })
     // Entra mudo. A conexão sobe no primeiro toque no microfone, e entre um
     // toque e outro nada trafega.

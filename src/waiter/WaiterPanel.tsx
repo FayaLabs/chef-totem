@@ -17,6 +17,7 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
   const controls = useWaiter((s) => s.controls)
   const [draft, setDraft] = useState('')
   const listening = phase === 'listening'
+  const typed = draft.trim().length > 0
 
   const send = () => {
     const text = draft.trim()
@@ -110,10 +111,39 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
           'focus-within:bg-white',
         ].join(' ')}
       >
-        {/* Falar de dentro do painel. Ele foi aberto para VER a conversa, e
-            fechá-lo só para alcançar o microfone da barra é um passo que só
-            existe por causa de onde nós pusemos os botões. */}
-        {controls ? (
+        <input
+          data-testid="waiter-input"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') send()
+          }}
+          placeholder={listening ? 'Ouvindo…' : 'Fale ou escreva aqui'}
+          disabled={phase === 'thinking'}
+          className="min-h-[var(--tap)] min-w-0 flex-1 bg-transparent pl-[3cqw] text-ink outline-none placeholder:text-muted disabled:opacity-50"
+          style={{ fontSize: 'var(--step-body)' }}
+        />
+
+        {/* UM controle à direita, não dois. Ele é o microfone enquanto o campo
+            está vazio e vira o enviar assim que há texto — a mesma peça
+            mudando de função conforme o que a pessoa fez, que é como toda caixa
+            de chat que ela já usou se comporta.
+
+            Dois botões permanentes (falar à esquerda, enviar à direita) davam
+            ao cliente uma escolha que ele não tem: com o campo vazio, enviar
+            não faz nada; com texto escrito, falar joga o texto fora. */}
+        {typed ? (
+          <button
+            type="button"
+            aria-label="Enviar"
+            data-testid="waiter-send"
+            onClick={send}
+            disabled={phase === 'thinking'}
+            className="press grid size-[var(--tap)] shrink-0 place-items-center rounded-full bg-ink text-white transition-colors disabled:bg-black/[0.07] disabled:text-ink/35"
+          >
+            <ArrowUp strokeWidth={3} className="size-[3cqw]" />
+          </button>
+        ) : controls ? (
           <button
             type="button"
             aria-label={listening ? 'Parar de falar' : 'Falar'}
@@ -123,7 +153,7 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
             onClick={listening ? controls.stop : controls.start}
             className={[
               'press grid size-[var(--tap)] shrink-0 place-items-center rounded-full transition-colors',
-              listening ? 'bg-action text-white' : 'bg-black/[0.06] text-ink/70',
+              listening ? 'bg-action text-white' : 'bg-black/[0.07] text-ink/70',
               'disabled:opacity-40',
             ].join(' ')}
           >
@@ -134,35 +164,6 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
             )}
           </button>
         ) : null}
-
-        <input
-          data-testid="waiter-input"
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') send()
-          }}
-          placeholder={listening ? 'Ouvindo…' : 'Fale ou escreva aqui'}
-          disabled={phase === 'thinking'}
-          className="min-h-[var(--tap)] min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-muted disabled:opacity-50"
-          style={{ fontSize: 'var(--step-body)' }}
-        />
-        {/* Só acende com algo escrito. Um botão de enviar sempre preto convida
-            o toque que não manda nada, e o cliente conclui que travou. */}
-        <button
-          type="button"
-          aria-label="Enviar"
-          data-testid="waiter-send"
-          onClick={send}
-          disabled={phase === 'thinking' || draft.trim().length === 0}
-          className={[
-            'press grid size-[var(--tap)] shrink-0 place-items-center rounded-full transition-colors',
-            draft.trim() ? 'bg-ink text-white' : 'bg-black/[0.07] text-ink/35',
-            'disabled:cursor-default',
-          ].join(' ')}
-        >
-          <ArrowUp strokeWidth={3} className="size-[3cqw]" />
-        </button>
       </div>
     </Sheet>
   )
