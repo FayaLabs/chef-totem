@@ -30,10 +30,20 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
+  // Locally this reuses whatever is already on :5310; on CI there is nothing
+  // running, so Playwright starts (and owns) the dev server itself.
   webServer: {
+    // The QA tenant's catalog is test debris (no categories, ingredients priced
+    // at zero), so the suite runs against the demo menu. What is under test is
+    // the SCREEN; the live provider is covered by its own contract test.
     command: 'npm run dev',
+    env: { VITE_TOTEM_CATALOG: 'demo' },
     url: BASE_URL,
-    reuseExistingServer: true,
-    timeout: 120_000,
+    reuseExistingServer: !process.env.CI,
+    timeout: 180_000,
+    stdout: 'ignore',
+    stderr: 'pipe',
   },
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 1 : 0,
 })

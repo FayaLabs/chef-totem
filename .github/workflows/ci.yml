@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Blocks. Everything here passes today; red means this commit broke it.
+  gate:
+    name: Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Runs BEFORE the E2E on purpose: one spec asserts the emitted service
+      # worker and the fullscreen/portrait webmanifest by reading dist/.
+      #
+      # No sibling fayz-sdk checkout exists on a runner, so fayzVite resolves
+      # @fayz-ai/* from node_modules — CI always builds against the PUBLISHED
+      # SDK, which is what a store actually deploys.
+      - name: Build
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_TENANT_ID: ${{ vars.VITE_TENANT_ID }}
+          VITE_UNIT_ID: ${{ vars.VITE_UNIT_ID }}
+
+      # The waiter's brain: pure TypeScript over the stores, no DOM, no audio,
+      # no network. Runs before the browser is even installed.
+      - name: Unit (cérebro do garçom)
+        run: npm test
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      # The whole suite runs at the real panel size (1080x1920, touch on).
+      # It proves the flow, the data and that the pixels did not move. It does
+      # NOT prove physical reach, glare or fat-finger accuracy — that is the
+      # in-store pilot (FAY-1450), not something a runner can check.
+      - name: E2E (1080x1920)
+        run: npm run e2e
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_TENANT_ID: ${{ vars.VITE_TENANT_ID }}
+          VITE_UNIT_ID: ${{ vars.VITE_UNIT_ID }}
+          # A runner has no device credentials for the tenant, so the screens
+          # are exercised against the demo menu. The live provider's shape is
+          # covered by e2e/catalog-contract.spec.ts.
+          VITE_TOTEM_CATALOG: demo
+
+      - name: Upload the failure trace
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
