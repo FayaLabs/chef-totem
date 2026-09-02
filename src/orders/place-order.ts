@@ -2,6 +2,7 @@ import { totemConfig } from '@/config/totem.config'
 import { deviceClient } from '@/menu/device-session'
 import type { CartLine } from '@/cart/useCart'
 import type { ChargeResult } from '@/payment/driver'
+import type { OrderTotals } from '@/orders/totals'
 import type { ServiceMode, TotemCustomer } from '@/session/useTotemSession'
 
 // ---------------------------------------------------------------------------
@@ -41,14 +42,30 @@ export interface PlaceOrderInput {
   customer: TotemCustomer | null
   payment: ChargeResult
   method: string
+  /** Subtotal, oferta e crédito, já calculados em `orders/totals.ts`. */
+  totals?: OrderTotals
 }
 
 const money = (cents: number): number => Number((cents / 100).toFixed(2))
 
 export async function placeOrder(input: PlaceOrderInput): Promise<PlacedOrder> {
+  // Cardápio de mentira, pedido de mentira. `demo` existe para a feira sem rede
+  // e para o CI, e um catálogo demonstrativo que tenta gravar num tenant real
+  // é incoerente das duas pontas: falha no estande e cria lixo no banco.
+  if (import.meta.env.VITE_TOTEM_CATALOG === 'demo') return placeDemoOrder(input)
+
   const supabase = await deviceClient()
   const tenantId = totemConfig.tenantId
-  const totalCents = input.lines.reduce((sum, line) => sum + line.unitCents * line.quantity, 0)
+  const subtotalCents = input.lines.reduce((sum, line) => sum + line.unitCents * line.quantity, 0)
+  // Sem descontos o pedido tem exatamente a forma que sempre teve; a coluna
+  // `discount` fica em zero e nada a jusante precisa saber que existe oferta.
+  const totals: OrderTotals = input.totals ?? {
+    subtotalCents,
+    offerCents: 0,
+    creditCents: 0,
+    totalCents: subtotalCents,
+  }
+  const totalCents = totals.totalCents
 
   // Shared with the counter: the same sequence the rest of the tenant draws
   // from, so two devices cannot mint the same number in one shift.
@@ -72,7 +89,8 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlacedOrder> {
       // must see it without anyone pressing anything.
       status: 'confirmed',
       reference_number: reference,
-      subtotal: money(totalCents),
+      subtotal: money(totals.subtotalCents),
+      discount: money(totals.offerCents + totals.creditCents),
       total: money(totalCents),
       currency: totemConfig.currency,
       tags: ['totem', input.mode],
@@ -87,6 +105,16 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlacedOrder> {
           service_mode: input.mode,
           ticket,
           ticket_sequence: raw,
+          // A coluna `discount` guarda a soma; aqui fica de onde ela veio. Sem
+          // isto o caixa vê "R$ 4,20 de desconto" e não sabe se foi crédito
+          // consumido (dinheiro que sai do saldo do cliente) ou promoção.
+          totals: {
+            subtotal_cents: totals.subtotalCents,
+            offer_cents: totals.offerCents,
+            offer_code: input.customer?.offer?.code ?? null,
+            credit_cents: totals.creditCents,
+            total_cents: totals.totalCents,
+          },
           payment: {
             method: input.method,
             status: input.payment.status,
@@ -124,4 +152,26 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlacedOrder> {
   if (itemsError) throw new Error(`Itens não gravados: ${itemsError.message}`)
 
   return { orderId: order.id as string, ticket, referenceNumber: reference, totalCents }
+}
+
+/** O pedido da feira: mesma forma, mesma tela, sem tocar em banco nenhum. */
+let demoSequence = 0
+
+function placeDemoOrder(input: PlaceOrderInput): PlacedOrder {
+  // `?order=fail` força a pior falha do painel: o dinheiro saiu e o pedido não
+  // gravou. É a costura de teste do mesmo formato de `?waiter=scripted`, e
+  // existe porque esse caminho não pode ser coberto só quando a rede cai por
+  // acaso — ele é o que decide se o cliente vai embora sabendo ou não que tem
+  // de procurar o caixa.
+  if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('order') === 'fail') {
+    throw new Error('falha de gravação simulada')
+  }
+  demoSequence += 1
+  const subtotalCents = input.lines.reduce((sum, line) => sum + line.unitCents * line.quantity, 0)
+  return {
+    orderId: `demo-${demoSequence}`,
+    ticket: `#${String(demoSequence % 1000).padStart(3, '0')}`,
+    referenceNumber: `DEMO-${String(demoSequence).padStart(6, '0')}`,
+    totalCents: input.totals?.totalCents ?? subtotalCents,
+  }
 }

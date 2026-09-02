@@ -25,6 +25,7 @@ export function Waiter() {
   const catalogState = useCatalog()
   const resetWaiter = useWaiter((s) => s.reset)
   const setPhase = useWaiter((s) => s.setPhase)
+  const setControls = useWaiter((s) => s.setControls)
 
   const transport = useMemo(waiterTransport, [])
   const catalogRef = useRef(catalogState)
@@ -59,16 +60,24 @@ export function Waiter() {
     void transport?.stopListening?.()
   }, [transport])
 
+  // O botão de falar mora na barra inferior, que é chrome global; o transporte
+  // mora aqui, que só existe no cardápio. O registro é o que liga os dois sem
+  // arrastar duas props por seis telas — e a limpeza é o que garante que o
+  // botão suma quando o garçom sai de cena.
+  useEffect(() => {
+    if (!transport || step !== 'menu') {
+      setControls(null)
+      return
+    }
+    setControls({ start: startTalking, stop: stopTalking })
+    return () => setControls(null)
+  }, [transport, step, startTalking, stopTalking, setControls])
+
   if (!transport || step !== 'menu') return null
 
   return (
     <>
-      <WaiterDock
-        onTalkStart={startTalking}
-        onTalkStop={stopTalking}
-        suggestions={SUGGESTIONS}
-        onSuggestion={send}
-      />
+      <WaiterDock suggestions={SUGGESTIONS} onSuggestion={send} />
       <WaiterPanel onSend={send} />
     </>
   )

@@ -1,10 +1,12 @@
 import { totemConfig } from '@/config/totem.config'
+import { createRealtimeTransport } from '@/waiter/realtime-transport'
 import { createScriptedTransport } from '@/waiter/scripted-transport'
 import type { WaiterTransport } from '@/waiter/transport'
 
 export { WaiterDock, WAITER_DOCK_HEIGHT } from '@/waiter/WaiterDock'
 export { WaiterPanel } from '@/waiter/WaiterPanel'
 export { WaiterOrb } from '@/waiter/WaiterOrb'
+export { VoiceOrb } from '@/waiter/VoiceOrb'
 export { useWaiter, lastWaiterLine, type WaiterPhase, type WaiterTurn } from '@/waiter/useWaiter'
 export { buildSnapshot, type WaiterSnapshot } from '@/waiter/snapshot'
 export { WAITER_TOOLS, executeWaiterTool, type WaiterTool } from '@/waiter/tools'
@@ -30,6 +32,9 @@ export function waiterTransport(): WaiterTransport | null {
 
   if (!totemConfig.flags.assistant) return null
   if (import.meta.env.VITE_TOTEM_WAITER === 'scripted') return createScriptedTransport()
-  // `text` (Fayz broker) and `voice` (OpenAI Realtime) land in V3/V4.
+  // `voice` fala de verdade — OpenAI Realtime por WebRTC — e exige a edge
+  // function `totem-voice-token` publicada. O padrao continua roteirizado: um
+  // totem que sobe sem a funcao tem de continuar vendendo.
+  if (import.meta.env.VITE_TOTEM_WAITER === 'voice') return createRealtimeTransport()
   return createScriptedTransport()
 }

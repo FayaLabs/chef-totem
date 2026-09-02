@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
-async function toPayment(page: Page) {
-  await page.goto('/')
+async function toPayment(page: Page, url = '/') {
+  await page.goto(url)
   await page.getByTestId('attract').tap()
   await page.getByTestId('mode-dine-in').tap()
   await page.getByTestId('identify-skip').tap()
@@ -42,10 +42,10 @@ test.describe('M5 · pagamento', () => {
   })
 
   test('o pedido não gravado é dito ao cliente, com o código para o caixa', async ({ page }) => {
-    // No device session in CI, so placeOrder fails — which is exactly the path
-    // that must never end with the customer silently back at the menu having
-    // paid. The money is gone; the screen has to say so.
-    await toPayment(page)
+    // `?order=fail` (ver place-order.ts) força a gravação a falhar — o caminho
+    // que nunca pode terminar com o cliente de volta ao cardápio tendo pago. O
+    // dinheiro saiu; a tela tem de dizer.
+    await toPayment(page, '/?order=fail')
     await page.getByTestId('pay-now').tap()
     const error = page.getByTestId('payment-error')
     await expect(error).toBeVisible({ timeout: 20_000 })

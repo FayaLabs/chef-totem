@@ -62,9 +62,17 @@
    window — so the composition in a 1080x1920 Playwright screenshot is the
    composition on the panel. At 1080 wide, 1cqw = 10.8px.
 
-   Touch sizes are the exception: they are in PIXELS on purpose. A tap target
-   is a physical thing — 27mm of glass — and must not shrink because someone
-   mounted a smaller panel.
+   Os alvos de toque eram a exceção — px fixo, "porque um alvo de toque é uma
+   coisa física". A intenção estava certa e a unidade estava errada, e a
+   diferença só aparece FORA do painel: numa janela de 450px o texto encolhe com
+   o `cqw` e o botão de 88px não, então o stepper come a linha do carrinho e o
+   nome do prato vira "C". Quem testa num laptop vê uma tela quebrada que no
+   vidro real está perfeita — e acredita no laptop, com razão.
+
+   Agora são `cqw` calibrados para dar EXATAMENTE o valor físico no painel real,
+   com piso em px para a janela de preview. A divisão fica DENTRO do `calc` de
+   propósito: `8.148cqw` arredondado dá 87,998px num painel de 1080, e o teste
+   que exige 88 reprova por dois milésimos de pixel.
    -------------------------------------------------------------------------- */
 @layer base {
   :root {
@@ -75,10 +83,11 @@
     --step-label: 1.3cqw;
 
     /* The kiosk floor is 88px (~27mm at 82 DPI). 44px, the mobile figure,
-       would be 13mm here — under the 19mm kiosk standard. */
-    --tap: 88px;
-    --tap-lg: 104px;
-    --tap-bar: 120px;
+       would be 13mm here — under the 19mm kiosk standard. Em cqw dá 88px
+       cravado no painel de 1080 e acompanha a escala em qualquer outro. */
+    --tap: max(44px, calc(100cqw * 88 / 1080));
+    --tap-lg: max(52px, calc(100cqw * 104 / 1080));
+    --tap-bar: max(60px, calc(100cqw * 120 / 1080));
 
     /* Reach mode (see useReachMode) pushes the whole UI into the lower half
        for a customer who cannot comfortably reach the top of a 27" panel. */

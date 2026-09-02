@@ -1,5 +1,4 @@
-import { Mic, Square, ChevronUp } from 'lucide-react'
-import { WaiterOrb } from '@/waiter/WaiterOrb'
+import { ChevronUp } from 'lucide-react'
 import { lastWaiterLine, useWaiter } from '@/waiter/useWaiter'
 
 // ---------------------------------------------------------------------------
@@ -14,10 +13,12 @@ import { lastWaiterLine, useWaiter } from '@/waiter/useWaiter'
 // there, it never moves, and it never hides a dish. The customer's eye finds it
 // once and knows where it lives for the rest of the visit.
 //
-// What the strip carries, in priority order:
-//   1. the orb        — is it listening, thinking or talking
-//   2. one line       — the live transcript, or the last thing the waiter said
-//   3. the mic        — the biggest target on the strip, at the thumb
+// O QUE ELA CARREGA: uma linha. So isso.
+//
+// O orbe e o microfone saíram daqui e viraram UM controle so, no canto de baixo
+// a esquerda da barra (ver TalkButton). Ter um orbe na faixa e outro botao de
+// microfone ao lado dele era pedir para o cliente escolher entre duas coisas
+// que fazem a mesma — e nenhuma das duas estava no ponto mais perto do polegar.
 //
 // Everything else (full conversation, typing) is one tap away in the sheet.
 // A dock that tried to be a chat window would eat the menu.
@@ -26,15 +27,12 @@ import { lastWaiterLine, useWaiter } from '@/waiter/useWaiter'
 export const WAITER_DOCK_HEIGHT = '17cqw'
 
 export interface WaiterDockProps {
-  /** Push-to-talk down / up. The mic is never open without a finger. */
-  onTalkStart: () => void
-  onTalkStop: () => void
   /** Tappable openers shown while idle — nobody reads instructions on a kiosk. */
   suggestions?: string[]
   onSuggestion?: (text: string) => void
 }
 
-export function WaiterDock({ onTalkStart, onTalkStop, suggestions = [], onSuggestion }: WaiterDockProps) {
+export function WaiterDock({ suggestions = [], onSuggestion }: WaiterDockProps) {
   const phase = useWaiter((s) => s.phase)
   const live = useWaiter((s) => s.liveTranscript)
   const turns = useWaiter((s) => s.turns)
@@ -61,8 +59,6 @@ export function WaiterDock({ onTalkStart, onTalkStop, suggestions = [], onSugges
       className="absolute inset-x-0 z-30 flex items-center gap-[3cqw] border-t-2 border-edge bg-surface px-[3cqw] shadow-[0_-0.6cqw_2cqw_rgba(11,11,12,0.08)] motion-safe:animate-[waiter-dock-in_320ms_cubic-bezier(0.16,1,0.3,1)]"
       style={{ bottom: 'var(--tap-bar)', height: WAITER_DOCK_HEIGHT }}
     >
-      <WaiterOrb />
-
       {/* The transcript. Tapping it opens the full conversation — the line is
           a summary, and a customer who wants the detail should not have to
           hunt for a separate control. */}
@@ -115,30 +111,6 @@ export function WaiterDock({ onTalkStart, onTalkStop, suggestions = [], onSugges
         </div>
       ) : null}
 
-      {/* Push to talk. The largest target on the strip, and the only red on it
-          — the menu's red lives on CHECKOUT, and this dock is never on screen
-          at the same time as a second red inside itself. */}
-      <button
-        type="button"
-        data-testid="waiter-mic"
-        aria-label={listening ? 'Parar de falar' : 'Falar com o garçom'}
-        aria-pressed={listening}
-        disabled={busy}
-        onPointerDown={listening ? undefined : onTalkStart}
-        onPointerUp={listening ? onTalkStop : undefined}
-        onPointerCancel={listening ? onTalkStop : undefined}
-        className={[
-          'press grid size-[var(--tap-lg)] shrink-0 place-items-center rounded-full',
-          listening ? 'bg-action text-white' : 'bg-ink text-white',
-          'disabled:bg-disabled-bg disabled:text-disabled-fg',
-        ].join(' ')}
-      >
-        {listening ? (
-          <Square strokeWidth={3} className="size-[3cqw]" fill="currentColor" />
-        ) : (
-          <Mic strokeWidth={2.5} className="size-[3.4cqw]" />
-        )}
-      </button>
     </div>
   )
 }

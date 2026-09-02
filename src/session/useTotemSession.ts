@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { CustomerOffer } from '@/session/customer-lookup'
 
 // ---------------------------------------------------------------------------
 // One customer's visit, start to finish.
@@ -18,7 +19,13 @@ export interface TotemCustomer {
   /** Digits only, as typed. Formatting is a render concern. */
   document?: string
   phone?: string
+  /** Primeiro nome, quando o telefone bateu com um cliente — e só isso. Ver
+   *  `customer-lookup.ts` para por que o painel não carrega mais que isso. */
   name?: string
+  /** Saldo em centavos. 0 quando não há, ou quando ninguém se identificou. */
+  creditCents?: number
+  /** A melhor oferta do grupo a que este cliente pertence, se houver. */
+  offer?: CustomerOffer | null
 }
 
 /** What the receipt screen needs, handed over by the payment screen. */

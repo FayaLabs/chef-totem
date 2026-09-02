@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import { LayoutGrid, RefreshCw, ShoppingCart, UtensilsCrossed, X } from 'lucide-react'
-import { BottomBar, Chip, TotemButton } from '@/design'
+import { Gift, RefreshCw, ShoppingCart, UtensilsCrossed, Wallet, X } from 'lucide-react'
+import { allCategoriesIcon as AllIcon, categoryIcon } from '@/menu/category-icon'
+import { BottomBar, Chip, Sheet, TotemButton } from '@/design'
 import { brl, cartCount, cartTotalCents, useCart } from '@/cart/useCart'
 import { useCatalog } from '@/menu/useCatalog'
 import { useMenuUi } from '@/menu/useMenuUi'
@@ -9,7 +10,8 @@ import { useProductDraft } from '@/menu/useProductDraft'
 import type { TotemProduct } from '@/menu/types'
 import { ProductSheet } from '@/screens/ProductSheet'
 import { CartSheet } from '@/screens/CartSheet'
-import { useTotemSession } from '@/session/useTotemSession'
+import { offerLabel } from '@/orders/totals'
+import { useTotemSession, type TotemCustomer } from '@/session/useTotemSession'
 
 // ---------------------------------------------------------------------------
 // Where the customer spends 80% of their time.
@@ -21,9 +23,11 @@ import { useTotemSession } from '@/session/useTotemSession'
 export function MenuScreen() {
   const state = useCatalog()
   const ticket = useTotemSession((s) => s.ticket)
+  const customer = useTotemSession((s) => s.customer)
   const reset = useTotemSession((s) => s.reset)
   const clearCart = useCart((s) => s.clear)
   const lines = useCart((s) => s.lines)
+  const [confirmingCancel, setConfirmingCancel] = useState(false)
 
   // Screen state lives in stores, not in this component, so the assistant can
   // move the actual screen instead of silently editing the cart behind it.
@@ -63,15 +67,24 @@ export function MenuScreen() {
 
   const count = cartCount(lines)
 
+  // A única porta de saída da visita, e ela apaga TUDO: carrinho, estado de
+  // tela, rascunho aberto e sessão. Espalhar essa limpeza por dois callbacks é
+  // como se esquece de zerar uma coisa e o próximo cliente vê o pedido anterior.
+  const leave = () => {
+    clearCart()
+    resetMenuUi()
+    closeDraft()
+    reset()
+  }
+
   return (
     <div data-testid="screen-menu" className="absolute inset-0 flex flex-col bg-page">
       <Header
         ticket={ticket}
+        customer={customer}
         onCancel={() => {
-          clearCart()
-          resetMenuUi()
-          closeDraft()
-          reset()
+          if (count > 0) return setConfirmingCancel(true)
+          leave()
         }}
       />
 
@@ -87,21 +100,25 @@ export function MenuScreen() {
           >
             <RailButton
               active={categoryId === null}
-              icon={<LayoutGrid strokeWidth={2.5} className="size-[4cqw]" />}
+              icon={<AllIcon strokeWidth={2.5} className="size-[4cqw]" />}
               label="Todos"
               testId="cat-all"
               onClick={() => openCategory(null)}
             />
-            {state.catalog.categories.map((category) => (
-              <RailButton
-                key={category.id}
-                active={categoryId === category.id}
-                icon={<UtensilsCrossed strokeWidth={2.5} className="size-[4cqw]" />}
-                label={category.name}
-                testId={`cat-${category.id}`}
-                onClick={() => openCategory(category.id)}
-              />
-            ))}
+            {state.catalog.categories.map((category) => {
+              // Um ícone por categoria, deduzido do nome — ver category-icon.tsx.
+              const Icon = categoryIcon(category.name)
+              return (
+                <RailButton
+                  key={category.id}
+                  active={categoryId === category.id}
+                  icon={<Icon strokeWidth={2.5} className="size-[4cqw]" />}
+                  label={category.name}
+                  testId={`cat-${category.id}`}
+                  onClick={() => openCategory(category.id)}
+                />
+              )
+            })}
           </nav>
 
           <div className="flex min-w-0 flex-1 flex-col">
@@ -165,11 +182,28 @@ export function MenuScreen() {
 
       <ProductSheet product={openProduct} onClose={closeDraft} />
       <CartSheet open={cartOpen} onClose={() => setCartOpen(false)} />
+      <CancelSheet
+        open={confirmingCancel}
+        count={count}
+        onKeep={() => setConfirmingCancel(false)}
+        onDiscard={() => {
+          setConfirmingCancel(false)
+          leave()
+        }}
+      />
     </div>
   )
 }
 
-function Header({ ticket, onCancel }: { ticket: string | null; onCancel: () => void }) {
+function Header({
+  ticket,
+  customer,
+  onCancel,
+}: {
+  ticket: string | null
+  customer: TotemCustomer | null
+  onCancel: () => void
+}) {
   const now = new Date().toLocaleString('pt-BR', {
     weekday: 'short',
     day: '2-digit',
@@ -178,35 +212,134 @@ function Header({ ticket, onCancel }: { ticket: string | null; onCancel: () => v
     minute: '2-digit',
   })
   return (
-    <header className="relative shrink-0 bg-ink px-[4cqw] pb-[3cqw] pt-[4cqw] text-white">
-      <div
-        className="flex items-center justify-between uppercase tracking-[0.25em] text-white/60"
-        style={{ fontSize: 'var(--step-label)' }}
-      >
-        <span>{now}</span>
-        {ticket ? <span className="tnum">senha {ticket}</span> : null}
+    <header className="shrink-0 bg-ink px-[4cqw] pb-[3cqw] pt-[3cqw] text-white">
+      {/* Uma linha, três coisas, nada absoluto. O cancelar era `absolute` e caía
+          em cima da senha — dois textos no mesmo canto, e o que o cliente
+          precisa ler (a senha dele) era o que ficava por baixo. Agora dividem a
+          linha, e a régua de 88px vale para o botão sem empurrar nada. */}
+      <div className="flex min-h-[var(--tap)] items-center gap-[3cqw]">
+        <div
+          className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-[3cqw] uppercase tracking-[0.25em] text-white/60"
+          style={{ fontSize: 'var(--step-label)' }}
+        >
+          <span>{now}</span>
+          {ticket ? (
+            <span className="tnum text-white/85">
+              senha <span className="font-bold">{ticket}</span>
+            </span>
+          ) : null}
+        </div>
+
+        {/* A customer who changed their mind must be able to leave without
+            waiting out the idle timeout in front of a queue. Secondary, so it
+            may sit high; `reset` is the one door out of a visit. */}
+        <button
+          type="button"
+          data-testid="reset"
+          onClick={onCancel}
+          className="press flex shrink-0 items-center gap-[1.5cqw] rounded-totem border-2 border-white/30 px-[3.5cqw] uppercase tracking-[0.18em] text-white/75"
+          style={{ fontSize: 'var(--step-label)', height: 'var(--tap)' }}
+        >
+          <X strokeWidth={3} className="size-[2.2cqw]" />
+          Cancelar
+        </button>
       </div>
 
-      {/* A customer who changed their mind must be able to leave without
-          waiting out the idle timeout in front of a queue. Secondary, so it
-          may sit high; `reset` is the one door out of a visit. */}
-      <button
-        type="button"
-        data-testid="reset"
-        onClick={onCancel}
-        className="press absolute right-[4cqw] top-[4cqw] flex items-center gap-[1.5cqw] rounded-totem border-2 border-white/35 px-[3.5cqw] uppercase tracking-[0.18em] text-white/85"
-        style={{ fontSize: 'var(--step-label)', height: 'var(--tap)' }}
-      >
-        <X strokeWidth={3} className="size-[2.2cqw]" />
-        Cancelar
-      </button>
+      {/* O nome vem antes da pergunta, não no lugar dela: "Oi, Marina" é
+          cortesia, "O que vai ser hoje?" é a instrução, e quem chegou agora
+          precisa da segunda.
+
+          Crédito e oferta moram aqui e não numa tela de boas-vindas que some
+          sozinha: são as duas coisas que mudam o quanto a pessoa vai gastar, e
+          ela tem de poder reler a qualquer momento, não em dois segundos. */}
+      {customer?.name ? (
+        <p
+          data-testid="menu-greeting"
+          className="mt-[2cqw] uppercase tracking-[0.3em] text-white/55"
+          style={{ fontSize: 'var(--step-label)' }}
+        >
+          Oi, {customer.name}
+        </p>
+      ) : null}
       <h1
-        className="mt-[2cqw] font-display uppercase leading-[0.9] tracking-tight"
+        className="mt-[1.5cqw] font-display uppercase leading-[0.9] tracking-tight"
         style={{ fontSize: 'var(--step-display)' }}
       >
         O que vai ser hoje?
       </h1>
+
+      {customer && ((customer.creditCents ?? 0) > 0 || customer.offer) ? (
+        <div className="mt-[2.5cqw] flex flex-wrap gap-[2cqw]">
+          {(customer.creditCents ?? 0) > 0 ? (
+            <Perk testId="header-credit" icon={<Wallet strokeWidth={2.5} className="size-[2.6cqw]" />}>
+              {brl(customer.creditCents ?? 0)} de crédito
+            </Perk>
+          ) : null}
+          {customer.offer ? (
+            <Perk testId="header-offer" icon={<Gift strokeWidth={2.5} className="size-[2.6cqw]" />}>
+              {customer.offer.title} · {offerLabel(customer.offer)}
+            </Perk>
+          ) : null}
+        </div>
+      ) : null}
     </header>
+  )
+}
+
+function Perk({
+  icon,
+  children,
+  testId,
+}: {
+  icon: React.ReactNode
+  children: React.ReactNode
+  testId: string
+}) {
+  return (
+    <span
+      data-testid={testId}
+      className="flex items-center gap-[1.5cqw] rounded-full bg-white/12 px-[3cqw] py-[1.2cqw] uppercase tracking-[0.14em] text-white/85 backdrop-blur"
+      style={{ fontSize: 'var(--step-label)' }}
+    >
+      {icon}
+      {children}
+    </span>
+  )
+}
+
+/**
+ * Confirmar antes de jogar o pedido fora — mas só quando há pedido.
+ *
+ * Cancelar com o carrinho vazio é sair de uma tela; cancelar com seis itens é
+ * perder cinco minutos de escolha. A mesma palavra, dois estragos diferentes,
+ * então só o segundo custa um toque a mais.
+ */
+function CancelSheet({
+  open,
+  count,
+  onKeep,
+  onDiscard,
+}: {
+  open: boolean
+  count: number
+  onKeep: () => void
+  onDiscard: () => void
+}) {
+  return (
+    <Sheet open={open} onClose={onKeep} data-testid="cancel-sheet" title="Cancelar o pedido?">
+      <p className="text-muted" style={{ fontSize: 'var(--step-body)' }}>
+        {count === 1 ? 'O item escolhido' : `Os ${count} itens escolhidos`} vão embora e a tela volta
+        para o começo.
+      </p>
+      <div className="mt-[6cqw] flex flex-col gap-[2.5cqw]">
+        <TotemButton tone="action" className="w-full" data-testid="cancel-keep" onClick={onKeep}>
+          Continuar meu pedido
+        </TotemButton>
+        <TotemButton tone="ink" className="w-full" data-testid="cancel-discard" onClick={onDiscard}>
+          Sim, cancelar tudo
+        </TotemButton>
+      </div>
+    </Sheet>
   )
 }
 

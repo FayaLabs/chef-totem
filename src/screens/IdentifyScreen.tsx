@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BottomBar, Chip, NumericKeypad, TotemButton } from '@/design'
 import { recognitionDriver } from '@/session/useCustomerRecognition'
+import { customerLookup, type RecognisedCustomer } from '@/session/customer-lookup'
 import { useTotemSession } from '@/session/useTotemSession'
 
 // ---------------------------------------------------------------------------
@@ -11,6 +12,14 @@ import { useTotemSession } from '@/session/useTotemSession'
 // so "continuar sem me identificar" is a full-size button with the same weight
 // as the confirm — not a grey link under it. If the customer wants to skip, the
 // panel should not make them feel they are doing something wrong.
+//
+// O TELEFONE agora paga por si: é ele que traz o nome, o crédito e a oferta, e
+// é para onde o recibo vai no fim. Por isso é o padrão e o CPF é a segunda
+// opção — a diferença entre pedir um dado e devolver alguma coisa por ele.
+//
+// A busca NUNCA bloqueia. Se falhar, demorar ou não achar ninguém, o cliente
+// segue para o cardápio do mesmo jeito, com o telefone guardado. Um painel que
+// trava numa consulta de fidelidade é um painel que gera fila.
 // ---------------------------------------------------------------------------
 
 type Kind = 'phone' | 'document'
@@ -41,6 +50,7 @@ export function IdentifyScreen() {
   const identify = useTotemSession((s) => s.identify)
   const [kind, setKind] = useState<Kind>('phone')
   const [digits, setDigits] = useState('')
+  const [looking, setLooking] = useState(false)
 
   const rule = RULES[kind]
   const complete = digits.length === rule.length
@@ -56,6 +66,38 @@ export function IdentifyScreen() {
 
   const shown = useMemo(() => rule.format(digits), [rule, digits])
 
+  const proceed = (customer: RecognisedCustomer | null) => {
+    identify({
+      ...(kind === 'phone' ? { phone: digits } : { document: digits }),
+      name: customer?.firstName ?? undefined,
+      creditCents: customer?.creditCents ?? 0,
+      offer: customer?.offer ?? null,
+    })
+  }
+
+  const confirm = async () => {
+    // O CPF não consulta nada: a base do totem é indexada por telefone, e
+    // fingir uma busca que não existe só adiciona meio segundo de espera.
+    if (kind !== 'phone') return proceed(null)
+
+    setLooking(true)
+    const outcome = await customerLookup().byPhone(digits)
+    setLooking(false)
+
+    if (outcome.status !== 'found') {
+      // Silêncio de propósito. "Esse número não é cliente" transformaria o
+      // teclado num oráculo de quais números existem na base — e, para quem só
+      // quer almoçar, é uma frase que não muda nada do que vem a seguir.
+      return proceed(null)
+    }
+
+    // Sem tela de "Oi, Marina!" no meio do caminho. Uma tela que só cumprimenta
+    // e some sozinha é um passo a mais entre o cliente e a comida — e o que ela
+    // dizia (nome, crédito, oferta) agora fica FIXO no topo do cardápio, onde a
+    // pessoa pode reler quando quiser em vez de ter dois segundos para pegar.
+    proceed(outcome.customer)
+  }
+
   return (
     <div data-testid="screen-identify" className="absolute inset-0 bg-page">
       {/* pb reserves the bar: this screen had its own action row AND a bar, and
@@ -66,18 +108,17 @@ export function IdentifyScreen() {
           className="font-display uppercase leading-[0.9] tracking-tight"
           style={{ fontSize: 'var(--step-display)' }}
         >
-          Quer o cupom
-          <br />
-          no seu nome?
+          Seu telefone,
+          <br />e a gente cuida
         </h1>
         <p className="mt-[2cqw] text-muted" style={{ fontSize: 'var(--step-body)' }}>
-          Serve para o programa de fidelidade. Não é obrigatório.
+          Crédito, ofertas do clube e o recibo no WhatsApp. Não é obrigatório.
         </p>
 
         {/* mt-auto pushes the whole input block down to the hand. The rule in
             DESIGN.md is that the primary path lives below 40% of the panel;
             the keypad sitting at mid-height was breaking it. */}
-        <div className="mt-auto pt-[8cqw] grid grid-cols-2 gap-[3cqw]">
+        <div className="mt-auto grid grid-cols-2 gap-[3cqw] pt-[8cqw]">
           {(Object.keys(RULES) as Kind[]).map((option) => (
             <Chip
               key={option}
@@ -93,9 +134,13 @@ export function IdentifyScreen() {
           ))}
         </div>
 
+        {/* O campo é um bloco de vidro, não um sublinhado. Um traço embaixo de
+            um número gigante é a convenção de formulário de papel; numa tela de
+            27" ele some, e o cliente não sabe onde o que ele digitou vai
+            aparecer antes de digitar. */}
         <div
           data-testid="identify-value"
-          className="tnum mt-[5cqw] flex min-h-[var(--tap-lg)] items-center border-b-4 border-edge font-bold"
+          className="tnum mt-[4cqw] flex min-h-[var(--tap-lg)] items-center rounded-[2.6cqw] bg-white/60 px-[4cqw] font-semibold tracking-tight backdrop-blur-xl shadow-[inset_0_0.14cqw_0_rgba(255,255,255,0.9),0_0.2cqw_0.6cqw_rgba(11,11,12,0.09)]"
           style={{ fontSize: 'var(--step-title)' }}
         >
           {shown || <span className="font-normal text-muted">{rule.hint}</span>}
@@ -117,6 +162,7 @@ export function IdentifyScreen() {
           size="bar"
           className="flex-1"
           data-testid="identify-skip"
+          disabled={looking}
           onClick={() => identify(null)}
         >
           Agora não
@@ -125,11 +171,11 @@ export function IdentifyScreen() {
           tone="action"
           size="bar"
           className="flex-1"
-          disabled={!complete}
+          disabled={!complete || looking}
           data-testid="identify-confirm"
-          onClick={() => identify(kind === 'phone' ? { phone: digits } : { document: digits })}
+          onClick={confirm}
         >
-          {complete ? 'Continuar' : `Faltam ${rule.length - digits.length}`}
+          {looking ? 'Um instante…' : complete ? 'Continuar' : `Faltam ${rule.length - digits.length}`}
         </TotemButton>
       </BottomBar>
     </div>

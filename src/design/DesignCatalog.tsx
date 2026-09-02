@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ArrowRight, ShoppingBag } from 'lucide-react'
 import {
   BottomBar,
+  ReachModeToggle,
   Chip,
   NumericKeypad,
   Sheet,
@@ -74,7 +75,14 @@ export function DesignCatalog() {
       </Section>
 
       <BottomBar>
-        <TotemButton tone="action" size="bar" data-testid="btn-bar">
+        {/* O modo alcance saiu da barra do produto em 02-09 (ver BottomBar), mas
+            o motor continua inteiro. O catálogo é o lugar certo para um
+            componente que existe e ainda não está montado em nenhuma tela: aqui
+            ele é exercitado, medido e testado até voltar. */}
+        <div className="grid shrink-0 place-items-center px-[3cqw]">
+          <ReachModeToggle />
+        </div>
+        <TotemButton tone="action" size="bar" className="flex-1" data-testid="btn-bar">
           <ShoppingBag strokeWidth={3} className="size-[2.4cqw]" /> Finalizar
         </TotemButton>
       </BottomBar>

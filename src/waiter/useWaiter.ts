@@ -41,7 +41,17 @@ interface WaiterState {
   error: string | null
   /** Expanded into the full conversation sheet. */
   expanded: boolean
+  /**
+   * Falar, de qualquer lugar.
+   *
+   * O botao de falar mora na barra inferior, renderizada por seis telas; o
+   * transporte mora no `Waiter`, que so existe no cardapio. Passar os dois
+   * callbacks por prop atravessaria todas essas telas para nada. Quem tem o
+   * transporte registra aqui, e o botao chama daqui.
+   */
+  controls: { start: () => void; stop: () => void } | null
 
+  setControls: (controls: WaiterState['controls']) => void
   setPhase: (phase: WaiterPhase) => void
   setLive: (text: string) => void
   setLevel: (level: number) => void
@@ -71,7 +81,9 @@ const empty = {
 
 export const useWaiter = create<WaiterState>((set, get) => ({
   ...empty,
+  controls: null,
 
+  setControls: (controls) => set({ controls }),
   setPhase: (phase) => set({ phase }),
   setLive: (liveTranscript) => set({ liveTranscript }),
   setLevel: (level) => set({ level }),

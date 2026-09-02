@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Send } from 'lucide-react'
+import { ArrowUp } from 'lucide-react'
 import { Sheet, TotemButton } from '@/design'
 import { WaiterOrb } from '@/waiter/WaiterOrb'
 import { useWaiter } from '@/waiter/useWaiter'
@@ -87,7 +87,7 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
           style={{ fontSize: 'var(--step-body)' }}
         />
         <TotemButton tone="ink" data-testid="waiter-send" onClick={send} disabled={phase === 'thinking'}>
-          <Send strokeWidth={3} className="size-[2.4cqw]" />
+          <ArrowUp strokeWidth={3} className="size-[2.8cqw]" />
         </TotemButton>
       </div>
     </Sheet>

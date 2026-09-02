@@ -77,7 +77,7 @@ export function Sheet({ open, onClose, footer, title, children, ...rest }: Sheet
         aria-label="Fechar"
         data-testid="sheet-scrim"
         onClick={onClose}
-        className="absolute inset-0 bg-black/60"
+        className="absolute inset-0 bg-black/55 backdrop-blur-md"
         style={{ opacity: Math.max(0.35, 1 - drag / 400) }}
       />
 
@@ -102,9 +102,13 @@ export function Sheet({ open, onClose, footer, title, children, ...rest }: Sheet
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
-          className="shrink-0 cursor-grab touch-none pt-[2.5cqw]"
+          className="shrink-0 cursor-grab touch-none pt-[2.2cqw]"
         >
-          <span aria-hidden className="mx-auto block h-[0.7cqw] w-[12cqw] rounded-full bg-edge/40" />
+          {/* O puxador do iOS. Ele existia a 40% de opacidade sobre a linha
+              divisória e simplesmente não era visto — e um gesto que a pessoa
+              não sabe que existe é um gesto que não existe. Agora é sólido:
+              é a única coisa na tela que diz "isto desce". */}
+          <span aria-hidden className="mx-auto block h-[0.85cqw] w-[11cqw] rounded-full bg-ink/25" />
           {title ? (
             <h2
               className="px-[6cqw] pb-[2cqw] pt-[2.5cqw] text-center font-display uppercase tracking-tight"

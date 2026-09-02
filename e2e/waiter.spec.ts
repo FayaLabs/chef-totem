@@ -31,10 +31,10 @@ test.describe('V2 · o garçom presente', () => {
     ).toBeLessThanOrEqual(dock.y + 1)
   })
 
-  test('o microfone vive na zona de alcance e tem tamanho de quiosque', async ({ page }) => {
+  test('o orbe vive na zona de alcance e tem tamanho de quiosque', async ({ page }) => {
     await toMenuWithWaiter(page)
     const stage = (await page.locator('[data-totem-stage]').boundingBox())!
-    const mic = (await page.getByTestId('waiter-mic').boundingBox())!
+    const mic = (await page.getByTestId('talk-button').boundingBox())!
     // Taking the order is the primary path, so it lives below 40%.
     expect(mic.y).toBeGreaterThan(stage.y + stage.height * 0.4)
     expect(mic.height).toBeGreaterThanOrEqual(88)
@@ -43,14 +43,16 @@ test.describe('V2 · o garçom presente', () => {
 
   test('o orbe muda de estado ao ouvir — é o único sinal de que o painel escuta', async ({ page }) => {
     await toMenuWithWaiter(page)
-    const orb = page.getByTestId('waiter-orb')
+    const orb = page.getByTestId('voice-orb')
     await expect(orb).toHaveAttribute('data-phase', 'idle')
 
-    await page.getByTestId('waiter-mic').dispatchEvent('pointerdown')
+    // Toca e trava; toca de novo e para. Segurar o botão enquanto se pensa no
+    // pedido é desconfortável, e um dedo que escorrega cortava a frase.
+    await page.getByTestId('talk-button').tap()
     await expect(orb).toHaveAttribute('data-phase', 'listening')
     await expect(page.getByTestId('waiter-dock')).toContainText(/ouvindo/i)
 
-    await page.getByTestId('waiter-mic').dispatchEvent('pointerup')
+    await page.getByTestId('talk-button').tap()
     await expect(orb).toHaveAttribute('data-phase', 'idle')
   })
 
