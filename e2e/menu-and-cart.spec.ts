@@ -8,6 +8,13 @@ async function toMenu(page: Page) {
   await expect(page.getByTestId('menu-grid')).toBeVisible()
 }
 
+/** Abre um prato e espera o sheet parar de se mover. */
+async function openProduct(page: Page, id: string) {
+  await page.getByTestId(`product-${id}`).tap()
+  await expect(page.getByTestId('product-sheet')).toBeVisible()
+  await page.waitForTimeout(400)
+}
+
 test.describe('M3 · cardápio', () => {
   test('rail de categorias filtra o grid', async ({ page }) => {
     await toMenu(page)
@@ -79,12 +86,18 @@ test.describe('M4 · produto e carrinho', () => {
     // "uma com bacon, uma sem" são duas coisas que a cozinha faz diferente.
     await toMenu(page)
 
-    await page.getByTestId('product-zd-p-pepperoni').tap()
+    // `settled` e não `toBeVisible`: o sheet entra com 260ms de translateY, e
+    // `tap()` calcula a coordenada, confere estabilidade e só então despacha o
+    // toque — se o elemento andou nesse meio, o toque cai ao lado. Não é
+    // defeito da tela (o navegador acerta o hit-test de um elemento
+    // transformado); é o harness correndo com a animação.
+    await openProduct(page, 'zd-p-pepperoni')
     await page.getByTestId('mod-zd-m-media').tap()
     await page.getByTestId('add-to-order').tap()
 
-    await page.getByTestId('product-zd-p-pepperoni').tap()
+    await openProduct(page, 'zd-p-pepperoni')
     await page.getByTestId('mod-zd-m-grande').tap()
+    await expect(page.getByTestId('mod-zd-m-grande')).toHaveAttribute('aria-pressed', 'true')
     await page.getByTestId('mod-zd-m-nduja').tap()
     await page.getByTestId('add-to-order').tap()
 

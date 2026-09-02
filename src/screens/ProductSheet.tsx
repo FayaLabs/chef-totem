@@ -32,7 +32,7 @@ export function ProductSheet({ product, onClose }: { product: TotemProduct | nul
     <Sheet
       open
       onClose={onClose}
-      title={product.name}
+      bleed
       data-testid="product-sheet"
       footer={
         <TotemButton
@@ -58,29 +58,42 @@ export function ProductSheet({ product, onClose }: { product: TotemProduct | nul
         </TotemButton>
       }
     >
+      {/* A foto SANGRA até a borda, e o nome vem depois dela.
+          Antes o nome ficava acima de uma foto com 6cqw de branco em volta —
+          isso é um cartão de catálogo. Sangrada, a foto é o prato, e o nome
+          embaixo lê como legenda de quem já está olhando. Numa tela de 27" a
+          foto é metade do argumento de venda; emoldurá-la é jogar essa metade
+          fora. */}
       {product.imageUrl ? (
-        // Confirms, at a glance, that the sheet is about the card that was
-        // tapped. Without it the customer has to re-read the name to be sure.
-        <div className="mb-[3cqw] h-[34cqw] overflow-hidden rounded-totem bg-hairline">
+        <div className="h-[42cqw] bg-hairline">
           <img src={product.imageUrl} alt="" className="size-full object-cover" data-testid="sheet-image" />
         </div>
       ) : null}
 
-      {product.description ? (
-        <p className="text-muted" style={{ fontSize: 'var(--step-body)' }}>
-          {product.description}
-        </p>
-      ) : null}
+      <div className="px-[6cqw] pt-[4cqw]">
+        <h2
+          className="font-display uppercase leading-[0.95] tracking-tight"
+          style={{ fontSize: 'var(--step-title)' }}
+        >
+          {product.name}
+        </h2>
 
-      <div className="mt-[4cqw] flex items-center justify-between">
-        <span className="tnum font-bold text-action" style={{ fontSize: 'var(--step-title)' }}>
-          {brl(unit)}
-        </span>
-        <Stepper value={quantity} onChange={setQuantity} data-testid="product-stepper" />
+        {product.description ? (
+          <p className="mt-[1.5cqw] text-muted" style={{ fontSize: 'var(--step-body)' }}>
+            {product.description}
+          </p>
+        ) : null}
+
+        <div className="mt-[4cqw] flex items-center justify-between">
+          <span className="tnum font-bold text-action" style={{ fontSize: 'var(--step-title)' }}>
+            {brl(unit)}
+          </span>
+          <Stepper value={quantity} onChange={setQuantity} data-testid="product-stepper" />
+        </div>
       </div>
 
       {product.modifierGroups.map((group) => (
-        <section key={group.id} className="mt-[4cqw]">
+        <section key={group.id} className="mt-[4cqw] px-[6cqw]">
           <h3
             className="mb-[2cqw] uppercase tracking-[0.25em] text-muted"
             style={{ fontSize: 'var(--step-label)' }}

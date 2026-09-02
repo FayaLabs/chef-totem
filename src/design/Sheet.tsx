@@ -27,11 +27,20 @@ export interface SheetProps {
   /** Rendered against the bottom edge, outside the scrollable body. */
   footer?: ReactNode
   title?: string
+  /**
+   * Corpo sangrado: sem folga lateral e sem título no topo.
+   *
+   * Para o sheet cuja PRIMEIRA coisa é uma foto. Uma foto de comida com 6cqw
+   * de branco em volta e um título acima dela é um cartão de catálogo; sangrada
+   * até a borda, ela é o prato. A diferença é grande num painel de 27" onde a
+   * foto é metade do argumento de venda.
+   */
+  bleed?: boolean
   children: ReactNode
   'data-testid'?: string
 }
 
-export function Sheet({ open, onClose, footer, title, children, ...rest }: SheetProps) {
+export function Sheet({ open, onClose, footer, title, bleed = false, children, ...rest }: SheetProps) {
   const [drag, setDrag] = useState(0)
   const start = useRef<number | null>(null)
   const body = useRef<HTMLDivElement>(null)
@@ -95,33 +104,64 @@ export function Sheet({ open, onClose, footer, title, children, ...rest }: Sheet
         }}
       >
         {/* The grab area: the handle plus the title, so the whole top of the
-            sheet is draggable rather than a 4px bar nobody can hit. */}
+            sheet is draggable rather than a 4px bar nobody can hit.
+
+            Com a foto sangrada ele flutua sobre ela — mas só a FAIXA CENTRAL
+            recebe toque. A primeira versão fazia a barra inteira interceptar, e
+            o primeiro chip que rolasse para debaixo dela deixava de responder:
+            o cliente tocava em "Média" e nada acontecia, sem nada na tela
+            sugerindo por quê. */}
         <div
-          data-testid="sheet-handle"
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-          className="shrink-0 cursor-grab touch-none pt-[2.2cqw]"
+          className={[
+            'shrink-0',
+            bleed ? 'pointer-events-none absolute inset-x-0 top-0 z-10' : '',
+          ].join(' ')}
         >
-          {/* O puxador do iOS. Ele existia a 40% de opacidade sobre a linha
-              divisória e simplesmente não era visto — e um gesto que a pessoa
-              não sabe que existe é um gesto que não existe. Agora é sólido:
-              é a única coisa na tela que diz "isto desce". */}
-          <span aria-hidden className="mx-auto block h-[0.85cqw] w-[11cqw] rounded-full bg-ink/25" />
-          {title ? (
-            <h2
-              className="px-[6cqw] pb-[2cqw] pt-[2.5cqw] text-center font-display uppercase tracking-tight"
-              style={{ fontSize: 'var(--step-title)' }}
-            >
-              {title}
-            </h2>
-          ) : (
-            <span className="block pb-[2cqw]" />
-          )}
+          <div
+            data-testid="sheet-handle"
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
+            className={[
+              'pointer-events-auto cursor-grab touch-none pt-[2.2cqw]',
+              bleed ? 'mx-auto w-[30cqw] pb-[2.5cqw]' : '',
+            ].join(' ')}
+          >
+            {/* O puxador do iOS. Ele existia a 40% de opacidade sobre a linha
+                divisória e simplesmente não era visto — e um gesto que a pessoa
+                não sabe que existe é um gesto que não existe. Agora é sólido: é
+                a única coisa na tela que diz "isto desce". */}
+            <span
+              aria-hidden
+              className={[
+                'mx-auto block h-[0.85cqw] w-[11cqw] rounded-full',
+                // Em cima de uma foto, cinza sobre cinza some. Branco com
+                // sombra sobrevive tanto a um prato claro quanto a um mármore
+                // escuro.
+                bleed ? 'bg-white/85 shadow-[0_0_0.6cqw_rgba(0,0,0,0.35)]' : 'bg-ink/25',
+              ].join(' ')}
+            />
+            {title ? (
+              <h2
+                className="px-[6cqw] pb-[2cqw] pt-[2.5cqw] text-center font-display uppercase tracking-tight"
+                style={{ fontSize: 'var(--step-title)' }}
+              >
+                {title}
+              </h2>
+            ) : (
+              <span className="block pb-[2cqw]" />
+            )}
+          </div>
         </div>
 
-        <div ref={body} className="min-h-0 flex-1 overflow-y-auto px-[6cqw] pb-[4cqw]">
+        <div
+          ref={body}
+          className={[
+            'min-h-0 flex-1 overflow-y-auto pb-[4cqw]',
+            bleed ? 'px-0' : 'px-[6cqw]',
+          ].join(' ')}
+        >
           {children}
         </div>
 
