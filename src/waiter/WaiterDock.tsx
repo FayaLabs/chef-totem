@@ -17,6 +17,12 @@ import { TalkButton } from '@/waiter/TalkButton'
 //
 // O QUE ELA CARREGA: o orbe, uma linha e as aberturas.
 //
+// A FAIXA FICA ATRÁS DE UM SHEET, de propósito. Ela chegou a passar por cima e
+// encolher — presente o tempo todo — e a leitura foi pior: duas barras
+// empilhadas embaixo do "ADICIONAR", uma competindo com a outra pelo mesmo
+// canto. Enquanto o cliente escolhe o ponto da carne, a escolha é a tela; o
+// garçom volta inteiro assim que ela fecha.
+//
 // O ORBE MORA AQUI, à esquerda da frase. Ele passou pela barra de baixo antes,
 // e lá era um círculo solto ao lado de "CARRINHO" — pertencia a nada. Colado no
 // que o garçom está dizendo, ele vira a cara de quem fala: o cliente lê o

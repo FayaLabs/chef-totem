@@ -71,6 +71,36 @@ function openProductOrNull(catalog: TotemCatalog): TotemProduct | null {
 
 export const WAITER_TOOLS: WaiterTool[] = [
   {
+    name: 'describe_options',
+    description:
+      'Lista os grupos de opção do prato ABERTO na tela — o que é obrigatório, o que é adicional, quanto cada um custa e o que já está marcado. Chame ANTES de perguntar sobre adicionais: sem isto você não sabe o que a casa oferece e acaba inventando ou perguntando genérico.',
+    parameters: { type: 'object', properties: {} },
+    execute: (_args, catalog) => {
+      const product = openProductOrNull(catalog)
+      if (!product) return 'Nenhum prato aberto. Abra um com open_product primeiro.'
+      if (product.modifierGroups.length === 0) return `${product.name} não tem opções — é só adicionar.`
+
+      const chosen = useProductDraft.getState().chosen
+      return JSON.stringify({
+        prato: product.name,
+        grupos: product.modifierGroups.map((group) => ({
+          grupo: group.name,
+          obrigatorio: group.required,
+          escolhe_ate: group.maxSelections,
+          ja_marcado: group.modifiers
+            .filter((m) => (chosen[group.id] ?? []).includes(m.id))
+            .map((m) => m.name),
+          opcoes: group.modifiers.map((m) => ({
+            nome: m.name,
+            // Zero vira null para o modelo não anunciar "mais zero reais".
+            adicional: m.surchargeCents > 0 ? m.surchargeCents / 100 : null,
+          })),
+        })),
+      })
+    },
+  },
+
+  {
     name: 'search_menu',
     description:
       'Procura pratos no cardápio por nome, descrição ou ingrediente. Use para responder dúvidas ("tem algo sem carne?", "o que vem na costela?") antes de afirmar qualquer coisa.',

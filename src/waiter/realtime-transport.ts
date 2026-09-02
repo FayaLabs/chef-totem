@@ -12,10 +12,19 @@ import type { TotemCatalog } from '@/menu/types'
 //
 // Três decisões que valem mais que o código:
 //
-// 1. PUSH-TO-TALK, sempre. `turn_detection: null` desliga a detecção de fala do
-//    servidor e o microfone só transmite entre o apertar e o soltar do botão.
-//    Num salão, um microfone aberto grava a mesa ao lado — e a conversa da mesa
-//    ao lado não consentiu com nada.
+// 1. O SERVIDOR DECIDE QUANDO A FRASE ACABOU (`semantic_vad`), não o dedo.
+//    Antes era push-to-talk: `turn_detection: null` e um `commit` manual no
+//    soltar do botão. Protegia contra microfone aberto, e cobrava caro por
+//    isso — quem fala com um totem faz pausa para pensar no meio do pedido, e
+//    cada pausa virava "ele já mandou?".
+//
+//    `semantic_vad` não corta na pausa: ele julga se a FRASE terminou, e é a
+//    diferença entre um garçom que espera você acabar e um que atropela.
+//
+//    O microfone continua não sendo aberto por padrão. Ele abre num toque no
+//    orbe, fecha no toque seguinte, e a sessão inteira morre no fim da visita —
+//    o que a mesa ao lado nunca consentiu foi ser gravada sem ninguém pedir,
+//    não a conversa de quem tocou no botão.
 //
 // 2. A CHAVE NUNCA CHEGA AQUI. O painel pede um segredo efêmero de 60s à edge
 //    function `totem-voice-token`, autenticado como o aparelho. Uma chave de
@@ -167,10 +176,20 @@ export function createRealtimeTransport(): WaiterTransport {
     }
 
     // ---- fases ---------------------------------------------------------------
+    // Com VAD do servidor, é ELE quem sabe que a pessoa começou e parou de
+    // falar. Sem estes dois, o orbe ficaria "ouvindo" durante a resposta.
+    if (type === 'input_audio_buffer.speech_started') {
+      store().setLive('')
+      return store().setPhase('listening')
+    }
+    if (type === 'input_audio_buffer.speech_stopped') return store().setPhase('thinking')
     if (type === 'response.created') return store().setPhase('thinking')
     if (type === 'output_audio_buffer.started') return store().setPhase('speaking')
     if (type === 'response.done' || type === 'output_audio_buffer.stopped') {
-      if (store().phase !== 'listening') store().setPhase('idle')
+      // Terminou de falar e o microfone continua aberto: volta a ESCUTAR, não a
+      // repouso. Num diálogo, o silêncio depois da resposta é a vez do cliente.
+      const stillOpen = mic?.getAudioTracks().some((track) => track.enabled) ?? false
+      store().setPhase(stillOpen ? 'listening' : 'idle')
       return
     }
     if (type === 'error') {
@@ -190,9 +209,16 @@ export function createRealtimeTransport(): WaiterTransport {
           output: { voice: activeWaiterPersona().voiceId },
           input: {
             transcription: { model: 'gpt-4o-mini-transcribe', language: 'pt' },
-            // Push-to-talk: o servidor não decide quando o cliente terminou, o
-            // dedo decide. Ver a nota 1 no topo.
-            turn_detection: null,
+            // O servidor escuta e decide quando a frase acabou. `eagerness:
+            // 'low'` dá mais corda: num salão barulhento, com alguém lendo o
+            // cardápio enquanto fala, cortar cedo é pior do que esperar meio
+            // segundo a mais.
+            turn_detection: {
+              type: 'semantic_vad',
+              eagerness: 'low',
+              create_response: true,
+              interrupt_response: true,
+            },
           },
         },
         tools: toolSchemas(),
@@ -286,14 +312,14 @@ export function createRealtimeTransport(): WaiterTransport {
 
     async stopListening() {
       if (!mic) return
+      // Fechar o microfone é só isso: fechar o microfone. Quem decide que a
+      // frase acabou é o VAD do servidor, e ele já decidiu enquanto a pessoa
+      // falava — mandar `commit` aqui criaria um turno vazio por cima do que
+      // ele acabou de fechar.
       mic.getAudioTracks().forEach((track) => (track.enabled = false))
       detach()
       store().setLevel(0)
-      // O dedo saiu do botão: é isso que fecha o turno. `commit` seguido de
-      // `response.create` é o equivalente manual do que o VAD do servidor faria.
-      send({ type: 'input_audio_buffer.commit' })
-      send({ type: 'response.create' })
-      store().setPhase('thinking')
+      store().setPhase('idle')
     },
 
     async send(text, catalog) {
