@@ -50,7 +50,17 @@ interface WaiterState {
    * transporte registra aqui, e o botao chama daqui.
    */
   controls: { start: () => void; stop: () => void } | null
+  /**
+   * O cliente tocou no orbe da tela inicial.
+   *
+   * A voz só existe no cardápio (o garçom não fica entre o cliente e o cartão),
+   * mas a INTENÇÃO nasce lá atrás, no atrair. Sem carregar essa intenção, quem
+   * toca no orbe passa por duas telas e chega no cardápio sem nada acontecer —
+   * e conclui, com razão, que o orbe é enfeite.
+   */
+  autoListen: boolean
 
+  setAutoListen: (autoListen: boolean) => void
   setControls: (controls: WaiterState['controls']) => void
   setPhase: (phase: WaiterPhase) => void
   setLive: (text: string) => void
@@ -82,7 +92,9 @@ const empty = {
 export const useWaiter = create<WaiterState>((set, get) => ({
   ...empty,
   controls: null,
+  autoListen: false,
 
+  setAutoListen: (autoListen) => set({ autoListen }),
   setControls: (controls) => set({ controls }),
   setPhase: (phase) => set({ phase }),
   setLive: (liveTranscript) => set({ liveTranscript }),

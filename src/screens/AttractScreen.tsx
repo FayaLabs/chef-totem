@@ -3,6 +3,8 @@ import { MediaBackdrop } from '@/design'
 import { totemConfig } from '@/config/totem.config'
 import { prefetchCatalog } from '@/menu/useCatalog'
 import { useTotemSession } from '@/session/useTotemSession'
+import { useWaiter } from '@/waiter/useWaiter'
+import { VoiceOrb } from '@/waiter/VoiceOrb'
 
 // ---------------------------------------------------------------------------
 // The resting state, and the only screen most passers-by ever see.
@@ -10,10 +12,24 @@ import { useTotemSession } from '@/session/useTotemSession'
 // The whole panel is the button. Nobody walking past a kiosk hunts for a target
 // — they touch the screen. A "start" button that only works in one rectangle
 // teaches the customer that the panel is broken.
+//
+// O ORBE ESTÁ AQUI porque é aqui que o cliente decide como vai pedir. Deixá-lo
+// só no cardápio significa que a pessoa já escolheu o caminho de tocar antes de
+// descobrir que dava para falar — e ninguém troca de caminho no meio. Ele fica
+// ao lado do "toque para começar", não no lugar dele: falar é uma oferta, não
+// um pedágio, e quem não quer falar não pode nem perceber que ele existe.
+//
+// Tocar no orbe entra na sessão E deixa registrado que essa pessoa quer falar.
+// A voz em si só liga no cardápio (o garçom não fica entre o cliente e o
+// cartão), então a intenção viaja pelo store — ver `autoListen`.
 // ---------------------------------------------------------------------------
 
 export function AttractScreen() {
   const start = useTotemSession((s) => s.start)
+  const setAutoListen = useWaiter((s) => s.setAutoListen)
+  // `off` = assistente desligado neste totem. Um orbe que não escuta é a pior
+  // peça de interface possível: ele PARECE que escuta.
+  const assistantOn = useWaiter((s) => s.phase) !== 'off'
   const { brand, media } = totemConfig
 
   // Sign the device in and pull the menu while nobody is waiting. By the time
@@ -49,8 +65,8 @@ export function AttractScreen() {
       {/* Pinned low: this is where a hand already is, and where the eye lands
           after the brand. The pulse is the only motion on the screen. */}
       <span
-        className="absolute inset-x-0 z-10 flex justify-center"
-        style={{ bottom: '14cqw' }}
+        className="absolute inset-x-0 z-10 flex flex-col items-center gap-[5cqw]"
+        style={{ bottom: '9cqw' }}
       >
         <span
           className="rounded-full bg-action px-[7cqw] uppercase tracking-[0.2em] motion-safe:animate-[attract-pulse_2.4s_ease-in-out_infinite] grid place-items-center"
@@ -58,6 +74,28 @@ export function AttractScreen() {
         >
           Toque para começar
         </span>
+
+        {assistantOn ? (
+          <span
+            role="button"
+            tabIndex={0}
+            aria-label="Começar falando com o assistente"
+            data-testid="attract-orb"
+            onClick={(event) => {
+              // O painel inteiro é botão; sem parar aqui, o toque no orbe
+              // dispara os dois e a intenção de falar some no mesmo quadro.
+              event.stopPropagation()
+              setAutoListen(true)
+              start()
+            }}
+            className="flex flex-col items-center gap-[2cqw]"
+          >
+            <span className="uppercase tracking-[0.3em] text-white/70" style={{ fontSize: 'var(--step-label)' }}>
+              ou peça falando
+            </span>
+            <VoiceOrb size="20cqw" />
+          </span>
+        ) : null}
       </span>
     </button>
   )

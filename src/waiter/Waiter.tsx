@@ -73,6 +73,15 @@ export function Waiter() {
     return () => setControls(null)
   }, [transport, step, startTalking, stopTalking, setControls])
 
+  // A intenção que veio do atrair, cobrada aqui. Consumida na hora: se o
+  // cliente voltar ao cardápio depois, o microfone não abre sozinho de novo.
+  useEffect(() => {
+    if (step !== 'menu' || !transport) return
+    if (!useWaiter.getState().autoListen) return
+    useWaiter.getState().setAutoListen(false)
+    startTalking()
+  }, [step, transport, startTalking])
+
   if (!transport || step !== 'menu') return null
 
   return (
