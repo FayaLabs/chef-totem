@@ -44,6 +44,7 @@ export function Waiter() {
   }, [transport, setPhase])
 
   const setExpanded = useWaiter((s) => s.setExpanded)
+  const setError = useWaiter((s) => s.setError)
 
   const send = useCallback(
     (text: string) => {
@@ -56,16 +57,22 @@ export function Waiter() {
       //
       // A voz NÃO abre: quem está falando está olhando o cardápio, não lendo.
       setExpanded(true)
+      setError(null)
       void transport.send(text, state.catalog)
     },
-    [transport, setExpanded],
+    [transport, setExpanded, setError],
   )
 
   const startTalking = useCallback(() => {
     const state = catalogRef.current
     if (!transport?.startListening || state.status !== 'ready') return
+    // Uma nova tentativa apaga o erro da anterior. Sem isto a frase vermelha
+    // ficava na faixa para sempre — inclusive depois de o cliente fazer
+    // exatamente o que ela mandou ("toque no orbe e tente de novo"), que é o
+    // jeito mais rápido de ensinar alguém a não confiar na tela.
+    setError(null)
     void transport.startListening(state.catalog)
-  }, [transport])
+  }, [transport, setError])
 
   const stopTalking = useCallback(() => {
     void transport?.stopListening?.()

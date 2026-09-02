@@ -91,6 +91,15 @@ export function createScriptedTransport(): WaiterTransport {
       waiter.setPhase('thinking')
 
       const clean = text.trim()
+
+      // Costura de teste: a única forma de exercitar o caminho de erro sem uma
+      // rede que falhe de propósito. O erro é o estado mais difícil de acertar
+      // — ele precisa aparecer, e precisa SAIR quando o cliente tenta de novo.
+      if (clean === '/erro') {
+        waiter.setError('Não consegui te ouvir agora. Toque no orbe e tente de novo.')
+        return
+      }
+
       const intent = INTENTS.map((i) => ({ i, m: clean.match(i.match) })).find((x) => x.m)
 
       const result = intent?.m

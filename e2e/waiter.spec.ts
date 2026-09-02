@@ -107,3 +107,25 @@ test.describe('V2 · o garçom presente', () => {
     await expect(page.getByTestId('waiter-dock')).toHaveCount(0)
   })
 })
+
+test.describe('V3 · o erro que sai', () => {
+  test('tocar no orbe de novo apaga a frase vermelha', async ({ page }) => {
+    // A frase dizia "toque no orbe e tente de novo" e continuava lá depois de o
+    // cliente fazer exatamente isso — o jeito mais rápido de ensinar alguém a
+    // não confiar na tela.
+    await toMenuWithWaiter(page)
+    await page.getByTestId('waiter-line').tap()
+    await page.getByTestId('waiter-input').fill('/erro')
+    await page.getByTestId('waiter-send').tap()
+
+    // O erro mora na FAIXA, não no painel: ele é sobre o canal, não sobre a
+    // conversa. Quem está lendo a conversa não precisa de uma bolha vermelha
+    // dizendo que o microfone falhou.
+    await page.getByTestId('sheet-scrim').tap()
+    await expect(page.getByTestId('waiter-line-text')).toContainText(/não consegui te ouvir/i)
+
+    await page.getByTestId('talk-button').tap()
+    await expect(page.getByTestId('waiter-line-text')).not.toContainText(/não consegui te ouvir/i)
+    await expect(page.getByTestId('voice-orb')).toHaveAttribute('data-phase', 'listening')
+  })
+})

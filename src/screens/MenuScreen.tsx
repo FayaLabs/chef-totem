@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Gift, RefreshCw, ShoppingCart, UtensilsCrossed, Wallet, X } from 'lucide-react'
+import { Gift, RefreshCw, UtensilsCrossed, Wallet, X } from 'lucide-react'
 import { allCategoriesIcon as AllIcon, categoryIcon } from '@/menu/category-icon'
 import { BottomBar, Chip, Sheet, TotemButton } from '@/design'
 import { brl, cartCount, cartTotalCents, useCart } from '@/cart/useCart'
@@ -10,6 +10,7 @@ import { useProductDraft } from '@/menu/useProductDraft'
 import type { TotemProduct } from '@/menu/types'
 import { ProductSheet } from '@/screens/ProductSheet'
 import { CartSheet } from '@/screens/CartSheet'
+import { CartButton } from '@/screens/CartButton'
 import { offerLabel } from '@/orders/totals'
 import { useTotemSession, type TotemCustomer } from '@/session/useTotemSession'
 import { totemConfig } from '@/config/totem.config'
@@ -158,17 +159,7 @@ export function MenuScreen() {
       ) : null}
 
       <BottomBar>
-        <TotemButton
-          tone="bar-quiet"
-          size="bar"
-          className="flex-1"
-          data-testid="open-cart"
-          disabled={count === 0}
-          onClick={() => setCartOpen(true)}
-        >
-          <ShoppingCart strokeWidth={3} className="size-[2.4cqw]" />
-          Carrinho {count > 0 ? <span className="tnum">({count})</span> : null}
-        </TotemButton>
+        <CartButton onOpen={() => setCartOpen(true)} />
         <TotemButton
           tone="action"
           size="bar"

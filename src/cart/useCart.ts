@@ -20,8 +20,23 @@ export interface CartLine {
   unitCents: number
 }
 
+/**
+ * O último item que entrou, para a barra poder mostrá-lo entrando.
+ *
+ * Mora no carrinho e não numa tela porque quem adiciona nem sempre é a tela: o
+ * garçom adiciona por conta própria, e o cliente precisa ver a mesma
+ * confirmação quer tenha tocado, quer tenha falado.
+ */
+export interface CartFlash {
+  name: string
+  imageUrl?: string
+  /** Muda a cada adição, mesmo repetindo o prato — é o que reinicia a animação. */
+  seq: number
+}
+
 interface CartState {
   lines: CartLine[]
+  lastAdded: CartFlash | null
   add: (product: TotemProduct, quantity: number, modifiers: TotemModifier[]) => void
   setQuantity: (lineId: string, quantity: number) => void
   remove: (lineId: string) => void
@@ -39,12 +54,19 @@ function signatureOf(product: TotemProduct, modifiers: TotemModifier[]): string 
 
 export const useCart = create<CartState>((set, get) => ({
   lines: [],
+  lastAdded: null,
 
   add: (product, quantity, modifiers) => {
     const signature = signatureOf(product, modifiers)
+    const flash: CartFlash = {
+      name: product.name,
+      imageUrl: product.imageUrl,
+      seq: (get().lastAdded?.seq ?? 0) + 1,
+    }
     const existing = get().lines.find((line) => line.id === signature)
     if (existing) {
       set({
+        lastAdded: flash,
         lines: get().lines.map((line) =>
           line.id === signature ? { ...line, quantity: line.quantity + quantity } : line,
         ),
@@ -52,6 +74,7 @@ export const useCart = create<CartState>((set, get) => ({
       return
     }
     set({
+      lastAdded: flash,
       lines: [
         ...get().lines,
         { id: signature, product, quantity, modifiers, unitCents: lineUnitCents(product, modifiers) },
@@ -69,7 +92,7 @@ export const useCart = create<CartState>((set, get) => ({
 
   remove: (lineId) => set({ lines: get().lines.filter((line) => line.id !== lineId) }),
 
-  clear: () => set({ lines: [] }),
+  clear: () => set({ lines: [], lastAdded: null }),
 }))
 
 export const cartCount = (lines: CartLine[]): number =>

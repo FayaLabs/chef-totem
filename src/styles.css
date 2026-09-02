@@ -202,6 +202,33 @@
   }
 }
 
+/* O item ATRAVESSANDO a barra do carrinho: entra por baixo, assenta, e sai por
+   cima. Uma direção só, de baixo para cima — é a mesma direção do gesto que o
+   cliente acabou de fazer (o prato subiu do cardápio para o pedido), e um
+   movimento que volta por onde veio leria como "desfeito".
+ 
+   O ciclo inteiro é uma animação só, e não uma entrada seguida de troca de
+   elemento: assim o item já está invisível quando o React devolve o contador,
+   e não existe o quadro em que os dois aparecem juntos. */
+@keyframes cart-flash {
+  0% {
+    transform: translateY(90%);
+    opacity: 0;
+  }
+  14% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  78% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-70%);
+    opacity: 0;
+  }
+}
+
 @keyframes waiter-dock-in {
   from {
     transform: translateY(40%);

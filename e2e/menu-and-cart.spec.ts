@@ -128,3 +128,39 @@ test.describe('M4 · produto e carrinho', () => {
     await expect(page.getByTestId('to-payment')).toBeDisabled()
   })
 })
+
+test.describe('M4 · o item entrando no carrinho', () => {
+  test('a barra mostra O QUE entrou, com foto, e volta a ser o contador', async ({ page }) => {
+    // Um contador pulando de (1) para (2) é a confirmação mais fraca possível:
+    // o número está no canto oposto de onde o dedo tocou. Sem ver nada
+    // acontecer, o cliente adiciona de novo — é assim que nasce pedido em dobro.
+    await toMenu(page)
+    await openProduct(page, 'zd-p-pepperoni')
+    await page.getByTestId('mod-zd-m-media').tap()
+    await page.getByTestId('add-to-order').tap()
+
+    const flash = page.getByTestId('cart-flash')
+    await expect(flash).toBeVisible()
+    await expect(flash).toContainText(/pepperoni/i)
+    await expect(flash.locator('img')).toBeVisible()
+    // Enquanto o flash está no ar, o contador não está — é a mesma metade da
+    // barra, não uma terceira coisa espremida ao lado.
+    await expect(page.getByTestId('open-cart')).toHaveCount(0)
+
+    await expect(page.getByTestId('open-cart')).toContainText('(1)', { timeout: 5_000 })
+    await expect(page.getByTestId('cart-flash')).toHaveCount(0)
+  })
+
+  test('adicionar o MESMO prato de novo pisca de novo', async ({ page }) => {
+    // O gatilho é uma sequência, não o nome: um objeto igual ao anterior não
+    // reinicia efeito nenhum, e a segunda adição passaria sem confirmação.
+    await toMenu(page)
+    await openProduct(page, 'zd-p-refri')
+    await page.getByTestId('add-to-order').tap()
+    await expect(page.getByTestId('open-cart')).toContainText('(1)', { timeout: 5_000 })
+
+    await openProduct(page, 'zd-p-refri')
+    await page.getByTestId('add-to-order').tap()
+    await expect(page.getByTestId('cart-flash')).toBeVisible()
+  })
+})
