@@ -4,6 +4,7 @@ import { BottomBar, Chip, TotemButton } from '@/design'
 import { brl, cartCount, cartTotalCents, useCart } from '@/cart/useCart'
 import { useCatalog } from '@/menu/useCatalog'
 import { useMenuUi } from '@/menu/useMenuUi'
+import { useWaiter } from '@/waiter/useWaiter'
 import { useProductDraft } from '@/menu/useProductDraft'
 import type { TotemProduct } from '@/menu/types'
 import { ProductSheet } from '@/screens/ProductSheet'
@@ -33,6 +34,13 @@ export function MenuScreen() {
   const setFilter = useMenuUi((s) => s.setFilter)
   const setCartOpen = useMenuUi((s) => s.setCartOpen)
   const resetMenuUi = useMenuUi((s) => s.reset)
+
+  // The dock is chrome, not an overlay: when the waiter is on shift the grid
+  // and the rail give up its height instead of scrolling underneath it.
+  const waiterOn = useWaiter((s) => s.phase) !== 'off'
+  const bottomInset = waiterOn
+    ? 'calc(var(--tap-bar) + 17cqw + 4cqw)'
+    : 'calc(var(--tap-bar) + 4cqw)'
 
   const openProductId = useProductDraft((s) => s.productId)
   const openDraft = useProductDraft((s) => s.open)
@@ -74,7 +82,8 @@ export function MenuScreen() {
         <div className="flex min-h-0 flex-1">
           <nav
             data-testid="category-rail"
-            className="w-[22cqw] shrink-0 overflow-y-auto border-r-2 border-hairline bg-white pb-[calc(var(--tap-bar)+4cqw)]"
+            className="w-[22cqw] shrink-0 overflow-y-auto border-r-2 border-hairline bg-white"
+            style={{ paddingBottom: bottomInset }}
           >
             <RailButton
               active={categoryId === null}
@@ -114,7 +123,8 @@ export function MenuScreen() {
 
             <div
               data-testid="menu-grid"
-              className="grid min-h-0 flex-1 auto-rows-min grid-cols-2 gap-[3cqw] overflow-y-auto px-[3cqw] pb-[calc(var(--tap-bar)+4cqw)]"
+              className="grid min-h-0 flex-1 auto-rows-min grid-cols-2 gap-[3cqw] overflow-y-auto px-[3cqw]"
+              style={{ paddingBottom: bottomInset }}
             >
               {products.length === 0 ? (
                 <p className="col-span-2 py-[10cqw] text-center text-muted" style={{ fontSize: 'var(--step-body)' }}>

@@ -9,6 +9,7 @@ import { PaymentScreen } from '@/screens/PaymentScreen'
 import { ReceiptScreen } from '@/screens/ReceiptScreen'
 import { PlaceholderScreen } from '@/screens/PlaceholderScreen'
 import { useTotemSession, type TotemStep } from '@/session/useTotemSession'
+import { Waiter } from '@/waiter/Waiter'
 
 // The step IS the route. A kiosk has no URL bar, no deep links and no back
 // button of its own, so a router would only add a second source of truth for
@@ -38,6 +39,7 @@ export default function App() {
   return (
     <TotemViewport>
       {isDesign ? <DesignCatalog /> : Screen ? <Screen /> : <PlaceholderScreen step={step} />}
+      {isDesign ? null : <Waiter />}
     </TotemViewport>
   )
 }

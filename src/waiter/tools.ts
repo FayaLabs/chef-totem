@@ -2,6 +2,7 @@ import { useCart } from '@/cart/useCart'
 import { draftBlocking, draftModifiers, useProductDraft } from '@/menu/useProductDraft'
 import { useMenuUi } from '@/menu/useMenuUi'
 import { useTotemSession } from '@/session/useTotemSession'
+import { useWaiter } from '@/waiter/useWaiter'
 import type { TotemCatalog, TotemProduct } from '@/menu/types'
 
 // ---------------------------------------------------------------------------
@@ -28,6 +29,21 @@ export interface WaiterTool {
   execute: (args: Record<string, unknown>, catalog: TotemCatalog) => string
 }
 
+/**
+ * Fold accents and case before comparing.
+ *
+ * Without this, `"média".includes("media")` is false and the waiter refuses an
+ * option the customer just named. Speech transcripts do not spell accents
+ * reliably in any language that has them, and neither do people typing on a
+ * kiosk keyboard — so every match in this file goes through here.
+ */
+const norm = (value: string): string =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase()
+
 const str = (args: Record<string, unknown>, key: string): string =>
   typeof args[key] === 'string' ? (args[key] as string) : ''
 
@@ -36,14 +52,14 @@ const num = (args: Record<string, unknown>, key: string, fallback: number): numb
 
 /** Loose match by name — a spoken order rarely repeats the catalog verbatim. */
 function findProduct(catalog: TotemCatalog, query: string): TotemProduct | null {
-  const needle = query.trim().toLowerCase()
+  const needle = norm(query)
   if (!needle) return null
   const products = catalog.products
   return (
     products.find((p) => p.id === query) ??
-    products.find((p) => p.name.toLowerCase() === needle) ??
-    products.find((p) => p.name.toLowerCase().includes(needle)) ??
-    products.find((p) => needle.includes(p.name.toLowerCase())) ??
+    products.find((p) => norm(p.name) === needle) ??
+    products.find((p) => norm(p.name).includes(needle)) ??
+    products.find((p) => needle.includes(norm(p.name))) ??
     null
   )
 }
@@ -64,11 +80,9 @@ export const WAITER_TOOLS: WaiterTool[] = [
       required: ['query'],
     },
     execute: (args, catalog) => {
-      const needle = str(args, 'query').toLowerCase()
+      const needle = norm(str(args, 'query'))
       const hits = catalog.products.filter(
-        (p) =>
-          p.name.toLowerCase().includes(needle) ||
-          (p.description ?? '').toLowerCase().includes(needle),
+        (p) => norm(p.name).includes(needle) || norm(p.description ?? '').includes(needle),
       )
       if (hits.length === 0) return `Nada no cardápio para "${str(args, 'query')}".`
       return JSON.stringify(
@@ -91,12 +105,12 @@ export const WAITER_TOOLS: WaiterTool[] = [
       properties: { category: { type: 'string', description: 'Nome da categoria, ou vazio para todas' } },
     },
     execute: (args, catalog) => {
-      const name = str(args, 'category').toLowerCase()
+      const name = norm(str(args, 'category'))
       if (!name) {
         useMenuUi.getState().openCategory(null)
         return 'Mostrando o cardápio inteiro.'
       }
-      const category = catalog.categories.find((c) => c.name.toLowerCase().includes(name))
+      const category = catalog.categories.find((c) => norm(c.name).includes(name))
       if (!category) return `Não existe a categoria "${str(args, 'category')}".`
       useMenuUi.getState().openCategory(category.id)
       return `Mostrando ${category.name}.`
@@ -118,6 +132,9 @@ export const WAITER_TOOLS: WaiterTool[] = [
       if (product.soldOut) return `${product.name} está esgotado hoje.`
       useProductDraft.getState().open(product.id)
       useMenuUi.getState().setCartOpen(false)
+      // Step aside. The customer asked to see a dish; a chat panel parked on
+      // top of it is the waiter blocking the plate they just brought.
+      useWaiter.getState().setExpanded(false)
       const groups = product.modifierGroups.map((g) => ({
         grupo: g.name,
         obrigatorio: g.required,
@@ -140,9 +157,9 @@ export const WAITER_TOOLS: WaiterTool[] = [
     execute: (args, catalog) => {
       const product = openProductOrNull(catalog)
       if (!product) return 'Nenhum prato está aberto. Use open_product primeiro.'
-      const needle = str(args, 'option').toLowerCase()
+      const needle = norm(str(args, 'option'))
       for (const group of product.modifierGroups) {
-        const modifier = group.modifiers.find((m) => m.name.toLowerCase().includes(needle))
+        const modifier = group.modifiers.find((m) => norm(m.name).includes(needle))
         if (!modifier) continue
         useProductDraft.getState().toggle(group.id, modifier.id, group.maxSelections)
         const on = (useProductDraft.getState().chosen[group.id] ?? []).includes(modifier.id)
@@ -196,6 +213,7 @@ export const WAITER_TOOLS: WaiterTool[] = [
     execute: () => {
       useProductDraft.getState().close()
       useMenuUi.getState().setCartOpen(true)
+      useWaiter.getState().setExpanded(false)
       const lines = useCart.getState().lines
       if (lines.length === 0) return 'O carrinho está vazio.'
       return JSON.stringify(lines.map((l) => ({ item: l.product.name, qtd: l.quantity })))
@@ -214,8 +232,8 @@ export const WAITER_TOOLS: WaiterTool[] = [
       required: ['product', 'quantity'],
     },
     execute: (args) => {
-      const needle = str(args, 'product').toLowerCase()
-      const line = useCart.getState().lines.find((l) => l.product.name.toLowerCase().includes(needle))
+      const needle = norm(str(args, 'product'))
+      const line = useCart.getState().lines.find((l) => norm(l.product.name).includes(needle))
       if (!line) return `"${str(args, 'product')}" não está no pedido.`
       const quantity = num(args, 'quantity', line.quantity)
       useCart.getState().setQuantity(line.id, quantity)
@@ -233,6 +251,7 @@ export const WAITER_TOOLS: WaiterTool[] = [
       if (lines.length === 0) return 'O pedido está vazio — não há o que pagar ainda.'
       useProductDraft.getState().close()
       useMenuUi.getState().setCartOpen(false)
+      useWaiter.getState().setExpanded(false)
       useTotemSession.getState().goTo('payment')
       return 'Levei para o pagamento. O cliente escolhe a forma e toca em pagar.'
     },

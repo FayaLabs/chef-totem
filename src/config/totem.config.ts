@@ -58,7 +58,7 @@ export const totemConfig: TotemConfig = {
   idleSeconds: 60,
   idleGraceSeconds: 20,
   flags: {
-    assistant: false,
+    assistant: env.VITE_TOTEM_ASSISTANT === 'on',
     camera: false,
     terminal: false,
     printer: false,

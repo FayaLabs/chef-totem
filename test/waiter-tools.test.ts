@@ -127,3 +127,28 @@ test('toda ferramenta tem schema declarado', () => {
     assert.equal(tool.parameters.type, 'object', `${tool.name} sem schema`)
   }
 })
+
+test('acento não pode derrubar o pedido', () => {
+  // "média".includes("media") é false. Um transcript de voz nunca escreve
+  // acento de forma confiável, e um teclado de totem também não — então o
+  // garçom recusaria uma opção que o cliente acabou de dizer.
+  reset()
+  run('open_product', { product: 'calabresa' })
+  assert.match(run('choose_option', { option: 'media' }), /marcado/i)
+  assert.deepEqual(useProductDraft.getState().chosen['g-size'], ['m-media'])
+})
+
+test('acento também não derruba busca nem categoria', () => {
+  reset()
+  assert.match(run('open_category', { category: 'sobremesas' }), /Sobremesas/)
+  assert.match(run('search_menu', { query: 'agua' }), /Água/)
+})
+
+test('quantidade fora da faixa é presa no limite', () => {
+  reset()
+  run('open_product', { product: 'coca' })
+  run('set_quantity', { quantity: 999 })
+  assert.equal(useProductDraft.getState().quantity, 99)
+  run('set_quantity', { quantity: -3 })
+  assert.equal(useProductDraft.getState().quantity, 1)
+})

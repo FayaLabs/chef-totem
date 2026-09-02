@@ -9,6 +9,9 @@ interface ImportMetaEnv {
   readonly VITE_TOTEM_DEVICE_EMAIL?: string
   readonly VITE_TOTEM_DEVICE_PASSWORD?: string
   readonly VITE_TOTEM_CATALOG?: 'live' | 'demo'
+  readonly VITE_TOTEM_ASSISTANT?: string
+  readonly VITE_TOTEM_WAITER?: 'scripted' | 'text' | 'voice'
+  readonly VITE_TOTEM_TERMINAL_MOCK?: string
 }
 interface ImportMeta {
   readonly env: ImportMetaEnv

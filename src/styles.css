@@ -153,3 +153,53 @@
     transform: scale(1.035);
   }
 }
+
+/* The waiter's orb. Halo pulses outward while it is listening or thinking;
+   the body breathes while idle so a customer can tell it is alive and not a
+   printed sticker. All of it is inside motion-safe: under reduced motion the
+   ring colour carries the state alone. */
+@keyframes waiter-halo {
+  0% {
+    transform: scale(0.86);
+    opacity: 0.3;
+  }
+  70% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+}
+
+@keyframes waiter-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes waiter-bar {
+  0%,
+  100% {
+    height: 32%;
+  }
+  50% {
+    height: 100%;
+  }
+}
+
+@keyframes waiter-dock-in {
+  from {
+    transform: translateY(40%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
