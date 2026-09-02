@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowUp, Mic, Square } from 'lucide-react'
 import { Sheet } from '@/design'
 import { VoiceOrb } from '@/waiter/VoiceOrb'
@@ -17,6 +17,16 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
   const controls = useWaiter((s) => s.controls)
   const [draft, setDraft] = useState('')
   const listening = phase === 'listening'
+  const thread = useRef<HTMLDivElement>(null)
+
+  // Rola para o fim a cada turno novo. Sem isto a conversa cresce para baixo,
+  // fora da vista, e o cliente lê a resposta do garçom sobre uma pergunta que
+  // já saiu da tela — que é o mesmo que não ter histórico nenhum.
+  useEffect(() => {
+    const el = thread.current
+    if (!el) return
+    el.scrollTo({ top: el.scrollHeight, behavior: turns.length <= 1 ? 'auto' : 'smooth' })
+  }, [turns, live])
   const typed = draft.trim().length > 0
 
   const send = () => {
@@ -58,7 +68,14 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
         </span>
       </div>
 
-      <div className="flex flex-col gap-[2.5cqw]" data-testid="waiter-turns">
+      {/* A conversa inteira, rolável. Ela era uma lista que crescia dentro do
+          corpo do sheet; agora tem altura própria e âncora no fim, então a
+          última coisa dita está sempre visível e o resto fica um dedo acima. */}
+      <div
+        ref={thread}
+        className="flex max-h-[46cqw] min-h-[24cqw] flex-col gap-[2.5cqw] overflow-y-auto"
+        data-testid="waiter-turns"
+      >
         {turns.length === 0 && !live ? (
           <p className="py-[4cqw] text-muted" style={{ fontSize: 'var(--step-body)' }}>
             Peça como pediria a {activeWaiterPersona().name}, com as suas palavras.

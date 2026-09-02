@@ -44,6 +44,9 @@ const DEFAULT_MODEL = 'gpt-realtime-2.1'
  *  direto; isto é só para quem precisa de estado). */
 const LEVEL_MS = 100
 
+/** Quanto tempo a trava de resposta espera antes de assumir que se perdeu. */
+const RESPONSE_TIMEOUT_MS = 20_000
+
 interface TokenResponse {
   value?: string
   model?: string
@@ -105,6 +108,15 @@ export function createRealtimeTransport(): WaiterTransport {
   let responseActive = false
   /** Um `response.create` que chegou cedo demais e espera a vez. */
   let responsePending = false
+  /**
+   * Solta a trava se o `response.done` nunca vier.
+   *
+   * `responseActive` era otimista: se o servidor engolisse a resposta, a flag
+   * ficava presa em `true` e TODO pedido seguinte entrava na fila para nunca
+   * sair — o painel virava um garçom que ouve e não responde, sem um erro
+   * sequer na tela.
+   */
+  let responseGuard: ReturnType<typeof setTimeout> | null = null
 
   const store = () => useWaiter.getState()
 
@@ -124,7 +136,21 @@ export function createRealtimeTransport(): WaiterTransport {
       return
     }
     responseActive = true
+    if (responseGuard) clearTimeout(responseGuard)
+    responseGuard = setTimeout(() => {
+      responseActive = false
+      if (responsePending) {
+        responsePending = false
+        requestResponse()
+      }
+    }, RESPONSE_TIMEOUT_MS)
     send({ type: 'response.create' })
+  }
+
+  const settleResponse = () => {
+    responseActive = false
+    if (responseGuard) clearTimeout(responseGuard)
+    responseGuard = null
   }
 
   const startLevelPump = () => {
@@ -224,7 +250,7 @@ export function createRealtimeTransport(): WaiterTransport {
     }
     if (type === 'output_audio_buffer.started') return store().setPhase('speaking')
     if (type === 'response.done') {
-      responseActive = false
+      settleResponse()
       if (responsePending) {
         responsePending = false
         requestResponse()
@@ -245,7 +271,7 @@ export function createRealtimeTransport(): WaiterTransport {
       // em vermelho na faixa não diz nada a quem quer almoçar, e faz o painel
       // parecer quebrado quando ele não está.
       console.error('[waiter]', raw)
-      responseActive = false
+      settleResponse()
       responsePending = false
       store().setError('Não consegui te ouvir agora. Toque no orbe e tente de novo.')
     }
@@ -422,6 +448,8 @@ export function createRealtimeTransport(): WaiterTransport {
     dispose() {
       if (levelTimer) clearInterval(levelTimer)
       levelTimer = null
+      if (responseGuard) clearTimeout(responseGuard)
+      responseGuard = null
       detach()
       mic?.getTracks().forEach((track) => track.stop())
       channel?.close()

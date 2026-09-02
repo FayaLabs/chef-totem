@@ -43,13 +43,22 @@ export function Waiter() {
     if (!transport) setPhase('off')
   }, [transport, setPhase])
 
+  const setExpanded = useWaiter((s) => s.setExpanded)
+
   const send = useCallback(
     (text: string) => {
       const state = catalogRef.current
       if (!transport || state.status !== 'ready') return
+      // Escrever ou tocar numa sugestão ABRE a conversa. Sem isto a frase do
+      // cliente aparecia por um segundo na faixa de uma linha e era substituída
+      // pela resposta — ele via o próprio pedido piscar e sumir, sem nenhum
+      // lugar onde reler o que perguntou.
+      //
+      // A voz NÃO abre: quem está falando está olhando o cardápio, não lendo.
+      setExpanded(true)
       void transport.send(text, state.catalog)
     },
-    [transport],
+    [transport, setExpanded],
   )
 
   const startTalking = useCallback(() => {
