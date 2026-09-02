@@ -94,11 +94,37 @@ export function createRealtimeTransport(): WaiterTransport {
   let catalogRef: TotemCatalog | null = null
   /** Turno do garçom sendo transcrito agora — para colar os deltas nele. */
   let speakingTurnId: string | null = null
+  /**
+   * Há uma resposta em andamento no servidor?
+   *
+   * Com `create_response: true` quem cria a resposta quando o VAD fecha o turno
+   * é o SERVIDOR. Mandar `response.create` por cima disso devolve
+   * "Conversation already has an active response in progress" — e o erro ia
+   * parar na faixa, em vermelho, na cara do cliente.
+   */
+  let responseActive = false
+  /** Um `response.create` que chegou cedo demais e espera a vez. */
+  let responsePending = false
 
   const store = () => useWaiter.getState()
 
   const send = (payload: unknown) => {
     if (channel?.readyState === 'open') channel.send(JSON.stringify(payload))
+  }
+
+  /**
+   * Pede uma resposta — ou espera a vez.
+   *
+   * É o único lugar de onde sai um `response.create`. Antes havia três, e dois
+   * deles disparavam enquanto o servidor já tinha criado a sua.
+   */
+  const requestResponse = () => {
+    if (responseActive) {
+      responsePending = true
+      return
+    }
+    responseActive = true
+    send({ type: 'response.create' })
   }
 
   const startLevelPump = () => {
@@ -170,8 +196,9 @@ export function createRealtimeTransport(): WaiterTransport {
         },
       })
       // Depois de mexer na tela, o estado mudou; o modelo precisa do novo
-      // retrato antes de decidir a próxima frase.
-      send({ type: 'response.create' })
+      // retrato antes de decidir a próxima frase. Se a resposta que fez a
+      // chamada ainda está aberta, esta espera o `response.done` dela.
+      requestResponse()
       return
     }
 
@@ -191,8 +218,19 @@ export function createRealtimeTransport(): WaiterTransport {
       if (store().phase === 'speaking') return
       return store().setPhase('thinking')
     }
-    if (type === 'response.created') return store().setPhase('thinking')
+    if (type === 'response.created') {
+      responseActive = true
+      return store().setPhase('thinking')
+    }
     if (type === 'output_audio_buffer.started') return store().setPhase('speaking')
+    if (type === 'response.done') {
+      responseActive = false
+      if (responsePending) {
+        responsePending = false
+        requestResponse()
+        return
+      }
+    }
     if (type === 'response.done' || type === 'output_audio_buffer.stopped') {
       // Terminou de falar e o microfone continua aberto: volta a ESCUTAR, não a
       // repouso. Num diálogo, o silêncio depois da resposta é a vez do cliente.
@@ -201,9 +239,15 @@ export function createRealtimeTransport(): WaiterTransport {
       return
     }
     if (type === 'error') {
-      const message =
-        (event.error as { message?: string } | undefined)?.message ?? 'a voz falhou'
-      store().setError(message)
+      const raw = (event.error as { message?: string } | undefined)?.message ?? ''
+      // O texto cru é do PROTOCOLO, e o cliente não fala protocolo. Um
+      // "Conversation already has an active response in progress: resp_EJkg…"
+      // em vermelho na faixa não diz nada a quem quer almoçar, e faz o painel
+      // parecer quebrado quando ele não está.
+      console.error('[waiter]', raw)
+      responseActive = false
+      responsePending = false
+      store().setError('Não consegui te ouvir agora. Toque no orbe e tente de novo.')
     }
   }
 
@@ -371,7 +415,7 @@ export function createRealtimeTransport(): WaiterTransport {
         type: 'conversation.item.create',
         item: { type: 'message', role: 'user', content: [{ type: 'input_text', text }] },
       })
-      send({ type: 'response.create' })
+      requestResponse()
       store().setPhase('thinking')
     },
 
@@ -389,6 +433,8 @@ export function createRealtimeTransport(): WaiterTransport {
       audio = null
       connecting = null
       speakingTurnId = null
+      responseActive = false
+      responsePending = false
     },
   }
 }
