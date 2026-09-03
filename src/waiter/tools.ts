@@ -103,7 +103,7 @@ export const WAITER_TOOLS: WaiterTool[] = [
   {
     name: 'highlight_product',
     description:
-      'APONTA para um prato no cardápio: desce até ele, aumenta e apaga os outros por alguns segundos. Use SEMPRE que for falar de um prato específico sem abri-lo — recomendar, comparar, responder "o que tem de bom". Sem isto o cliente ouve o nome e fica procurando qual dos doze é.',
+      'APONTA para um prato no cardápio: desce até ele, aumenta e apaga os outros por alguns segundos. Use quando for FALAR de um prato — recomendar, comparar, responder "o que tem de bom". NUNCA no mesmo turno que open_product: apontar e abrir são duas formas de dizer "é este", e as duas juntas são dois movimentos ao mesmo tempo. Aponte para falar; abra para personalizar.',
     parameters: {
       type: 'object',
       properties: { product: { type: 'string', description: 'Nome do prato' } },
@@ -187,6 +187,10 @@ export const WAITER_TOOLS: WaiterTool[] = [
       if (!product) return `Não achei "${str(args, 'product')}" no cardápio.`
       if (product.soldOut) return `${product.name} está esgotado hoje.`
       useProductDraft.getState().open(product.id)
+      // Abrir APAGA o destaque. São duas formas de dizer "é este", e as duas ao
+      // mesmo tempo é o prato crescendo na grade enquanto um sheet sobe por
+      // cima dele — o cliente vê dois movimentos e não sabe para onde olhar.
+      useMenuUi.getState().highlight(null)
       useMenuUi.getState().setCartOpen(false)
       // Step aside. The customer asked to see a dish; a chat panel parked on
       // top of it is the waiter blocking the plate they just brought.

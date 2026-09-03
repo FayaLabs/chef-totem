@@ -53,3 +53,33 @@ test.describe('M5 · pagamento', () => {
     await expect(error).toContainText(/pagamento aprovado/i)
   })
 })
+
+test.describe('M5 · o garçom acompanha o pagamento', () => {
+  test('escolher cartão faz o garçom explicar a maquininha', async ({ page }) => {
+    // A instrução que mais se perde lida: o cliente está de pé, olhando um
+    // painel a um metro. Falada, ela chega antes.
+    await toPayment(page, '/?waiter=scripted')
+    await expect(page.getByTestId('waiter-dock')).toBeVisible()
+
+    await page.getByTestId('pay-pix').tap()
+    await expect(page.getByTestId('waiter-line-text')).toContainText(/pix/i)
+
+    await page.getByTestId('pay-card').tap()
+    await expect(page.getByTestId('waiter-line-text')).toContainText(/maquininha/i)
+  })
+
+  test('na tela de pagamento ele acompanha, não vende', async ({ page }) => {
+    // Um garçom que oferece sobremesa na tela de pagamento é um garçom entre o
+    // cliente e o cartão.
+    await toPayment(page, '/?waiter=scripted')
+    await expect(page.locator('[data-testid^=waiter-suggestion-]')).toHaveCount(0)
+    await expect(page.getByTestId('waiter-panel')).toHaveCount(0)
+  })
+
+  test('pedido confirmado: ele diz a senha e se despede', async ({ page }) => {
+    await toPayment(page, '/?waiter=scripted')
+    await page.getByTestId('pay-now').tap()
+    await expect(page.getByTestId('screen-receipt')).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByTestId('waiter-line-text')).toContainText(/senha/i)
+  })
+})

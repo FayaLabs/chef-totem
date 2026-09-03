@@ -127,6 +127,15 @@ export function createScriptedTransport(): WaiterTransport {
       waiter.setPhase('idle')
     },
 
+    async announce(instruction) {
+      // O roteirizado não tem modelo para escrever a frase, então ele diz a
+      // própria instrução em voz de garçom — feio de perto, suficiente para o
+      // teste provar que o evento chega e vira linha na faixa.
+      const waiter = useWaiter.getState()
+      waiter.pushTurn({ id: id(), from: 'waiter', text: instruction, did: ['acompanhou a tela'] })
+      waiter.setPhase('idle')
+    },
+
     async startListening() {
       // No microphone here: the phase still moves so the orb, the dock label
       // and every visual affordance are exercised by the same test.

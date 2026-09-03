@@ -428,6 +428,21 @@ export function createRealtimeTransport(): WaiterTransport {
       store().setPhase('idle')
     },
 
+    async announce(instruction, catalog) {
+      // Só narra se a sessão JÁ existe. Abrir uma conexão de voz porque o
+      // cliente tocou em "cartão" seria ligar o microfone sem ninguém pedir.
+      if (!pc) return
+      catalogRef = catalog
+      configure(catalog)
+      // `role: 'system'` e não `user`: isto não é o cliente falando, e entrar
+      // como fala dele sujaria a transcrição com frases que ninguém disse.
+      send({
+        type: 'conversation.item.create',
+        item: { type: 'message', role: 'system', content: [{ type: 'input_text', text: instruction }] },
+      })
+      requestResponse()
+    },
+
     async send(text, catalog) {
       try {
         await ensure(catalog)

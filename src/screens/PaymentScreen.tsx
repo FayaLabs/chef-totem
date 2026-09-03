@@ -7,6 +7,7 @@ import { placeOrder } from '@/orders/place-order'
 import { computeTotals, offerLabel } from '@/orders/totals'
 import { useTotemSession } from '@/session/useTotemSession'
 import { totemConfig } from '@/config/totem.config'
+import { announceToWaiter } from '@/waiter/events'
 
 const METHODS: { id: PaymentMethod; label: string; icon: React.ReactNode; hint: string }[] = [
   { id: 'card', label: 'Cartão', icon: <CreditCard strokeWidth={2} className="size-[5cqw]" />, hint: 'na maquininha ao lado' },
@@ -56,10 +57,16 @@ export function PaymentScreen() {
     const result =
       totalCents === 0
         ? ({ status: 'approved' as const, authCode: 'CREDITO', installments: 1 })
-        : await terminal.charge({ amountCents: totalCents, method, orderRef }, setStatus)
+        : await terminal.charge({ amountCents: totalCents, method, orderRef }, (next) => {
+            setStatus(next)
+            if (next === 'awaiting_card') announceToWaiter({ type: 'payment_awaiting_card' })
+            if (next === 'processing') announceToWaiter({ type: 'payment_processing' })
+          })
 
     if (result.status !== 'approved') {
-      setError(result.message ?? SAYS[result.status])
+      const said = result.message ?? SAYS[result.status]
+      setError(said)
+      announceToWaiter({ type: 'payment_declined', reason: said })
       return
     }
 
@@ -74,11 +81,17 @@ export function PaymentScreen() {
       })
       clearCart()
       completeOrder(placed)
+      announceToWaiter({
+        type: 'order_placed',
+        ticket: placed.ticket,
+        mode: mode ?? 'dine_in',
+      })
     } catch (cause) {
       // The money is taken and the order did not save. Say so plainly and name
       // the counter: silently returning to the menu would let a customer pay
       // twice for a meal the kitchen never saw.
       setStatus('declined')
+      announceToWaiter({ type: 'order_failed', reference: orderRef })
       setError(
         `Pagamento aprovado, mas o pedido não foi registrado. Procure o caixa com este código: ${orderRef}. (${
           cause instanceof Error ? cause.message : String(cause)
@@ -195,7 +208,12 @@ export function PaymentScreen() {
                   data-testid={`pay-${option.id}`}
                   aria-pressed={chosen}
                   disabled={busy}
-                  onClick={() => setMethod(option.id)}
+                  onClick={() => {
+              setMethod(option.id)
+              // O garçom explica a maquininha. É a instrução que mais se perde
+              // lida: o cliente está de pé, olhando o painel a um metro.
+              announceToWaiter({ type: 'payment_method_chosen', method: option.id })
+            }}
                   className={[
                     'press flex min-h-[var(--tap-lg)] items-center gap-[3cqw] rounded-totem px-[4cqw] text-left',
                     chosen ? 'bg-ink text-white' : 'bg-white text-ink border-2 border-edge',

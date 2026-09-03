@@ -13,6 +13,15 @@ export interface WaiterTransport {
   readonly id: 'scripted' | 'text' | 'voice'
   /** A typed or transcribed customer turn. */
   send(text: string, catalog: TotemCatalog): Promise<void>
+  /**
+   * A TELA avisando o garçom do que acabou de acontecer.
+   *
+   * `instruction` diz o fato e o objetivo; as palavras são dele. Opcional: um
+   * transporte que não saiba anunciar simplesmente não narra, e o painel
+   * continua funcionando — a maquininha não depende do assistente para
+   * funcionar, e a tela nunca pode depender.
+   */
+  announce?(instruction: string, catalog: TotemCatalog): Promise<void>
   /** Push-to-talk. A no-op on transports with no microphone. */
   startListening?(catalog: TotemCatalog): Promise<void>
   stopListening?(): Promise<void>

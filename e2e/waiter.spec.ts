@@ -154,9 +154,12 @@ test.describe('V3 · o garçom aponta', () => {
     expect(centre).toBeGreaterThan(grid.y)
     expect(centre).toBeLessThan(grid.y + grid.height)
 
-    // Os vizinhos recuam — é isso que faz o destaque ser um destaque.
+    // Os vizinhos recuam — é isso que faz o destaque ser um destaque. A
+    // transição leva 300ms; medir antes dela terminar mede o meio do caminho.
     const other = page.locator('button[data-testid^=product-]:not([data-highlighted])').first()
-    expect(Number(await other.evaluate((el) => getComputedStyle(el).opacity))).toBeLessThan(0.6)
+    await expect
+      .poll(async () => Number(await other.evaluate((el) => getComputedStyle(el).opacity)))
+      .toBeLessThan(0.5)
   })
 
   test('o toque do cliente apaga o destaque na hora', async ({ page }) => {
@@ -170,6 +173,27 @@ test.describe('V3 · o garçom aponta', () => {
     await expect(page.locator('[data-highlighted="true"]')).toHaveCount(1)
 
     await page.getByTestId('filter-promo').tap()
+    await expect(page.locator('[data-highlighted="true"]')).toHaveCount(0)
+  })
+})
+
+test.describe('V3 · apontar OU abrir', () => {
+  test('abrir o prato apaga o destaque — nunca os dois ao mesmo tempo', async ({ page }) => {
+    // Apontar e abrir são duas formas de dizer "é este". As duas juntas são o
+    // prato crescendo na grade enquanto um sheet sobe por cima dele: dois
+    // movimentos ao mesmo tempo, e o cliente não sabe para onde olhar.
+    await toMenuWithWaiter(page)
+    await page.getByTestId('waiter-line').tap()
+    await page.getByTestId('waiter-input').fill('o que você recomenda?')
+    await page.getByTestId('waiter-send').tap()
+    await page.getByTestId('sheet-scrim').tap()
+    await expect(page.locator('[data-highlighted="true"]')).toHaveCount(1)
+
+    await page.getByTestId('waiter-line').tap()
+    await page.getByTestId('waiter-input').fill('quero uma pepperoni')
+    await page.getByTestId('waiter-send').tap()
+
+    await expect(page.getByTestId('product-sheet')).toBeVisible()
     await expect(page.locator('[data-highlighted="true"]')).toHaveCount(0)
   })
 })

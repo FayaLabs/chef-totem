@@ -51,6 +51,13 @@ interface WaiterState {
    */
   controls: { start: () => void; stop: () => void } | null
   /**
+   * Como a TELA fala com o garçom.
+   *
+   * Registrado por quem tem o transporte, do mesmo jeito que `controls`. A tela
+   * de pagamento não conhece transporte nenhum — ela emite um evento e segue.
+   */
+  announce: ((instruction: string) => void) | null
+  /**
    * O cliente tocou no orbe da tela inicial.
    *
    * A voz só existe no cardápio (o garçom não fica entre o cliente e o cartão),
@@ -62,6 +69,7 @@ interface WaiterState {
 
   setAutoListen: (autoListen: boolean) => void
   setControls: (controls: WaiterState['controls']) => void
+  setAnnounce: (announce: WaiterState['announce']) => void
   setPhase: (phase: WaiterPhase) => void
   setLive: (text: string) => void
   setLevel: (level: number) => void
@@ -92,10 +100,12 @@ const empty = {
 export const useWaiter = create<WaiterState>((set, get) => ({
   ...empty,
   controls: null,
+  announce: null,
   autoListen: false,
 
   setAutoListen: (autoListen) => set({ autoListen }),
   setControls: (controls) => set({ controls }),
+  setAnnounce: (announce) => set({ announce }),
   setPhase: (phase) => set({ phase }),
   setLive: (liveTranscript) => set({ liveTranscript }),
   setLevel: (level) => set({ level }),

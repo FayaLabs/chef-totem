@@ -45,6 +45,7 @@ export function Waiter() {
 
   const setExpanded = useWaiter((s) => s.setExpanded)
   const setError = useWaiter((s) => s.setError)
+  const setAnnounce = useWaiter((s) => s.setAnnounce)
 
   const send = useCallback(
     (text: string) => {
@@ -91,6 +92,21 @@ export function Waiter() {
     return () => setControls(null)
   }, [transport, step, startTalking, stopTalking, setControls])
 
+  // O canal por onde a TELA avisa o garçom. Vale em todo passo, não só no
+  // cardápio: é no pagamento que a orientação falada mais serve.
+  useEffect(() => {
+    if (!transport?.announce) {
+      setAnnounce(null)
+      return
+    }
+    setAnnounce((instruction: string) => {
+      const state = catalogRef.current
+      if (state.status !== 'ready') return
+      void transport.announce?.(instruction, state.catalog)
+    })
+    return () => setAnnounce(null)
+  }, [transport, setAnnounce])
+
   // A intenção que veio do atrair, cobrada aqui. Consumida na hora: se o
   // cliente voltar ao cardápio depois, o microfone não abre sozinho de novo.
   useEffect(() => {
@@ -100,12 +116,19 @@ export function Waiter() {
     startTalking()
   }, [step, transport, startTalking])
 
-  if (!transport || step !== 'menu') return null
+  if (!transport) return null
+
+  // A FAIXA existe no cardápio, no pagamento e no recibo — mas o que ela faz
+  // muda. No cardápio ela toma o pedido; nos outros dois ela só acompanha, sem
+  // sugestões, porque um garçom que oferece sobremesa na tela de pagamento é um
+  // garçom entre o cliente e o cartão.
+  const guiding = step === 'payment' || step === 'receipt'
+  if (step !== 'menu' && !guiding) return null
 
   return (
     <>
-      <WaiterDock suggestions={activeWaiterPersona().suggestions} onSuggestion={send} />
-      <WaiterPanel onSend={send} />
+      <WaiterDock suggestions={guiding ? [] : activeWaiterPersona().suggestions} onSuggestion={send} />
+      {guiding ? null : <WaiterPanel onSend={send} />}
     </>
   )
 }
