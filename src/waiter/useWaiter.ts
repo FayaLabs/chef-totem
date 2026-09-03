@@ -80,6 +80,10 @@ interface WaiterState {
   reset: () => void
 }
 
+/** Quanto tempo uma frase de erro fica na faixa antes de sair de cena. */
+const ERROR_TTL_MS = 8_000
+let errorTimer: ReturnType<typeof setTimeout> | null = null
+
 /** The last thing the waiter said — what the dock shows when collapsed. */
 export function lastWaiterLine(turns: WaiterTurn[]): string | null {
   for (let i = turns.length - 1; i >= 0; i--) {
@@ -112,10 +116,28 @@ export const useWaiter = create<WaiterState>((set, get) => ({
   pushTurn: (turn) => set({ turns: [...get().turns, turn] }),
   updateTurn: (id, patch) =>
     set({ turns: get().turns.map((turn) => (turn.id === id ? { ...turn, ...patch } : turn)) }),
-  setError: (error) => set({ error, phase: error ? 'error' : 'idle' }),
+  // O erro APAGA SOZINHO. Ele é um aviso, não um estado: deixado aceso, a
+  // faixa fica vermelha para o resto da visita — inclusive depois de o cliente
+  // já ter conseguido pedir — e a próxima pessoa encontra o painel gritando
+  // sobre uma falha que passou.
+  setError: (error) => {
+    if (errorTimer) clearTimeout(errorTimer)
+    errorTimer = null
+    if (error) {
+      errorTimer = setTimeout(() => {
+        const state = useWaiter.getState()
+        if (state.error === error) state.setError(null)
+      }, ERROR_TTL_MS)
+    }
+    set({ error, phase: error ? 'error' : 'idle' })
+  },
   setExpanded: (expanded) => set({ expanded }),
 
   // A new customer gets a new waiter. Nothing from the last visit survives —
   // not the transcript, not the conversation, not the error.
-  reset: () => set({ ...empty }),
+  reset: () => {
+    if (errorTimer) clearTimeout(errorTimer)
+    errorTimer = null
+    set({ ...empty })
+  },
 }))

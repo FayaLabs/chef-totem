@@ -152,3 +152,28 @@ test('quantidade fora da faixa é presa no limite', () => {
   run('set_quantity', { quantity: -3 })
   assert.equal(useProductDraft.getState().quantity, 1)
 })
+
+test('o erro apaga sozinho — ele é aviso, não estado', async () => {
+  // Deixado aceso, a faixa fica vermelha pelo resto da visita, inclusive
+  // depois de o cliente já ter conseguido pedir. Pior: a PRÓXIMA pessoa
+  // encontra o painel gritando sobre uma falha que passou.
+  const { useWaiter } = await import('@/waiter/useWaiter')
+  useWaiter.getState().reset()
+
+  useWaiter.getState().setError('a voz falhou')
+  assert.equal(useWaiter.getState().error, 'a voz falhou')
+  assert.equal(useWaiter.getState().phase, 'error')
+
+  await new Promise((resolve) => setTimeout(resolve, 8_200))
+  assert.equal(useWaiter.getState().error, null, 'o erro ficou na tela para sempre')
+  assert.equal(useWaiter.getState().phase, 'idle')
+}, 12_000)
+
+test('uma tentativa nova apaga o erro na hora', async () => {
+  const { useWaiter } = await import('@/waiter/useWaiter')
+  useWaiter.getState().reset()
+  useWaiter.getState().setError('a voz falhou')
+  useWaiter.getState().setError(null)
+  assert.equal(useWaiter.getState().error, null)
+  assert.equal(useWaiter.getState().phase, 'idle')
+})
