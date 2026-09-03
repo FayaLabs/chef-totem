@@ -129,3 +129,47 @@ test.describe('V3 · o erro que sai', () => {
     await expect(page.getByTestId('voice-orb')).toHaveAttribute('data-phase', 'listening')
   })
 })
+
+test.describe('V3 · o garçom aponta', () => {
+  test('recomendar desce até o prato, destaca ele e apaga os outros', async ({ page }) => {
+    // O problema clássico do assistente de voz: ele diz "o mac and cheese é o
+    // mais pedido" e o cliente fica procurando qual dos doze é. Um nome falado
+    // não vira posição na tela sozinho.
+    await toMenuWithWaiter(page)
+    await page.getByTestId('waiter-line').tap()
+    await page.getByTestId('waiter-input').fill('o que você recomenda?')
+    await page.getByTestId('waiter-send').tap()
+    await page.getByTestId('sheet-scrim').tap()
+
+    const spotlight = page.locator('[data-highlighted="true"]')
+    await expect(spotlight).toHaveCount(1)
+
+    // Está à vista: destacar fora da tela não resolve nada. O CENTRO do cartão
+    // dentro da grade, e não as bordas — ele cresce 6%, então transborda a
+    // borda por alguns pixels de propósito, e é isso que faz o destaque
+    // parecer estar por cima.
+    const grid = (await page.getByTestId('menu-grid').boundingBox())!
+    const card = (await spotlight.boundingBox())!
+    const centre = card.y + card.height / 2
+    expect(centre).toBeGreaterThan(grid.y)
+    expect(centre).toBeLessThan(grid.y + grid.height)
+
+    // Os vizinhos recuam — é isso que faz o destaque ser um destaque.
+    const other = page.locator('button[data-testid^=product-]:not([data-highlighted])').first()
+    expect(Number(await other.evaluate((el) => getComputedStyle(el).opacity))).toBeLessThan(0.6)
+  })
+
+  test('o toque do cliente apaga o destaque na hora', async ({ page }) => {
+    // O destaque é do garçom; a tela é do cliente. No instante em que a pessoa
+    // mexe, o dedo dela ganha.
+    await toMenuWithWaiter(page)
+    await page.getByTestId('waiter-line').tap()
+    await page.getByTestId('waiter-input').fill('o que você recomenda?')
+    await page.getByTestId('waiter-send').tap()
+    await page.getByTestId('sheet-scrim').tap()
+    await expect(page.locator('[data-highlighted="true"]')).toHaveCount(1)
+
+    await page.getByTestId('filter-promo').tap()
+    await expect(page.locator('[data-highlighted="true"]')).toHaveCount(0)
+  })
+})

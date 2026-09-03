@@ -71,6 +71,23 @@ const INTENTS: Intent[] = [
     }),
   },
   {
+    // Recomendar é o caso que mais precisa de dedo: o cliente ouve um nome e
+    // não sabe qual dos doze cartões é. O roteirizado aponta pelo mesmo
+    // caminho que o modelo usa.
+    match: /(?:recomenda|indica|mais pedid[ao]|o que (?:tem )?de bom|sugest[ãa]o)/i,
+    run: (_m, catalog) => {
+      const pick =
+        catalog.products.find((p) => p.featured && !p.soldOut) ??
+        catalog.products.find((p) => !p.soldOut)
+      if (!pick) return { say: 'Hoje o cardápio está sem nada disponível.', did: [] }
+      executeWaiterTool('highlight_product', { product: pick.name }, catalog)
+      return {
+        say: `Eu iria de ${pick.name}. Olha ela aí destacada — quer que eu abra?`,
+        did: [`apontou ${pick.name}`],
+      }
+    },
+  },
+  {
     match: /(?:tem|voc[êe]s t[êe]m|procuro)\s+(.+)/i,
     run: (m, catalog) => ({
       say: executeWaiterTool('search_menu', { query: m[1] }, catalog),

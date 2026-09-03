@@ -101,6 +101,32 @@ export const WAITER_TOOLS: WaiterTool[] = [
   },
 
   {
+    name: 'highlight_product',
+    description:
+      'APONTA para um prato no cardápio: desce até ele, aumenta e apaga os outros por alguns segundos. Use SEMPRE que for falar de um prato específico sem abri-lo — recomendar, comparar, responder "o que tem de bom". Sem isto o cliente ouve o nome e fica procurando qual dos doze é.',
+    parameters: {
+      type: 'object',
+      properties: { product: { type: 'string', description: 'Nome do prato' } },
+      required: ['product'],
+    },
+    execute: (args, catalog) => {
+      const product = findProduct(catalog, str(args, 'product'))
+      if (!product) return `Não achei "${str(args, 'product')}" no cardápio.`
+
+      // A categoria dele precisa estar à vista, senão o destaque cai num
+      // cartão que o filtro escondeu e nada acontece na tela.
+      const ui = useMenuUi.getState()
+      if (ui.categoryId && ui.categoryId !== product.categoryId) ui.openCategory(null)
+      if (ui.filter !== 'all') ui.setFilter('all')
+      ui.highlight(product.id)
+
+      return `Apontei para ${product.name} (R$ ${(product.priceCents / 100).toFixed(2)}${
+        product.soldOut ? ', ESGOTADO' : ''
+      }). Fale dele agora; o destaque some sozinho.`
+    },
+  },
+
+  {
     name: 'search_menu',
     description:
       'Procura pratos no cardápio por nome, descrição ou ingrediente. Use para responder dúvidas ("tem algo sem carne?", "o que vem na costela?") antes de afirmar qualquer coisa.',
