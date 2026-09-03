@@ -4,6 +4,7 @@ import { recognitionDriver } from '@/session/useCustomerRecognition'
 import { customerLookup, type RecognisedCustomer } from '@/session/customer-lookup'
 import { useTotemSession } from '@/session/useTotemSession'
 import { totemConfig } from '@/config/totem.config'
+import { useWaiterDockInset } from '@/waiter/presence'
 
 // ---------------------------------------------------------------------------
 // Identification, and the permission not to.
@@ -49,6 +50,7 @@ const RULES: Record<Kind, { label: string; length: number; hint: string; format:
 
 export function IdentifyScreen() {
   const identify = useTotemSession((s) => s.identify)
+  const dock = useWaiterDockInset()
   const [kind, setKind] = useState<Kind>('phone')
   const [digits, setDigits] = useState('')
   const [looking, setLooking] = useState(false)
@@ -104,7 +106,10 @@ export function IdentifyScreen() {
       {/* pb reserves the bar: this screen had its own action row AND a bar, and
           the bar sat on top of the buttons. Two bottom chromes is one too many
           — the actions ARE the bar. */}
-      <div className="flex size-full flex-col overflow-y-auto px-[6cqw] pt-[8cqw] pb-[calc(var(--tap-bar)+4cqw)]">
+      <div
+        className="flex size-full flex-col overflow-y-auto px-[6cqw] pt-[8cqw]"
+        style={{ paddingBottom: `calc(var(--tap-bar) + ${dock} + 4cqw)` }}
+      >
         <h1
           className="font-display uppercase leading-[0.9] tracking-tight"
           style={{ fontSize: 'var(--step-display)' }}

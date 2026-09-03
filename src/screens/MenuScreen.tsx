@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Gift, RefreshCw, UtensilsCrossed, Wallet, X } from 'lucide-react'
 import { allCategoriesIcon as AllIcon, categoryIcon } from '@/menu/category-icon'
 import { BottomBar, Chip, Sheet, TotemButton } from '@/design'
@@ -6,6 +6,7 @@ import { brl, cartCount, cartTotalCents, useCart } from '@/cart/useCart'
 import { useCatalog } from '@/menu/useCatalog'
 import { useMenuUi } from '@/menu/useMenuUi'
 import { useWaiter } from '@/waiter/useWaiter'
+import { useWaiterDockInset } from '@/waiter/presence'
 import { useProductDraft } from '@/menu/useProductDraft'
 import type { TotemProduct } from '@/menu/types'
 import { ProductSheet } from '@/screens/ProductSheet'
@@ -21,6 +22,9 @@ import { totemConfig } from '@/config/totem.config'
 // Category rail on the left, two-column grid on the right, commit bar pinned to
 // the bottom. The top of the panel is a shop window and holds nothing tappable.
 // ---------------------------------------------------------------------------
+
+/** Quanto tempo o garçom fica apontando para um prato. */
+const HIGHLIGHT_MS = 7_000
 
 export function MenuScreen() {
   const state = useCatalog()
@@ -42,12 +46,13 @@ export function MenuScreen() {
   const resetMenuUi = useMenuUi((s) => s.reset)
 
   // The dock is chrome, not an overlay: when the waiter is on shift the grid
-  // and the rail give up its height instead of scrolling underneath it.
-  const waiterOn = useWaiter((s) => s.phase) !== 'off'
-  const bottomInset = waiterOn
-    ? 'calc(var(--tap-bar) + 17cqw + 4cqw)'
-    : 'calc(var(--tap-bar) + 4cqw)'
+  // and the rail give up its height instead of scrolling underneath it. A
+  // altura vem de `presence`, o mesmo lugar que decide se a faixa existe.
+  const dock = useWaiterDockInset()
+  const bottomInset = `calc(var(--tap-bar) + ${dock} + 4cqw)`
 
+  const highlightId = useMenuUi((s) => s.highlightId)
+  const highlight = useMenuUi((s) => s.highlight)
   const openProductId = useProductDraft((s) => s.productId)
   const openDraft = useProductDraft((s) => s.open)
   const closeDraft = useProductDraft((s) => s.close)
@@ -66,6 +71,15 @@ export function MenuScreen() {
     if (state.status !== 'ready' || !openProductId) return null
     return state.catalog.products.find((product) => product.id === openProductId) ?? null
   }, [state, openProductId])
+
+  // O destaque apaga sozinho. Ele é atenção, não seleção: deixado aceso, vira
+  // um prato "escolhido" que o cliente nunca escolheu, e ele passa a olhar a
+  // grade inteira apagada sem entender por quê.
+  useEffect(() => {
+    if (!highlightId) return
+    const timer = setTimeout(() => highlight(null), HIGHLIGHT_MS)
+    return () => clearTimeout(timer)
+  }, [highlightId, highlight])
 
   const count = cartCount(lines)
 
@@ -151,7 +165,13 @@ export function MenuScreen() {
                 </p>
               ) : null}
               {products.map((product) => (
-                <ProductCard key={product.id} product={product} onOpen={() => openDraft(product.id)} />
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  highlighted={product.id === highlightId}
+                  dimmed={highlightId !== null && product.id !== highlightId}
+                  onOpen={() => openDraft(product.id)}
+                />
               ))}
             </div>
           </div>
@@ -370,20 +390,51 @@ function RailButton({
   )
 }
 
-function ProductCard({ product, onOpen }: { product: TotemProduct; onOpen: () => void }) {
+function ProductCard({
+  product,
+  highlighted = false,
+  dimmed = false,
+  onOpen,
+}: {
+  product: TotemProduct
+  /** O garçom está falando DESTE prato agora. */
+  highlighted?: boolean
+  /** Outro prato está em destaque; este recua. */
+  dimmed?: boolean
+  onOpen: () => void
+}) {
   // A photo URL that 404s must fall back to the icon, not leave an empty grey
   // box. On a panel whose whole pitch is the food imagery, a silently broken
   // image reads as a broken product.
   const [imageBroken, setImageBroken] = useState(false)
+  const card = useRef<HTMLButtonElement>(null)
+
+  // Desce até ele. Sem isto o destaque acontece fora da vista e o cliente
+  // continua procurando — que é exatamente o problema que o destaque resolve.
+  useEffect(() => {
+    if (!highlighted) return
+    card.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [highlighted])
 
   return (
     <button
+      ref={card}
       type="button"
       data-testid={`product-${product.id}`}
+      data-highlighted={highlighted ? 'true' : undefined}
       data-sold-out={product.soldOut ? 'true' : 'false'}
       disabled={product.soldOut}
       onClick={onOpen}
-      className="press flex min-h-[34cqw] flex-col overflow-hidden rounded-totem bg-white text-left disabled:opacity-60"
+      className={[
+        'press flex min-h-[34cqw] flex-col overflow-hidden rounded-totem bg-white text-left disabled:opacity-60',
+        // O "overlay no resto" é feito pelos IRMÃOS recuando, não por uma
+        // camada por cima. Uma camada teria de vencer o empilhamento de um
+        // container que rola, e o cartão em destaque teria de furá-la — muito
+        // aparato para um efeito que a opacidade dos vizinhos entrega melhor.
+        'transition-[transform,opacity,filter,box-shadow] duration-300 ease-out',
+        highlighted ? 'z-10 scale-[1.06] shadow-[0_1cqw_3cqw_rgba(11,11,12,0.28)] ring-[0.5cqw] ring-action' : '',
+        dimmed ? 'scale-[0.97] opacity-30 saturate-50' : '',
+      ].join(' ')}
     >
       <div className="relative h-[18cqw] shrink-0 bg-hairline">
         {product.imageUrl && !imageBroken ? (

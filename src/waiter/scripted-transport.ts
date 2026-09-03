@@ -71,6 +71,23 @@ const INTENTS: Intent[] = [
     }),
   },
   {
+    // Recomendar é o caso que mais precisa de dedo: o cliente ouve um nome e
+    // não sabe qual dos doze cartões é. O roteirizado aponta pelo mesmo
+    // caminho que o modelo usa.
+    match: /(?:recomenda|indica|mais pedid[ao]|o que (?:tem )?de bom|sugest[ãa]o)/i,
+    run: (_m, catalog) => {
+      const pick =
+        catalog.products.find((p) => p.featured && !p.soldOut) ??
+        catalog.products.find((p) => !p.soldOut)
+      if (!pick) return { say: 'Hoje o cardápio está sem nada disponível.', did: [] }
+      executeWaiterTool('highlight_product', { product: pick.name }, catalog)
+      return {
+        say: `Eu iria de ${pick.name}. Olha ela aí destacada — quer que eu abra?`,
+        did: [`apontou ${pick.name}`],
+      }
+    },
+  },
+  {
     match: /(?:tem|voc[êe]s t[êe]m|procuro)\s+(.+)/i,
     run: (m, catalog) => ({
       say: executeWaiterTool('search_menu', { query: m[1] }, catalog),
@@ -108,6 +125,24 @@ export function createScriptedTransport(): WaiterTransport {
 
       waiter.pushTurn({ id: id(), from: 'waiter', text: result.say, did: result.did })
       waiter.setPhase('idle')
+    },
+
+    async announce(instruction) {
+      // O roteirizado não tem modelo para escrever a frase, então ele diz a
+      // própria instrução em voz de garçom — feio de perto, suficiente para o
+      // teste provar que o evento chega e vira linha na faixa.
+      const waiter = useWaiter.getState()
+      waiter.pushTurn({ id: id(), from: 'waiter', text: instruction, did: ['acompanhou a tela'] })
+      waiter.setPhase('idle')
+    },
+
+    async greet(instruction) {
+      // Sem modelo, o roteirizado diz a própria instrução — feio de perto e
+      // suficiente para o teste provar que o garçom fala PRIMEIRO, no passo
+      // certo, com o microfone aberto.
+      const waiter = useWaiter.getState()
+      waiter.pushTurn({ id: id(), from: 'waiter', text: instruction, did: ['abriu a conversa'] })
+      waiter.setPhase('listening')
     },
 
     async startListening() {

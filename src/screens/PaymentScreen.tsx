@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { Banknote, Check, CreditCard, Gift, QrCode, Wallet, X } from 'lucide-react'
 import { BottomBar, TotemButton } from '@/design'
+import { useWaiterDockInset } from '@/waiter/presence'
 import { brl, cartTotalCents, useCart } from '@/cart/useCart'
 import { paymentTerminal, type PaymentMethod, type PaymentStatus } from '@/payment'
 import { placeOrder } from '@/orders/place-order'
 import { computeTotals, offerLabel } from '@/orders/totals'
 import { useTotemSession } from '@/session/useTotemSession'
 import { totemConfig } from '@/config/totem.config'
+import { announceToWaiter } from '@/waiter/events'
 
 const METHODS: { id: PaymentMethod; label: string; icon: React.ReactNode; hint: string }[] = [
   { id: 'card', label: 'Cartão', icon: <CreditCard strokeWidth={2} className="size-[5cqw]" />, hint: 'na maquininha ao lado' },
@@ -33,6 +35,7 @@ export function PaymentScreen() {
   const [error, setError] = useState<string | null>(null)
   const [terminal] = useState(paymentTerminal)
   const [useCredit, setUseCredit] = useState(true)
+  const dock = useWaiterDockInset()
 
   // O crédito é opcional POR PADRÃO LIGADO: quem tem saldo quase sempre quer
   // gastá-lo, e quem não quer desliga num toque. O contrário faz a pessoa pagar
@@ -56,10 +59,16 @@ export function PaymentScreen() {
     const result =
       totalCents === 0
         ? ({ status: 'approved' as const, authCode: 'CREDITO', installments: 1 })
-        : await terminal.charge({ amountCents: totalCents, method, orderRef }, setStatus)
+        : await terminal.charge({ amountCents: totalCents, method, orderRef }, (next) => {
+            setStatus(next)
+            if (next === 'awaiting_card') announceToWaiter({ type: 'payment_awaiting_card' })
+            if (next === 'processing') announceToWaiter({ type: 'payment_processing' })
+          })
 
     if (result.status !== 'approved') {
-      setError(result.message ?? SAYS[result.status])
+      const said = result.message ?? SAYS[result.status]
+      setError(said)
+      announceToWaiter({ type: 'payment_declined', reason: said })
       return
     }
 
@@ -74,11 +83,17 @@ export function PaymentScreen() {
       })
       clearCart()
       completeOrder(placed)
+      announceToWaiter({
+        type: 'order_placed',
+        ticket: placed.ticket,
+        mode: mode ?? 'dine_in',
+      })
     } catch (cause) {
       // The money is taken and the order did not save. Say so plainly and name
       // the counter: silently returning to the menu would let a customer pay
       // twice for a meal the kitchen never saw.
       setStatus('declined')
+      announceToWaiter({ type: 'order_failed', reference: orderRef })
       setError(
         `Pagamento aprovado, mas o pedido não foi registrado. Procure o caixa com este código: ${orderRef}. (${
           cause instanceof Error ? cause.message : String(cause)
@@ -89,7 +104,13 @@ export function PaymentScreen() {
 
   return (
     <div data-testid="screen-payment" className="absolute inset-0 flex flex-col bg-page">
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[6cqw] pb-[calc(var(--tap-bar)+4cqw)] pt-[8cqw]">
+      <div
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[6cqw] pt-[8cqw]"
+        // A faixa do garçom, quando ele está acompanhando, come o rodapé desta
+        // tela — e o rodapé desta tela é uma forma de pagamento. Ela apareceu
+        // por cima do PIX exatamente por não estar reservada aqui.
+        style={{ paddingBottom: `calc(var(--tap-bar) + ${dock} + 4cqw)` }}
+      >
         <h1 className="font-display uppercase leading-[0.9] tracking-tight" style={{ fontSize: 'var(--step-display)' }}>
           {totemConfig.copy.paymentTitle}
         </h1>
@@ -195,7 +216,12 @@ export function PaymentScreen() {
                   data-testid={`pay-${option.id}`}
                   aria-pressed={chosen}
                   disabled={busy}
-                  onClick={() => setMethod(option.id)}
+                  onClick={() => {
+              setMethod(option.id)
+              // O garçom explica a maquininha. É a instrução que mais se perde
+              // lida: o cliente está de pé, olhando o painel a um metro.
+              announceToWaiter({ type: 'payment_method_chosen', method: option.id })
+            }}
                   className={[
                     'press flex min-h-[var(--tap-lg)] items-center gap-[3cqw] rounded-totem px-[4cqw] text-left',
                     chosen ? 'bg-ink text-white' : 'bg-white text-ink border-2 border-edge',

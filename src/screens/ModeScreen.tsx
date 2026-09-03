@@ -2,6 +2,7 @@ import { Store, ShoppingBag } from 'lucide-react'
 import { MediaBackdrop } from '@/design'
 import { totemConfig } from '@/config/totem.config'
 import { useTotemSession } from '@/session/useTotemSession'
+import { useWaiterDockInset } from '@/waiter/presence'
 
 // ---------------------------------------------------------------------------
 // Eat here or take it away — asked first because it can change the price (and,
@@ -15,12 +16,16 @@ export function ModeScreen() {
   const chooseMode = useTotemSession((s) => s.chooseMode)
   const ticket = useTotemSession((s) => s.ticket)
   const { media } = totemConfig
+  // Esta tela não tem barra de baixo: a faixa do garçom, quando ele foi
+  // chamado, encosta no rodapé e os dois cartões sobem para não ficar debaixo
+  // dela. Sem isto, o "levar" fica com a metade de baixo escondida.
+  const dock = useWaiterDockInset()
 
   return (
     <div data-testid="screen-mode" className="absolute inset-0 flex flex-col justify-end text-white">
       <MediaBackdrop videoSrc={media.videoUrl} posterSrc={media.posterUrl} scrim={60} />
 
-      <div className="relative z-10 px-[6cqw] pb-[10cqw]">
+      <div className="relative z-10 px-[6cqw]" style={{ paddingBottom: `calc(${dock} + 10cqw)` }}>
         <h1
           className="mb-[6cqw] text-center font-display uppercase leading-[0.9] tracking-tight"
           style={{ fontSize: 'var(--step-display)' }}

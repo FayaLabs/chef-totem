@@ -51,17 +51,30 @@ interface WaiterState {
    */
   controls: { start: () => void; stop: () => void } | null
   /**
-   * O cliente tocou no orbe da tela inicial.
+   * Como a TELA fala com o garçom.
    *
-   * A voz só existe no cardápio (o garçom não fica entre o cliente e o cartão),
-   * mas a INTENÇÃO nasce lá atrás, no atrair. Sem carregar essa intenção, quem
-   * toca no orbe passa por duas telas e chega no cardápio sem nada acontecer —
-   * e conclui, com razão, que o orbe é enfeite.
+   * Registrado por quem tem o transporte, do mesmo jeito que `controls`. A tela
+   * de pagamento não conhece transporte nenhum — ela emite um evento e segue.
    */
-  autoListen: boolean
+  announce: ((instruction: string) => void) | null
+  /**
+   * O cliente aceitou ser atendido FALANDO, e a partir daí é atendido falando.
+   *
+   * Nasce no toque do orbe na tela inicial e vale a visita inteira. Antes isto
+   * era só uma intenção de abrir o microfone lá no cardápio, e o resultado era
+   * o pior dos dois mundos: a pessoa tocava no orbe, atravessava DUAS telas em
+   * silêncio absoluto — comer aqui ou levar, telefone — e o garçom só aparecia
+   * quando ela já tinha feito tudo sozinha no dedo. Um garçom que chega depois
+   * de o cliente se sentar, pedir e pagar não é um garçom.
+   *
+   * Estando `engaged`, ele entra em cena no primeiro passo, cumprimenta e
+   * conduz cada tela até o cardápio.
+   */
+  engaged: boolean
 
-  setAutoListen: (autoListen: boolean) => void
+  setEngaged: (engaged: boolean) => void
   setControls: (controls: WaiterState['controls']) => void
+  setAnnounce: (announce: WaiterState['announce']) => void
   setPhase: (phase: WaiterPhase) => void
   setLive: (text: string) => void
   setLevel: (level: number) => void
@@ -71,6 +84,10 @@ interface WaiterState {
   setExpanded: (expanded: boolean) => void
   reset: () => void
 }
+
+/** Quanto tempo uma frase de erro fica na faixa antes de sair de cena. */
+const ERROR_TTL_MS = 8_000
+let errorTimer: ReturnType<typeof setTimeout> | null = null
 
 /** The last thing the waiter said — what the dock shows when collapsed. */
 export function lastWaiterLine(turns: WaiterTurn[]): string | null {
@@ -92,20 +109,41 @@ const empty = {
 export const useWaiter = create<WaiterState>((set, get) => ({
   ...empty,
   controls: null,
-  autoListen: false,
+  announce: null,
+  engaged: false,
 
-  setAutoListen: (autoListen) => set({ autoListen }),
+  setEngaged: (engaged) => set({ engaged }),
   setControls: (controls) => set({ controls }),
+  setAnnounce: (announce) => set({ announce }),
   setPhase: (phase) => set({ phase }),
   setLive: (liveTranscript) => set({ liveTranscript }),
   setLevel: (level) => set({ level }),
   pushTurn: (turn) => set({ turns: [...get().turns, turn] }),
   updateTurn: (id, patch) =>
     set({ turns: get().turns.map((turn) => (turn.id === id ? { ...turn, ...patch } : turn)) }),
-  setError: (error) => set({ error, phase: error ? 'error' : 'idle' }),
+  // O erro APAGA SOZINHO. Ele é um aviso, não um estado: deixado aceso, a
+  // faixa fica vermelha para o resto da visita — inclusive depois de o cliente
+  // já ter conseguido pedir — e a próxima pessoa encontra o painel gritando
+  // sobre uma falha que passou.
+  setError: (error) => {
+    if (errorTimer) clearTimeout(errorTimer)
+    errorTimer = null
+    if (error) {
+      errorTimer = setTimeout(() => {
+        const state = useWaiter.getState()
+        if (state.error === error) state.setError(null)
+      }, ERROR_TTL_MS)
+    }
+    set({ error, phase: error ? 'error' : 'idle' })
+  },
   setExpanded: (expanded) => set({ expanded }),
 
   // A new customer gets a new waiter. Nothing from the last visit survives —
-  // not the transcript, not the conversation, not the error.
-  reset: () => set({ ...empty }),
+  // not the transcript, not the conversation, not the error, e nem o convite
+  // aceito: quem chega agora não pediu para ser atendido falando.
+  reset: () => {
+    if (errorTimer) clearTimeout(errorTimer)
+    errorTimer = null
+    set({ ...empty, engaged: false })
+  },
 }))

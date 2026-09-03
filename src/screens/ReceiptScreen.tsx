@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Printer } from 'lucide-react'
 import { BottomBar, TotemButton, WhatsAppGlyph } from '@/design'
+import { useWaiterDockInset } from '@/waiter/presence'
 import { brl } from '@/cart/useCart'
 import { printReceipt } from '@/orders/receipt-printer'
 import { maskPhone, receiptDelivery, type DeliveryOutcome } from '@/orders/receipt-delivery'
@@ -15,6 +16,7 @@ export function ReceiptScreen() {
   const mode = useTotemSession((s) => s.mode)
   const customer = useTotemSession((s) => s.customer)
   const reset = useTotemSession((s) => s.reset)
+  const dock = useWaiterDockInset()
   const [left, setLeft] = useState(RETURN_SECONDS)
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState<DeliveryOutcome | null>(null)
@@ -54,7 +56,12 @@ export function ReceiptScreen() {
 
   return (
     <div data-testid="screen-receipt" className="absolute inset-0 flex flex-col bg-ink text-white">
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-[6cqw]">
+      {/* O conteúdo é centrado, então o rodapé ocupado não o corta: ele o
+          empurra para cima. */}
+      <div
+        className="flex min-h-0 flex-1 flex-col items-center justify-center px-[6cqw]"
+        style={{ paddingBottom: `calc(var(--tap-bar) + ${dock})` }}
+      >
         <p className="uppercase tracking-[0.4em] text-white/60" style={{ fontSize: 'var(--step-label)' }}>
           {customer?.name ? `${customer.name}, sua senha` : 'Sua senha'}
         </p>

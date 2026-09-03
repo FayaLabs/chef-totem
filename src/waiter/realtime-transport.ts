@@ -47,6 +47,16 @@ const LEVEL_MS = 100
 /** Quanto tempo a trava de resposta espera antes de assumir que se perdeu. */
 const RESPONSE_TIMEOUT_MS = 20_000
 
+/**
+ * Teto de rodadas de ferramenta encadeadas numa resposta só.
+ *
+ * Um pedido honesto usa três ou quatro (apontar, abrir, marcar, adicionar).
+ * Passar de oito é o modelo insistindo numa ferramenta que responde sempre a
+ * mesma coisa — e insistir para sempre é o que o cliente vê como o garçom
+ * enlouquecendo.
+ */
+const MAX_TOOL_ROUNDS = 8
+
 interface TokenResponse {
   value?: string
   model?: string
@@ -117,6 +127,18 @@ export function createRealtimeTransport(): WaiterTransport {
    * sequer na tela.
    */
   let responseGuard: ReturnType<typeof setTimeout> | null = null
+  /**
+   * Quantas rodadas de ferramenta esta conversa já encadeou sem o cliente falar.
+   *
+   * Cada `function_call_output` pede outra resposta, e outra resposta pode
+   * chamar outra ferramenta. Quando uma ferramenta responde a mesma coisa toda
+   * vez ("nenhum prato aberto"), o modelo tenta de novo — e a corrente não tem
+   * fim sozinha. Isso é o garçom "enlouquecendo": ele fala, chama, fala, chama.
+   */
+  let toolRounds = 0
+  /** O último anúncio pendente. UM, não uma fila — ver `announce`. */
+  let pendingAnnounce: string | null = null
+  let lastAnnounce = ''
 
   const store = () => useWaiter.getState()
 
@@ -151,6 +173,18 @@ export function createRealtimeTransport(): WaiterTransport {
     responseActive = false
     if (responseGuard) clearTimeout(responseGuard)
     responseGuard = null
+  }
+
+  /** Manda o anúncio que ficou esperando, se ainda houver um. */
+  const flushAnnounce = () => {
+    if (!pendingAnnounce || responseActive) return
+    const text = pendingAnnounce
+    pendingAnnounce = null
+    send({
+      type: 'conversation.item.create',
+      item: { type: 'message', role: 'system', content: [{ type: 'input_text', text }] },
+    })
+    requestResponse()
   }
 
   const startLevelPump = () => {
@@ -221,6 +255,16 @@ export function createRealtimeTransport(): WaiterTransport {
           output,
         },
       })
+
+      toolRounds += 1
+      if (toolRounds > MAX_TOOL_ROUNDS) {
+        // Corta a corrente e devolve a vez ao cliente. Melhor um garçom que
+        // para de falar do que um que fala sozinho até alguém desligar o painel.
+        console.warn('[waiter] corrente de ferramentas cortada em', toolRounds)
+        toolRounds = 0
+        store().setPhase('idle')
+        return
+      }
       // Depois de mexer na tela, o estado mudou; o modelo precisa do novo
       // retrato antes de decidir a próxima frase. Se a resposta que fez a
       // chamada ainda está aberta, esta espera o `response.done` dela.
@@ -242,6 +286,13 @@ export function createRealtimeTransport(): WaiterTransport {
     }
     if (type === 'input_audio_buffer.speech_stopped') {
       if (store().phase === 'speaking') return
+      // O servidor VAI criar a resposta (create_response: true), e leva alguns
+      // quadros até o `response.created` chegar. Sem marcar a trava aqui, um
+      // anúncio da tela nessa janela manda um `response.create` por cima da que
+      // o servidor está criando — e volta "already has an active response".
+      responseActive = true
+      if (responseGuard) clearTimeout(responseGuard)
+      responseGuard = setTimeout(settleResponse, RESPONSE_TIMEOUT_MS)
       return store().setPhase('thinking')
     }
     if (type === 'response.created') {
@@ -251,11 +302,14 @@ export function createRealtimeTransport(): WaiterTransport {
     if (type === 'output_audio_buffer.started') return store().setPhase('speaking')
     if (type === 'response.done') {
       settleResponse()
+      // A corrente de ferramentas morre com a resposta que a começou.
+      toolRounds = 0
       if (responsePending) {
         responsePending = false
         requestResponse()
         return
       }
+      flushAnnounce()
     }
     if (type === 'response.done' || type === 'output_audio_buffer.stopped') {
       // Terminou de falar e o microfone continua aberto: volta a ESCUTAR, não a
@@ -416,6 +470,31 @@ export function createRealtimeTransport(): WaiterTransport {
       store().setPhase('listening')
     },
 
+    async greet(instruction, catalog) {
+      try {
+        await ensure(catalog)
+      } catch {
+        // Voz indisponível é um totem que continua vendendo no dedo. O erro já
+        // foi para a faixa em `ensure`; aqui a gente só não fala.
+        return
+      }
+      if (!mic) return
+      catalogRef = catalog
+      configure(catalog)
+      meterMicrophone(mic)
+      mic.getAudioTracks().forEach((track) => (track.enabled = true))
+      store().setLive('')
+      // Conta como anúncio para o dedupe: se a tela repetir o cumprimento por
+      // um remonte de componente, ele não é dito duas vezes.
+      lastAnnounce = instruction
+      send({
+        type: 'conversation.item.create',
+        item: { type: 'message', role: 'system', content: [{ type: 'input_text', text: instruction }] },
+      })
+      requestResponse()
+      store().setPhase('thinking')
+    },
+
     async stopListening() {
       if (!mic) return
       // Fechar o microfone é só isso: fechar o microfone. Quem decide que a
@@ -426,6 +505,31 @@ export function createRealtimeTransport(): WaiterTransport {
       detach()
       store().setLevel(0)
       store().setPhase('idle')
+    },
+
+    async announce(instruction, catalog) {
+      // Só narra se a sessão JÁ existe. Abrir uma conexão de voz porque o
+      // cliente tocou em "cartão" seria ligar o microfone sem ninguém pedir.
+      if (!pc) return
+      // O mesmo aviso duas vezes não é aviso, é eco. A tela emite
+      // `payment_processing` a cada mudança de status, e o cliente ouvia "só um
+      // instante" três vezes seguidas.
+      if (instruction === lastAnnounce) return
+      lastAnnounce = instruction
+      catalogRef = catalog
+
+      // UM pendente, não uma fila. Escolher cartão dispara três eventos em
+      // sequência; enfileirados, viram três falas encadeadas sobre uma coisa
+      // que já passou. O último aviso é o único que ainda descreve a tela.
+      if (responseActive) {
+        pendingAnnounce = instruction
+        return
+      }
+      send({
+        type: 'conversation.item.create',
+        item: { type: 'message', role: 'system', content: [{ type: 'input_text', text: instruction }] },
+      })
+      requestResponse()
     },
 
     async send(text, catalog) {
@@ -463,6 +567,9 @@ export function createRealtimeTransport(): WaiterTransport {
       speakingTurnId = null
       responseActive = false
       responsePending = false
+      pendingAnnounce = null
+      lastAnnounce = ''
+      toolRounds = 0
     },
   }
 }
