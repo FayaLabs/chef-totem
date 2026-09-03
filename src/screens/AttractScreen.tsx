@@ -19,14 +19,15 @@ import { VoiceOrb } from '@/waiter/VoiceOrb'
 // ao lado do "toque para começar", não no lugar dele: falar é uma oferta, não
 // um pedágio, e quem não quer falar não pode nem perceber que ele existe.
 //
-// Tocar no orbe entra na sessão E deixa registrado que essa pessoa quer falar.
-// A voz em si só liga no cardápio (o garçom não fica entre o cliente e o
-// cartão), então a intenção viaja pelo store — ver `autoListen`.
+// Tocar no orbe entra na sessão E CHAMA O GARÇOM. Ele cumprimenta já no passo
+// seguinte e conduz cada tela até o cardápio — antes ele só aparecia lá no
+// cardápio, e quem tocava aqui atravessava duas telas em silêncio achando que
+// o orbe era enfeite. A intenção viaja pelo store: ver `engaged`.
 // ---------------------------------------------------------------------------
 
 export function AttractScreen() {
   const start = useTotemSession((s) => s.start)
-  const setAutoListen = useWaiter((s) => s.setAutoListen)
+  const setEngaged = useWaiter((s) => s.setEngaged)
   // `off` = assistente desligado neste totem. Um orbe que não escuta é a pior
   // peça de interface possível: ele PARECE que escuta.
   const assistantOn = useWaiter((s) => s.phase) !== 'off'
@@ -85,7 +86,7 @@ export function AttractScreen() {
               // O painel inteiro é botão; sem parar aqui, o toque no orbe
               // dispara os dois e a intenção de falar some no mesmo quadro.
               event.stopPropagation()
-              setAutoListen(true)
+              setEngaged(true)
               start()
             }}
             className="flex flex-col items-center gap-[2cqw]"

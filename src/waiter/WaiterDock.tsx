@@ -43,9 +43,24 @@ export interface WaiterDockProps {
   /** Tappable openers shown while idle — nobody reads instructions on a kiosk. */
   suggestions?: string[]
   onSuggestion?: (text: string) => void
+  /**
+   * O convite padrão, quando o garçom ainda não disse nada.
+   *
+   * `null` cala a faixa: no pagamento e no recibo não existe convite nenhum a
+   * fazer, e "peça como pediria a Bia" em cima do botão de pagar é oferta de
+   * comida para quem já está pagando.
+   */
+  invitation?: string | null
+  /** Onde a faixa encosta. A tela de modo não tem barra de baixo. */
+  bottom?: string
 }
 
-export function WaiterDock({ suggestions = [], onSuggestion }: WaiterDockProps) {
+export function WaiterDock({
+  suggestions = [],
+  onSuggestion,
+  invitation,
+  bottom = 'var(--tap-bar)',
+}: WaiterDockProps) {
   const phase = useWaiter((s) => s.phase)
   const live = useWaiter((s) => s.liveTranscript)
   const turns = useWaiter((s) => s.turns)
@@ -59,18 +74,20 @@ export function WaiterDock({ suggestions = [], onSuggestion }: WaiterDockProps) 
 
   // One line, chosen by what matters most at this instant: what the customer is
   // saying beats what the waiter last said beats an invitation.
-  const line =
-    error ??
-    (live || null) ??
-    lastWaiterLine(turns) ??
-    `Peça como pediria a ${activeWaiterPersona().name}.`
+  const fallback =
+    invitation === undefined ? `Peça como pediria a ${activeWaiterPersona().name}.` : invitation
+  const line = error ?? (live || null) ?? lastWaiterLine(turns) ?? fallback
+
+  // Sem frase e sem convite não há faixa. É o que impede a barra de aparecer
+  // vazia no pagamento só porque o componente foi montado.
+  if (!line) return null
 
   return (
     <div
       data-testid="waiter-dock"
       data-phase={phase}
       className="absolute inset-x-0 z-30 flex items-center gap-[3cqw] border-t-2 border-edge bg-surface px-[3cqw] shadow-[0_-0.6cqw_2cqw_rgba(11,11,12,0.08)] motion-safe:animate-[waiter-dock-in_320ms_cubic-bezier(0.16,1,0.3,1)]"
-      style={{ bottom: 'var(--tap-bar)', height: WAITER_DOCK_HEIGHT }}
+      style={{ bottom, height: WAITER_DOCK_HEIGHT }}
     >
       <TalkButton />
 

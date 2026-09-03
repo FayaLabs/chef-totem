@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Banknote, Check, CreditCard, Gift, QrCode, Wallet, X } from 'lucide-react'
 import { BottomBar, TotemButton } from '@/design'
+import { useWaiterDockInset } from '@/waiter/presence'
 import { brl, cartTotalCents, useCart } from '@/cart/useCart'
 import { paymentTerminal, type PaymentMethod, type PaymentStatus } from '@/payment'
 import { placeOrder } from '@/orders/place-order'
@@ -34,6 +35,7 @@ export function PaymentScreen() {
   const [error, setError] = useState<string | null>(null)
   const [terminal] = useState(paymentTerminal)
   const [useCredit, setUseCredit] = useState(true)
+  const dock = useWaiterDockInset()
 
   // O crédito é opcional POR PADRÃO LIGADO: quem tem saldo quase sempre quer
   // gastá-lo, e quem não quer desliga num toque. O contrário faz a pessoa pagar
@@ -102,7 +104,13 @@ export function PaymentScreen() {
 
   return (
     <div data-testid="screen-payment" className="absolute inset-0 flex flex-col bg-page">
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[6cqw] pb-[calc(var(--tap-bar)+4cqw)] pt-[8cqw]">
+      <div
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[6cqw] pt-[8cqw]"
+        // A faixa do garçom, quando ele está acompanhando, come o rodapé desta
+        // tela — e o rodapé desta tela é uma forma de pagamento. Ela apareceu
+        // por cima do PIX exatamente por não estar reservada aqui.
+        style={{ paddingBottom: `calc(var(--tap-bar) + ${dock} + 4cqw)` }}
+      >
         <h1 className="font-display uppercase leading-[0.9] tracking-tight" style={{ fontSize: 'var(--step-display)' }}>
           {totemConfig.copy.paymentTitle}
         </h1>

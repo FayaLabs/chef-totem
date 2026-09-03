@@ -197,3 +197,85 @@ test.describe('V3 · apontar OU abrir', () => {
     await expect(page.locator('[data-highlighted="true"]')).toHaveCount(0)
   })
 })
+
+// ---------------------------------------------------------------------------
+// V3 · o garçom entra em cena quando é chamado, e sai quando não é.
+//
+// Os dois defeitos que estas provas fecham são o mesmo defeito visto de dois
+// lados: a faixa aparecia onde não tinha função e não aparecia onde tinha.
+//
+//  · Tocar no orbe na tela inicial não fazia nada visível: a pessoa atravessava
+//    "comer aqui ou levar" e a identificação em silêncio absoluto, respondendo
+//    tudo no dedo, e o garçom só surgia no cardápio — depois de ela ter feito o
+//    trabalho dele.
+//  · Na tela de pagamento a faixa aparecia SEMPRE, cortando a opção PIX pela
+//    metade e exibindo "peça como pediria a Chef" logo acima do botão PAGAR.
+// ---------------------------------------------------------------------------
+
+test.describe('V3 · quem chama, é atendido', () => {
+  test('tocar no orbe põe o garçom em cena JÁ no primeiro passo', async ({ page }) => {
+    await page.goto('/?waiter=scripted')
+    await page.getByTestId('attract-orb').tap()
+
+    await expect(page.getByTestId('screen-mode')).toBeVisible()
+    // A prova do que faltava: ele fala ANTES do cardápio, no passo em que o
+    // cliente está — não duas telas depois.
+    await expect(page.getByTestId('waiter-dock')).toBeVisible()
+    await expect(page.getByTestId('voice-orb')).toHaveAttribute('data-phase', 'listening')
+  })
+
+  test('a faixa não cobre as duas opções da tela de modo', async ({ page }) => {
+    await page.goto('/?waiter=scripted')
+    await page.getByTestId('attract-orb').tap()
+    await expect(page.getByTestId('waiter-dock')).toBeVisible()
+
+    const dock = (await page.getByTestId('waiter-dock').boundingBox())!
+    for (const id of ['mode-dine-in', 'mode-takeaway']) {
+      const card = (await page.getByTestId(id).boundingBox())!
+      expect(card.y + card.height, `${id} fica debaixo da faixa do garçom`).toBeLessThanOrEqual(
+        dock.y + 1,
+      )
+    }
+  })
+
+  test('quem NÃO chamou atravessa as duas telas sem faixa nenhuma', async ({ page }) => {
+    await page.goto('/?waiter=scripted')
+    await page.getByTestId('attract').tap()
+    await expect(page.getByTestId('screen-mode')).toBeVisible()
+    await expect(page.getByTestId('waiter-dock')).toHaveCount(0)
+
+    await page.getByTestId('mode-dine-in').tap()
+    await expect(page.getByTestId('screen-identify')).toBeVisible()
+    await expect(page.getByTestId('waiter-dock')).toHaveCount(0)
+  })
+
+  test('no pagamento a faixa não convida, e não cobre meio de pagamento nenhum', async ({
+    page,
+  }) => {
+    // O defeito era duplo e os dois lados aparecem aqui: a faixa cortava a
+    // opção PIX pela metade E, sem nada a dizer, exibia "peça como pediria a
+    // Chef" logo acima do botão PAGAR — oferta de comida para quem já está com
+    // o cartão na mão.
+    await page.goto('/?waiter=scripted')
+    await page.getByTestId('attract').tap()
+    await page.getByTestId('mode-dine-in').tap()
+    await page.getByTestId('identify-skip').tap()
+    await page.getByTestId('product-zd-p-refri').tap()
+    await page.getByTestId('add-to-order').tap()
+    await page.getByTestId('open-cart').tap()
+    await page.getByTestId('to-payment').tap()
+    await expect(page.getByTestId('screen-payment')).toBeVisible()
+
+    // Nada de convite a pedir: o que ela diz é sobre ESTA tela.
+    await expect(page.getByTestId('waiter-line-text')).not.toContainText(/peça como pediria/i)
+
+    // Os três meios ficam inteiros e alcançáveis, com a faixa em cena.
+    const dock = (await page.getByTestId('waiter-dock').boundingBox())!
+    for (const id of ['pay-card', 'pay-pix', 'pay-cash']) {
+      const option = (await page.getByTestId(id).boundingBox())!
+      expect(option.y + option.height, `${id} fica debaixo da faixa do garçom`).toBeLessThanOrEqual(
+        dock.y + 1,
+      )
+    }
+  })
+})

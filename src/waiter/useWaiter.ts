@@ -58,16 +58,21 @@ interface WaiterState {
    */
   announce: ((instruction: string) => void) | null
   /**
-   * O cliente tocou no orbe da tela inicial.
+   * O cliente aceitou ser atendido FALANDO, e a partir daí é atendido falando.
    *
-   * A voz só existe no cardápio (o garçom não fica entre o cliente e o cartão),
-   * mas a INTENÇÃO nasce lá atrás, no atrair. Sem carregar essa intenção, quem
-   * toca no orbe passa por duas telas e chega no cardápio sem nada acontecer —
-   * e conclui, com razão, que o orbe é enfeite.
+   * Nasce no toque do orbe na tela inicial e vale a visita inteira. Antes isto
+   * era só uma intenção de abrir o microfone lá no cardápio, e o resultado era
+   * o pior dos dois mundos: a pessoa tocava no orbe, atravessava DUAS telas em
+   * silêncio absoluto — comer aqui ou levar, telefone — e o garçom só aparecia
+   * quando ela já tinha feito tudo sozinha no dedo. Um garçom que chega depois
+   * de o cliente se sentar, pedir e pagar não é um garçom.
+   *
+   * Estando `engaged`, ele entra em cena no primeiro passo, cumprimenta e
+   * conduz cada tela até o cardápio.
    */
-  autoListen: boolean
+  engaged: boolean
 
-  setAutoListen: (autoListen: boolean) => void
+  setEngaged: (engaged: boolean) => void
   setControls: (controls: WaiterState['controls']) => void
   setAnnounce: (announce: WaiterState['announce']) => void
   setPhase: (phase: WaiterPhase) => void
@@ -105,9 +110,9 @@ export const useWaiter = create<WaiterState>((set, get) => ({
   ...empty,
   controls: null,
   announce: null,
-  autoListen: false,
+  engaged: false,
 
-  setAutoListen: (autoListen) => set({ autoListen }),
+  setEngaged: (engaged) => set({ engaged }),
   setControls: (controls) => set({ controls }),
   setAnnounce: (announce) => set({ announce }),
   setPhase: (phase) => set({ phase }),
@@ -134,10 +139,11 @@ export const useWaiter = create<WaiterState>((set, get) => ({
   setExpanded: (expanded) => set({ expanded }),
 
   // A new customer gets a new waiter. Nothing from the last visit survives —
-  // not the transcript, not the conversation, not the error.
+  // not the transcript, not the conversation, not the error, e nem o convite
+  // aceito: quem chega agora não pediu para ser atendido falando.
   reset: () => {
     if (errorTimer) clearTimeout(errorTimer)
     errorTimer = null
-    set({ ...empty })
+    set({ ...empty, engaged: false })
   },
 }))

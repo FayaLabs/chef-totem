@@ -470,6 +470,31 @@ export function createRealtimeTransport(): WaiterTransport {
       store().setPhase('listening')
     },
 
+    async greet(instruction, catalog) {
+      try {
+        await ensure(catalog)
+      } catch {
+        // Voz indisponível é um totem que continua vendendo no dedo. O erro já
+        // foi para a faixa em `ensure`; aqui a gente só não fala.
+        return
+      }
+      if (!mic) return
+      catalogRef = catalog
+      configure(catalog)
+      meterMicrophone(mic)
+      mic.getAudioTracks().forEach((track) => (track.enabled = true))
+      store().setLive('')
+      // Conta como anúncio para o dedupe: se a tela repetir o cumprimento por
+      // um remonte de componente, ele não é dito duas vezes.
+      lastAnnounce = instruction
+      send({
+        type: 'conversation.item.create',
+        item: { type: 'message', role: 'system', content: [{ type: 'input_text', text: instruction }] },
+      })
+      requestResponse()
+      store().setPhase('thinking')
+    },
+
     async stopListening() {
       if (!mic) return
       // Fechar o microfone é só isso: fechar o microfone. Quem decide que a

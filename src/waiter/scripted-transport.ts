@@ -136,6 +136,15 @@ export function createScriptedTransport(): WaiterTransport {
       waiter.setPhase('idle')
     },
 
+    async greet(instruction) {
+      // Sem modelo, o roteirizado diz a própria instrução — feio de perto e
+      // suficiente para o teste provar que o garçom fala PRIMEIRO, no passo
+      // certo, com o microfone aberto.
+      const waiter = useWaiter.getState()
+      waiter.pushTurn({ id: id(), from: 'waiter', text: instruction, did: ['abriu a conversa'] })
+      waiter.setPhase('listening')
+    },
+
     async startListening() {
       // No microphone here: the phase still moves so the orb, the dock label
       // and every visual affordance are exercised by the same test.

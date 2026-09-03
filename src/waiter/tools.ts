@@ -70,6 +70,61 @@ function openProductOrNull(catalog: TotemCatalog): TotemProduct | null {
 }
 
 export const WAITER_TOOLS: WaiterTool[] = [
+  // ---- antes do cardápio -----------------------------------------------------
+  //
+  // As duas telas que vêm antes do cardápio são UMA pergunta cada, e um garçom
+  // que só sabe falar de comida deixa o cliente respondendo essas duas no dedo
+  // — depois de ter tocado no orbe justamente para não precisar. Estas duas
+  // ferramentas são o que faz o convite da tela inicial valer alguma coisa.
+  //
+  // Repare no que NÃO existe aqui: nada que digite telefone ou CPF. Falar o
+  // próprio número em voz alta na frente de uma fila é constrangedor, e uma
+  // transcrição errada de onze dígitos acha o cadastro de outra pessoa. O
+  // garçom oferece o caminho e o teclado continua sendo do cliente.
+  {
+    name: 'set_service_mode',
+    description:
+      'Responde "comer aqui ou levar" pelo cliente e avança a tela. Use assim que ele disser — não mande tocar no botão. Só vale na tela da pergunta.',
+    parameters: {
+      type: 'object',
+      properties: {
+        mode: {
+          type: 'string',
+          enum: ['dine_in', 'takeaway'],
+          description: 'dine_in = comer no local; takeaway = levar',
+        },
+      },
+      required: ['mode'],
+    },
+    execute: (args) => {
+      const session = useTotemSession.getState()
+      if (session.step !== 'mode') {
+        return session.mode
+          ? `Já está marcado ${session.mode === 'takeaway' ? 'para levar' : 'para comer aqui'}.`
+          : 'Essa pergunta já passou.'
+      }
+      const mode = str(args, 'mode')
+      if (mode !== 'dine_in' && mode !== 'takeaway') {
+        return 'Modo inválido. Use dine_in (comer aqui) ou takeaway (levar).'
+      }
+      session.chooseMode(mode)
+      return `Marquei ${mode === 'takeaway' ? 'para levar' : 'para comer aqui'}. Agora a tela pergunta o telefone, e dá para pular.`
+    },
+  },
+
+  {
+    name: 'skip_identification',
+    description:
+      'Pula a tela de telefone/CPF e leva direto ao cardápio. Use quando o cliente disser que não tem cadastro, que não quer, ou que é para seguir logo. NUNCA peça o número em voz alta — quem digita é ele.',
+    parameters: { type: 'object', properties: {} },
+    execute: () => {
+      const session = useTotemSession.getState()
+      if (session.step !== 'identify') return 'Não estamos na tela de identificação.'
+      session.identify(null)
+      return 'Pulei. Estamos no cardápio — pergunte o que ele vai querer.'
+    },
+  },
+
   {
     name: 'describe_options',
     description:

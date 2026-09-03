@@ -6,6 +6,7 @@ import { brl, cartCount, cartTotalCents, useCart } from '@/cart/useCart'
 import { useCatalog } from '@/menu/useCatalog'
 import { useMenuUi } from '@/menu/useMenuUi'
 import { useWaiter } from '@/waiter/useWaiter'
+import { useWaiterDockInset } from '@/waiter/presence'
 import { useProductDraft } from '@/menu/useProductDraft'
 import type { TotemProduct } from '@/menu/types'
 import { ProductSheet } from '@/screens/ProductSheet'
@@ -45,11 +46,10 @@ export function MenuScreen() {
   const resetMenuUi = useMenuUi((s) => s.reset)
 
   // The dock is chrome, not an overlay: when the waiter is on shift the grid
-  // and the rail give up its height instead of scrolling underneath it.
-  const waiterOn = useWaiter((s) => s.phase) !== 'off'
-  const bottomInset = waiterOn
-    ? 'calc(var(--tap-bar) + 17cqw + 4cqw)'
-    : 'calc(var(--tap-bar) + 4cqw)'
+  // and the rail give up its height instead of scrolling underneath it. A
+  // altura vem de `presence`, o mesmo lugar que decide se a faixa existe.
+  const dock = useWaiterDockInset()
+  const bottomInset = `calc(var(--tap-bar) + ${dock} + 4cqw)`
 
   const highlightId = useMenuUi((s) => s.highlightId)
   const highlight = useMenuUi((s) => s.highlight)

@@ -177,3 +177,60 @@ test('uma tentativa nova apaga o erro na hora', async () => {
   assert.equal(useWaiter.getState().error, null)
   assert.equal(useWaiter.getState().phase, 'idle')
 })
+
+// ---------------------------------------------------------------------------
+// Antes do cardápio.
+//
+// Quem toca no orbe na tela inicial não deveria precisar tocar em mais nada até
+// o cardápio. Estas provas cobrem o caminho que faltava — duas telas que o
+// garçom atravessava mudo enquanto o cliente respondia tudo no dedo.
+// ---------------------------------------------------------------------------
+
+test('o garçom responde "comer aqui ou levar" e a tela anda', () => {
+  reset()
+  useTotemSession.getState().start()
+  assert.equal(useTotemSession.getState().step, 'mode')
+
+  const out = run('set_service_mode', { mode: 'takeaway' })
+  assert.match(out, /levar/i)
+  assert.equal(useTotemSession.getState().mode, 'takeaway')
+  assert.equal(useTotemSession.getState().step, 'identify', 'a tela tem de avançar junto')
+})
+
+test('o modo não pode ser trocado depois que a pergunta passou', () => {
+  reset()
+  useTotemSession.getState().start()
+  run('set_service_mode', { mode: 'dine_in' })
+  useTotemSession.getState().identify(null)
+
+  const late = run('set_service_mode', { mode: 'takeaway' })
+  assert.match(late, /já está marcado/i)
+  assert.equal(useTotemSession.getState().mode, 'dine_in', 'o cliente já viu o preço deste modo')
+})
+
+test('modo inválido não vira escolha', () => {
+  reset()
+  useTotemSession.getState().start()
+  const out = run('set_service_mode', { mode: 'delivery' })
+  assert.match(out, /inválido/i)
+  assert.equal(useTotemSession.getState().mode, null)
+})
+
+test('pular a identificação leva ao cardápio SEM guardar dado nenhum', () => {
+  reset()
+  useTotemSession.getState().start()
+  run('set_service_mode', { mode: 'dine_in' })
+
+  const out = run('skip_identification')
+  assert.match(out, /cardápio/i)
+  assert.equal(useTotemSession.getState().step, 'menu')
+  assert.equal(useTotemSession.getState().customer, null)
+})
+
+test('não existe ferramenta que digite telefone ou CPF', () => {
+  // Falar o próprio número em voz alta numa fila é constrangedor, e onze
+  // dígitos mal transcritos acham o cadastro de outra pessoa. O teclado é do
+  // cliente, e esta prova é o que impede alguém de "ajudar" mais tarde.
+  const names = WAITER_TOOLS.map((t) => t.name).join(' ')
+  assert.doesNotMatch(names, /phone|telefone|cpf|document|identify_/i)
+})
