@@ -14,7 +14,11 @@
     "isolatedModules": true,
     "types": ["vite/client"],
     "baseUrl": ".",
-    "paths": { "@/*": ["src/*"] }
+    "paths": {
+      "@/*": ["src/*"],
+      "@fayz-ai/core/*": ["../../fayz-sdk/packages/core/src/*/index.ts"],
+      "@supabase/supabase-js": ["./node_modules/@supabase/supabase-js"]
+    }
   },
   "include": ["src"],
   "exclude": ["e2e", "dist", "node_modules"]

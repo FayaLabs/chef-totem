@@ -11,7 +11,12 @@
 // is how a customer gets charged R$ 76,00000000001.
 // ---------------------------------------------------------------------------
 
-export type PaymentMethod = 'card' | 'pix' | 'cash'
+// Crédito, débito e Pix — os três que o quiosque consegue terminar sozinho, e
+// os três que o razão liquida em contas diferentes (`credito`, `debito`,
+// `pix`). Dinheiro está fora de propósito: o painel não tem gaveta, então a
+// cédula é assunto do caixa, e abrir uma caixinha aqui seria registrar dinheiro
+// que ninguém contou.
+export type PaymentMethod = 'credit' | 'debit' | 'pix'
 
 export type PaymentStatus =
   | 'idle'

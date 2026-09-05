@@ -16,10 +16,18 @@ test.describe('M5 · pagamento', () => {
   test('mostra o total e os três meios', async ({ page }) => {
     await toPayment(page)
     await expect(page.getByTestId('screen-payment')).toContainText('R$ 8,00')
-    for (const id of ['pay-card', 'pay-pix', 'pay-cash']) {
+    for (const id of ['pay-credit', 'pay-debit', 'pay-pix']) {
       await expect(page.getByTestId(id)).toBeVisible()
     }
-    await expect(page.getByTestId('pay-card')).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByTestId('pay-credit')).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  test('dinheiro não é oferecido, e a tela diz para onde ir', async ({ page }) => {
+    // O painel não tem gaveta. Um botão que ele não consegue honrar é o cliente
+    // parado com a cédula na mão e ninguém a quem entregá-la.
+    await toPayment(page)
+    await expect(page.getByTestId('pay-cash')).toHaveCount(0)
+    await expect(page.getByTestId('payment-no-cash')).toContainText(/dinheiro.*caixa/i)
   })
 
   test('guia o cliente pelos estados da maquininha', async ({ page }) => {
@@ -64,7 +72,7 @@ test.describe('M5 · o garçom acompanha o pagamento', () => {
     await page.getByTestId('pay-pix').tap()
     await expect(page.getByTestId('waiter-line-text')).toContainText(/pix/i)
 
-    await page.getByTestId('pay-card').tap()
+    await page.getByTestId('pay-debit').tap()
     await expect(page.getByTestId('waiter-line-text')).toContainText(/maquininha/i)
   })
 
