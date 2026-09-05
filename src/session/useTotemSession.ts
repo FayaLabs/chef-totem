@@ -32,8 +32,12 @@ export interface TotemCustomer {
 export interface CompletedOrder {
   orderId: string
   ticket: string
+  /** O número da fatura, quando houve uma — é por ele que o caixa acha a venda. */
   referenceNumber: string
   totalCents: number
+  /** Falso quando a venda fechou mas o dinheiro não foi baixado. */
+  paid: boolean
+  warning?: string
 }
 
 interface TotemSessionState {

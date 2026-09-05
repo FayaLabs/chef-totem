@@ -78,7 +78,9 @@ export function ReceiptScreen() {
 
         <div className="mt-[8cqw] w-full max-w-[70cqw] rounded-totem bg-white p-[4cqw] text-ink">
           <div className="flex justify-between" style={{ fontSize: 'var(--step-body)' }}>
-            <span className="uppercase tracking-[0.2em] text-muted">Total pago</span>
+            <span className="uppercase tracking-[0.2em] text-muted">
+              {placed.paid ? 'Total pago' : 'Total a pagar'}
+            </span>
             <span className="tnum font-bold" data-testid="receipt-total">
               {brl(placed.totalCents)}
             </span>
@@ -86,6 +88,19 @@ export function ReceiptScreen() {
           <p className="tnum mt-[2cqw] text-muted" style={{ fontSize: 'var(--step-label)' }}>
             {placed.referenceNumber}
           </p>
+          {/* A venda fechou e o recebível existe, mas o dinheiro não foi
+              baixado. Mandar o cliente embora sem dizer isso é comida saindo da
+              cozinha contra uma conta que ninguém liquida. */}
+          {placed.paid ? null : (
+            <p
+              data-testid="receipt-unpaid"
+              role="alert"
+              className="mt-[2cqw] font-bold text-action"
+              style={{ fontSize: 'var(--step-label)' }}
+            >
+              Pagamento pendente — passe no caixa com este número.
+            </p>
+          )}
         </div>
 
         {/* Só aparece para quem deu o telefone. Pedir o número AGORA, com a
