@@ -34,6 +34,11 @@ export class DeviceSessionError extends Error {
   }
 }
 
+/** The project ref out of a Supabase URL, for namespacing stored sessions. */
+function projectRef(url: string): string {
+  return new URL(url).hostname.split('.')[0]
+}
+
 function env(key: string): string | undefined {
   const value = import.meta.env[key as keyof ImportMetaEnv]
   return typeof value === 'string' && value.length > 0 ? value : undefined
@@ -69,7 +74,12 @@ export async function deviceClient(): Promise<SupabaseClient> {
       // can sell again.
       persistSession: true,
       autoRefreshToken: true,
-      storageKey: 'chef-totem-device',
+      // Namespaced by project ref. A bare 'chef-totem-device' is shared across
+      // pools, so repointing VITE_SUPABASE_URL at another project hands the new
+      // client a session minted by the old one — which reads as valid locally
+      // and is rejected by every request. Supabase's own default key includes
+      // the ref for this reason.
+      storageKey: `chef-totem-device-${projectRef(env('VITE_SUPABASE_URL')!)}`,
     },
     global: {
       // O usuário do aparelho pode em princípio pertencer a mais de uma conta, e
@@ -90,8 +100,24 @@ export async function deviceClient(): Promise<SupabaseClient> {
   })
 
   signedIn ??= (async () => {
+    // getSession() only reads storage — it never asks the server whether the
+    // token is still good. A session can be stored and dead: the device
+    // password was rotated (which revokes every refresh token), the user was
+    // disabled, or the pool moved under us. Trusting it meant the panel
+    // returned early, never signed in, and every request went out
+    // unauthenticated — a 400 on refresh_token followed by 401 on everything,
+    // with no way back short of clearing site data by hand.
+    //
+    // getUser() validates against the server, so a dead session fails here
+    // rather than on the first query the customer is waiting for.
     const { data } = await client!.auth.getSession()
-    if (data.session) return
+    if (data.session) {
+      const { error: staleError } = await client!.auth.getUser()
+      if (!staleError) return
+      // Drop it locally: a revoked token cannot be signed out server-side, and
+      // leaving it in storage means the next boot repeats this.
+      await client!.auth.signOut({ scope: 'local' }).catch(() => {})
+    }
     const { error } = await client!.auth.signInWithPassword({
       email: env('VITE_TOTEM_DEVICE_EMAIL')!,
       password: env('VITE_TOTEM_DEVICE_PASSWORD')!,
