@@ -541,7 +541,7 @@ function ProductCard({
         dimmed ? 'scale-[0.97] opacity-30 saturate-50' : '',
       ].join(' ')}
     >
-      <div className={`relative h-[18cqw] shrink-0 ${product.pizza ? 'bg-[#292827]' : 'bg-hairline'}`}>
+      <div className={`relative h-[18cqw] shrink-0 ${product.pizza || product.burger ? 'bg-[#292827]' : 'bg-hairline'}`}>
         {product.burger ? <BurgerStill layers={burgerLayers(product, [])} fallback={imageUrl} /> : imageUrl && !imageBroken ? (
           <img
             src={imageUrl}

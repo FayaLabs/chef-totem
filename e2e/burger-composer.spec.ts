@@ -13,6 +13,24 @@ async function ready(page: Page) {
   await page.getByTestId('mod-mb-m-ponto').tap()
   await expect(page.getByTestId('sheet-total')).toHaveText(/39,00/)
 }
+
+test('cards dos burgers têm fundo escuro só na foto e preservam os preços', async ({ page }, info) => {
+  await enter(page)
+  await page.keyboard.press('Escape')
+  for (const [id, price] of [['classico', '29,00'], ['cheddar-bacon', '36,00'], ['smash-duplo', '39,00'], ['frango', '32,00'], ['veggie', '31,00']]) {
+    const card = page.getByTestId(`product-mb-p-${id}`)
+    await card.scrollIntoViewIfNeeded()
+    const still = card.getByTestId('burger-still')
+    await expect(still).toHaveAttribute('data-ready', 'true')
+    await expect(still.locator('..')).toHaveCSS('background-color', 'rgb(41, 40, 39)')
+    await expect(card).toContainText(price)
+    await expect(card.locator(':scope > div').nth(1)).not.toHaveCSS('background-color', 'rgb(41, 40, 39)')
+  }
+  await expect(page.getByTestId('product-mb-p-veggie')).toBeDisabled()
+  await page.getByTestId('product-mb-p-classico').scrollIntoViewIfNeeded()
+  await page.screenshot({ path: info.outputPath('burger-menu-dark.png') })
+})
+
 async function drag(page: Page, id: string, restore = false) {
   await page.getByTestId('burger-layers-toggle').tap()
   await page.waitForTimeout(750)
