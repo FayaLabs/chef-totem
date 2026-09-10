@@ -15,6 +15,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@fayz-ai/core": "^0.19.1",
     "@fayz-ai/sdk": "^0.15.0",
     "@supabase/supabase-js": "^2.112.4",
     "lucide-react": "^0.400.0",

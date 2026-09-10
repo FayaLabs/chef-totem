@@ -16,7 +16,6 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@fayz-ai/core/*": ["../../fayz-sdk/packages/core/src/*/index.ts"],
       "@supabase/supabase-js": ["./node_modules/@supabase/supabase-js"]
     }
   },
