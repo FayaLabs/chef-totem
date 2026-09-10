@@ -4,12 +4,24 @@ import { expect, test, type Page } from '@playwright/test'
 // and that a designer cannot eyeball from a laptop: every target is at least
 // the physical minimum, and every text pair clears WCAG AA.
 
-/** Relative luminance per WCAG 2.1. */
+/**
+ * Relative luminance per WCAG 2.1, para as DUAS notações que o navegador
+ * devolve.
+ *
+ * Toda cor de marca deste painel é um `color-mix()` (ver tailwind.config.ts), e
+ * `getComputedStyle` devolve isso como `color(srgb 0.95 0.95 0.96)` — canais de
+ * 0 a 1, com pontos. A versão anterior lia `\d+` e tirava dali `[0, 956863, 0]`,
+ * ou seja, uma luminância absurda e um contraste de milhares para um.
+ *
+ * Isso não deixava o teste vermelho: deixava-o VACUAMENTE VERDE. Todos os pares
+ * medidos passavam com folga infinita, e a suíte dizia que o painel estava em
+ * AA sem ter medido nada. Um teste que não pode falhar é pior do que teste
+ * nenhum, porque ocupa o lugar de um que poderia.
+ */
 const LUMINANCE = `(rgb) => {
-  const [r, g, b] = rgb.match(/\\d+/g).slice(0, 3).map(Number).map((v) => {
-    const s = v / 255
-    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4)
-  })
+  const nums = (rgb.match(/-?[\\d.]+/g) || []).map(Number)
+  const channels = rgb.startsWith('color(') ? nums.slice(0, 3) : nums.slice(0, 3).map((v) => v / 255)
+  const [r, g, b] = channels.map((s) => (s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4)))
   return 0.2126 * r + 0.7152 * g + 0.0722 * b
 }`
 
@@ -102,15 +114,23 @@ test.describe('M1 · design system', () => {
   })
 
   test('a borda de um controle vazado tem 3:1 contra a página', async ({ page }) => {
-    // A white key on a near-white page has its border as the ONLY boundary,
-    // so WCAG 1.4.11 applies to it. The old #E4E4E7 was 1.15:1 — invisible on
-    // the panel, and doubly so under dining-room glare.
+    // Um controle branco sobre página quase branca tem a borda como ÚNICO
+    // limite, então a WCAG 1.4.11 se aplica a ela. O #E4E4E7 original dava
+    // 1,15:1 — invisível no painel, e mais ainda sob o brilho do salão.
+    //
+    // O alvo é o BOTÃO DE ACESSIBILIDADE, não uma tecla do teclado. O teclado
+    // virou vidro (ver NumericKeypad) e não tem borda nenhuma há tempo: o que
+    // este teste media era o `border-color` herdado do preflight do Tailwind
+    // num elemento de borda 0px. Com o parser de luminância consertado, a
+    // medição virou 1,02:1 e denunciou o alvo errado — o vazado de verdade,
+    // hoje, é o toggle de alcance.
     const ratio = await page.evaluate(`${LUMINANCE.replace('(rgb) =>', 'const lum = (rgb) =>')}
       ;(() => {
-        const key = document.querySelector('[data-testid="key-5"]')
-        const border = getComputedStyle(key).borderTopColor
+        const control = document.querySelector('[data-testid="reach-toggle"]')
+        const style = getComputedStyle(control)
+        if (style.borderTopWidth === '0px') return 0
         const page = getComputedStyle(document.querySelector('[data-testid="design-catalog"]')).backgroundColor
-        const a = lum(border), b = lum(page)
+        const a = lum(style.borderTopColor), b = lum(page)
         return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
       })()`)
     expect(ratio as number, `borda: ${(ratio as number).toFixed(2)}:1`).toBeGreaterThanOrEqual(3)

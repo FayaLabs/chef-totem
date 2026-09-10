@@ -1,5 +1,6 @@
 import { brl, cartTotalCents, cartCount, useCart } from '@/cart/useCart'
-import { draftBlocking, useProductDraft, type DraftBlocking } from '@/menu/useProductDraft'
+import { draftBlocking, draftModifiers, useProductDraft, type DraftBlocking } from '@/menu/useProductDraft'
+import { composePizza, pizzaName } from '@/pizza/composition'
 import { useMenuUi } from '@/menu/useMenuUi'
 import { useTotemSession, type ServiceMode, type TotemStep } from '@/session/useTotemSession'
 import type { TotemCatalog } from '@/menu/types'
@@ -44,6 +45,7 @@ export interface WaiterSnapshot {
     price: string
     quantity: number
     chosen: { group: string; options: string[] }[]
+    pizza?: { mode: 'whole' | 'half'; activeHalf: number; first: string | null; second: string | null }
   }
   /** What stops the open item from being added. The reason to speak up. */
   blocking?: DraftBlocking
@@ -84,7 +86,7 @@ export function buildSnapshot(catalog: TotemCatalog | null): WaiterSnapshot {
       total: brl(cartTotalCents(cart.lines)),
       lines: cart.lines.map((line) => ({
         id: line.id,
-        name: line.product.name,
+        name: line.pizza ? pizzaName(line.pizza) : line.product.name,
         quantity: line.quantity,
         modifiers: line.modifiers.map((m) => m.name),
         total: brl(line.unitCents * line.quantity),
@@ -95,11 +97,13 @@ export function buildSnapshot(catalog: TotemCatalog | null): WaiterSnapshot {
   }
 
   if (product) {
+    const pizza = composePizza(product, draftModifiers(product, draft.chosen))
     snapshot.openProduct = {
       id: product.id,
-      name: product.name,
+      name: product.pizza && !draft.pizzaFirstChosen ? 'Monte sua pizza' : product.name,
       price: brl(product.priceCents),
       quantity: draft.quantity,
+      ...(pizza ? { pizza: { mode: draft.pizzaMode, activeHalf: draft.activeHalf + 1, first: draft.pizzaFirstChosen ? pizza.first.name : null, second: pizza.second?.name ?? null } } : {}),
       chosen: product.modifierGroups
         .map((group) => ({
           group: group.name,
@@ -109,7 +113,7 @@ export function buildSnapshot(catalog: TotemCatalog | null): WaiterSnapshot {
         }))
         .filter((entry) => entry.options.length > 0),
     }
-    snapshot.blocking = draftBlocking(product, draft.chosen)
+    snapshot.blocking = draftBlocking(product, draft.chosen, draft.pizzaMode, draft.pizzaFirstChosen, draft.burgerRecipeChosen)
   }
 
   return snapshot

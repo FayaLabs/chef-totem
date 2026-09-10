@@ -1,5 +1,6 @@
 export { BottomBar } from '@/design/BottomBar'
 export { Chip, type ChipProps } from '@/design/Chip'
+export { GlassDefs, GlassWarp } from '@/design/Glass'
 export { MediaBackdrop, type MediaBackdropProps } from '@/design/MediaBackdrop'
 export { NumericKeypad, type NumericKeypadProps } from '@/design/NumericKeypad'
 export { ReachModeToggle } from '@/design/ReachModeToggle'

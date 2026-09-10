@@ -1,3 +1,4 @@
+import { dismissPizzaIntro } from './pizza-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
 // ---------------------------------------------------------------------------
@@ -21,6 +22,7 @@ async function identifyAs(page: Page, digits: string) {
   await page.getByTestId('mode-dine-in').tap()
   await typePhone(page, digits)
   await page.getByTestId('identify-confirm').tap()
+  await dismissPizzaIntro(page)
 }
 
 test.describe('M10 · reconhecimento', () => {
@@ -56,7 +58,8 @@ test.describe('M10 · reconhecimento', () => {
     await identifyAs(page, '11987651111')
 
     // R$ 59,00 de pizza passa do mínimo de R$ 30 da oferta.
-    await page.getByTestId('product-zd-p-pepperoni').tap()
+    await page.getByTestId('product-ph-p-pepperoni').tap()
+    await page.getByTestId('pizza-mode-whole').tap()
     const mods = page.locator('[data-testid^="mod-"]')
     for (let i = 0; i < (await mods.count()); i++) {
       if (await page.getByTestId('add-to-order').isEnabled()) break
@@ -82,7 +85,7 @@ test.describe('M10 · reconhecimento', () => {
 
   test('o recibo oferece o WhatsApp para quem deu o telefone, e promete sem mentir', async ({ page }) => {
     await identifyAs(page, '11987651111')
-    await page.getByTestId('product-zd-p-refri').tap()
+    await page.getByTestId('product-ph-p-refri').tap()
     await page.getByTestId('add-to-order').tap()
     await page.getByTestId('open-cart').tap()
     await page.getByTestId('to-payment').tap()
@@ -106,7 +109,8 @@ test.describe('M10 · reconhecimento', () => {
     await page.getByTestId('attract').tap()
     await page.getByTestId('mode-dine-in').tap()
     await page.getByTestId('identify-skip').tap()
-    await page.getByTestId('product-zd-p-refri').tap()
+  await dismissPizzaIntro(page)
+    await page.getByTestId('product-ph-p-refri').tap()
     await page.getByTestId('add-to-order').tap()
     await page.getByTestId('open-cart').tap()
     await page.getByTestId('to-payment').tap()
@@ -122,6 +126,7 @@ test.describe('M10 · cancelar', () => {
     await page.getByTestId('attract').tap()
     await page.getByTestId('mode-dine-in').tap()
     await page.getByTestId('identify-skip').tap()
+  await dismissPizzaIntro(page)
     await page.getByTestId('reset').tap()
     await expect(page.getByTestId('attract')).toBeVisible()
   })
@@ -131,7 +136,8 @@ test.describe('M10 · cancelar', () => {
     await page.getByTestId('attract').tap()
     await page.getByTestId('mode-dine-in').tap()
     await page.getByTestId('identify-skip').tap()
-    await page.getByTestId('product-zd-p-refri').tap()
+  await dismissPizzaIntro(page)
+    await page.getByTestId('product-ph-p-refri').tap()
     await page.getByTestId('add-to-order').tap()
 
     await page.getByTestId('reset').tap()
@@ -152,6 +158,7 @@ test.describe('M10 · cancelar', () => {
     await page.getByTestId('attract').tap()
     await page.getByTestId('mode-dine-in').tap()
     await page.getByTestId('identify-skip').tap()
+  await dismissPizzaIntro(page)
 
     const cancel = (await page.getByTestId('reset').boundingBox())!
     const ticket = (await page

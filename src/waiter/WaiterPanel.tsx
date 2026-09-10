@@ -46,7 +46,7 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
         <VoiceOrb size="11cqw" />
         <span className="min-w-0 flex-1">
           <span
-            className="block font-display uppercase leading-none tracking-tight"
+            className="block type-display leading-none tracking-tight"
             style={{ fontSize: 'var(--step-title)' }}
           >
             {activeWaiterPersona().name}
@@ -88,7 +88,12 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
             data-testid={`turn-${turn.from}`}
             className={[
               'max-w-[80%] rounded-totem px-[3cqw] py-[2.5cqw]',
-              turn.from === 'customer' ? 'self-end bg-ink text-white' : 'self-start bg-page text-ink',
+              // A fala do garçom é uma pane de vidro; a do cliente é tinta
+              // sólida. Os dois lados de um chat precisam de materiais
+              // diferentes e não só de cores diferentes — num painel a um metro
+              // de distância, dois retângulos do mesmo material com dois tons
+              // parecidos lêem como uma lista, não como uma conversa.
+              turn.from === 'customer' ? 'sheen self-end bg-ink text-white' : 'glass self-start text-ink',
             ].join(' ')}
             style={{ fontSize: 'var(--step-body)' }}
           >
@@ -123,9 +128,8 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
           pesado do que o texto que ele ia receber. */}
       <div
         className={[
-          'mt-[4cqw] flex items-center gap-[2cqw] rounded-[3cqw] bg-white/70 p-[1.4cqw] backdrop-blur-xl',
-          'shadow-[inset_0_0.14cqw_0_rgba(255,255,255,0.9),0_0.25cqw_0.8cqw_rgba(11,11,12,0.10)]',
-          'focus-within:bg-white',
+          'glass mt-[4cqw] flex items-center gap-[2cqw] rounded-[3cqw] p-[1.4cqw]',
+          'focus-within:brightness-[1.03]',
         ].join(' ')}
       >
         <input
@@ -170,7 +174,7 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
             onClick={listening ? controls.stop : controls.start}
             className={[
               'press grid size-[var(--tap)] shrink-0 place-items-center rounded-full transition-colors',
-              listening ? 'bg-action text-white' : 'bg-black/[0.07] text-ink/70',
+              listening ? 'bg-action text-on-action' : 'bg-black/[0.07] text-ink/70',
               'disabled:opacity-40',
             ].join(' ')}
           >

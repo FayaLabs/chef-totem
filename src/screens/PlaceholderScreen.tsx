@@ -10,10 +10,10 @@ export function PlaceholderScreen({ step }: { step: TotemStep }) {
   return (
     <div
       data-testid={`screen-${step}`}
-      className="absolute inset-0 flex flex-col items-center justify-center gap-[4cqw] bg-page"
+      className="absolute inset-0 flex flex-col items-center justify-center gap-[4cqw] surface-page"
     >
       <span
-        className="font-display uppercase tracking-tight"
+        className="type-display"
         style={{ fontSize: 'var(--step-display)' }}
       >
         {step}

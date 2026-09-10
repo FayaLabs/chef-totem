@@ -139,6 +139,160 @@ cliente continua tocando no prato de trás.
 - Um elemento em movimento por tela. Vídeo de fundo não conta como movimento de
   interface.
 
+## Vidro
+
+O painel é feito de vidro: chip, tecla, cartão de prato, trilha de categorias,
+cabeçalho do cardápio, faixa do garçom e os dois cartões de "comer aqui /
+levar". O que o vidro paga é a foto continuar existindo debaixo da interface —
+num painel cuja proposta inteira é a imagem da comida, cada retângulo branco
+opaco é um pedaço do argumento de venda tapado com papel.
+
+O que ele custa está escrito abaixo, e é mais do que parece.
+
+### Não é uma camada de cor da marca
+
+A primeira versão dissolveu 10% da cor da casa na pane, e os dois cartões da
+tela de modo da pizzaria não ficaram de vidro: ficaram **marrons**. Quem olhou
+disse a frase exata — "mudou a cor dos cards" — e estava certo.
+
+Vidro é o fundo aparecendo, desfocado, com uma quina de luz e no máximo um sopro
+de cor. Hoje a tonalidade entra a **3,5%** na pane clara e **6%** na escura. O
+teste é comparativo, nunca absoluto: as três casas lado a lado têm de ser
+distinguíveis, e cada uma sozinha não pode ter "cor de cartão".
+
+### O piso de contraste anda com o TEXTO, não com a pane
+
+Vidro translúcido sobre foto de comida é a maneira mais fácil de reprovar em
+contraste sem nenhuma cor ter mudado. A saída errada é opacificar tudo: uma pane
+grande com o piso no corpo inteiro tapa com plástico fosco exatamente a comida
+que trouxe o cliente até ali, e o piso não fazia falta em lugar nenhum a não ser
+embaixo do rótulo — que ocupa um sexto da peça.
+
+Então são duas densidades, e **quem decide qual usar é o tamanho**:
+
+| | Onde | Alpha |
+|---|---|---|
+| `--glass-veil` | a pane grande, para a foto atravessar | livre |
+| `--glass-plate` | o fundo do texto, e só dele | **calculado** |
+
+Quanto maior a pane, mais transparente ela pode e deve ser — e mais o texto
+precisa do próprio fundo. Uma pastilha pequena que é quase só texto usa a
+densidade inteira e não esconde nada, porque não há nada debaixo dela.
+
+O alpha do `plate` não é escolhido: `glassOf()` varre até achar o menor valor
+que ainda segura o texto contra o **pior fundo possível** — branco, para texto
+branco sobre foto (um prato estourado de luz); preto, para tinta escura sobre
+conteúdo vivo. Um tenant que peça mais transparência do que isso tem o número
+levantado e uma reclamação no console.
+
+### Medir em pixel, não em `getComputedStyle`
+
+`e2e/design-system.spec.ts` lê estilo computado, e sobre vidro isso devolve a
+cor da **pane** — não a cor que o olho vê depois de a foto atravessar por trás
+dela. É a diferença entre um teste que passa e uma tela legível.
+
+`.evidence/glass-contrast.mjs` faz a medição de verdade: apaga a tinta do texto,
+fotografa o que passa por trás dele e devolve o pior pixel da caixa, nas três
+casas. Foi ele que reprovou o scrim da tela de modo em 34% (3,84:1 na cafeteria,
+que tem o pôster mais claro) e aprovou em 44% (5,44:1). **Mexer no scrim ou na
+cobertura do vidro sem rodar aquele script é mexer no contraste no escuro.**
+
+E foi ele que achou a armadilha das **duas camadas**: a tarja de ESGOTADO é
+composta sobre a foto e só depois o cartão inteiro vai a 60% de opacidade contra
+a página. O segundo estágio lava o branco do texto junto com o preto do fundo, e
+`bg-ink/85` — que passa sozinho com folga — caía para 2,88:1 sobre o pão claro
+de um lanche esgotado. Um piso calculado mede a pane isolada; a tela não pinta a
+pane isolada. Onde houver `opacity` num ancestral, medir em pixel é a única
+medição que vale.
+
+### Vidro só desfoca onde há o que desfocar
+
+`backdrop-filter` sobre uma cor chapada devolve exatamente a mesma cor e cobra
+uma camada de composição. Chip, tecla e cartão de prato moram sobre a página,
+que é uma cor lisa: ali o "vidro" é a mistura **já resolvida**, opaca, sem filtro
+nenhum — o olho não distingue e o compositor deixa de carregar vinte camadas
+numa grade que rola.
+
+Sobram quatro camadas de desfoque simultâneas no pior caso: o scrim do sheet, o
+cabeçalho do cardápio, a faixa do garçom e a pane sobre foto da tela em que se
+está. Antes de aplicar
+`backdrop-filter` em mais alguma coisa, a pergunta é se há mesmo conteúdo por
+trás — quase sempre não há.
+
+### Refração de borda
+
+O que separa "vidro líquido" de "vidro fosco" acontece nos três milímetros da
+quina: o que está atrás entorta e escorrega para fora. É um `feDisplacementMap`
+sobre um mapa em gradiente (`src/design/Glass.tsx`) cujo miolo é **constante** —
+a distorção existe só onde não há informação, e o centro sai do filtro idêntico
+ao que entrou. Um mapa que varia de ponta a ponta entortaria também a área do
+texto, que é a versão bonita de texto ilegível.
+
+É opt-in (`.glass-warp`), num punhado de panes grandes e paradas. Um filtro SVG
+por cartão numa grade que rola é o caminho mais curto para um quiosque que treme.
+
+### Cromo flutua, compromisso é opaco
+
+A regra que decide, em qualquer peça, se ela leva vidro:
+
+> O que **emoldura** o cardápio — o cabeçalho, a faixa do garçom — é vidro,
+> porque saber que o cardápio continua ali embaixo é informação útil. O que
+> **tira** o cliente do cardápio — carrinho, finalizar, o meio de pagamento
+> escolhido — é sólido, porque ali a única coisa que importa é o próprio botão.
+
+A barra de baixo foi de vidro por um dia, e é o pior caso que existe: o que
+passa por baixo dela é uma foto de comida que **rola**, então o contraste de
+"Carrinho" mudava a cada quadro. Piso de alpha garante o mínimo, não garante
+ESTABILIDADE — e em troca o efeito oferecia ver o cardápio através da barra que
+serve exatamente para sair dele.
+
+O cabeçalho é o caso oposto e por isso é vidro **escuro** e denso: o texto dele é
+branco, as três páginas são claras, e o que passa por baixo é foto de comida.
+`--glass-chrome` fica acima do piso de propósito — ali o vidro não existe para
+mostrar o que está atrás, existe para **insinuar** que está.
+
+Quando duas faixas claras se encostam (a do garçom e a de baixo), o limite entre
+elas é uma borda de `edge`: sem um limite medido elas se fundem numa faixa só de
+240px, que é a mesma armadilha da borda de controle vazado.
+
+### Vidro e sombra sólida não convivem
+
+`hard` é, por definição, a sombra de uma coisa **impressa**: deslocamento
+sólido, sem desfoque, adesivo colado na parede. O vidro é o contrário — uma
+coisa com espessura, que deixa passar luz. Uma casa com os dois pede ao olho que
+leia "impresso" e "camada" no mesmo cartão, e o olho percebe a contradição antes
+de saber nomeá-la: o que ele relata é sujeira, não material.
+
+Houve uma tentativa de conciliar, e ela funcionava: na casa `hard` o vidro virava
+**acrílico laminado** — 5px de desfoque, 93% de cobertura, um fio de tinta
+fechando a borda de onde a sombra nasce. O resultado era coerente e era a coisa
+errada: uma casa gastando o material mais contemporâneo que existe para chegar
+num sinal de 1955.
+
+Daí `elevation: 'glass'`, que desfaz o nó pelo outro lado. A profundidade vem do
+desfoque e da quina de luz; a sombra é **larga, baixa e sem cor** — não desenha
+um bloco, desenha uma distância. É a elevação que o MaxBurger usa desde que
+deixou de ser vintage.
+
+`hard` continua no enum, documentado e sem casa nenhuma. É uma dívida assumida:
+`test/demo-tenants.test.ts` deixou de exigir a string e passou a exigir a ideia
+— alguma casa tem de sair do padrão, senão o token existe sem nunca ter sido
+pintado.
+
+### O que NÃO é de vidro
+
+- **O botão de commit, e a barra inteira que o hospeda.** Ver "Cromo flutua,
+  compromisso é opaco" acima. Ela ganha só o realce especular, para pertencer ao
+  mesmo material sem deixar ver nada atrás.
+- **O corpo do sheet.** É a maior superfície do painel e a que mais pediria o
+  efeito, e é também onde mora o texto denso — descrição, sete chips, as linhas
+  do carrinho. Vidro se paga em superfície grande e se cobra em texto pequeno.
+- **O puxador do sheet.** Ganhou uma pastilha de vidro e virou um retângulo
+  cinza boiando sobre a foto da pizza: lê como defeito de renderização e come a
+  foto. Num traço de 11cqw por 0,85cqw não há área para revelar nada — só sobra
+  o material, que sem função é sujeira em cima do prato.
+- **O recibo.** É papel.
+
 ## Tema por tenant
 
 Toda cor, fonte e raio é uma variável CSS. Um restaurante novo é um objeto de
@@ -147,6 +301,32 @@ configuração (`totemConfig.theme`), não um fork.
 ```ts
 theme: { action: '#0F766E', ink: '#111827', accent: '#F59E0B', radius: 20 }
 ```
+
+O tema não é só paleta. Duas marcas podiam escolher dois vermelhos parecidos e o
+painel ficaria idêntico — e "trocar de restaurante é trocar um objeto" só vale
+se a troca for visível do outro lado do corredor de uma feira. Então também são
+token:
+
+| Token | O que muda | Por que é marca, e não ergonomia |
+|---|---|---|
+| `onAction` | a tinta SOBRE a cor de ação | Era branco fixo, e branco fixo proíbe toda marca clara: amarelo com texto branco dá 1,7:1, ou seja, um botão de PAGAR ilegível. `checkTheme` mede este par. |
+| `actionInk` | a marca quando ela é TEXTO | Preço, "obrigatório", total do carrinho. O amarelo que funciona como preenchimento dá 1,6:1 como texto sobre cartão — no elemento que mais decide a compra. Ausente, a própria `action` serve. |
+| `displayCase` | título em caixa alta ou não | Uma cafeteria que quer parecer feita à mão não escreve BOLO DE FUBÁ na parede. Só o DISPLAY varia: rótulo de botão e de chip continua em caixa alta fixa, porque ali a caixa alta é legibilidade a um metro. |
+| `displayTracking` | espacejamento do título | Anton apertado é cartaz; Anton espaçado é letreiro de fachada. Mesma fonte, duas casas diferentes. |
+| `elevation` | `soft` / `hard` / `flat` / `glass` | Como o cartão se descola da página. `hard` é deslocamento sólido sem desfoque — placa esmaltada, adesivo; `glass` é sombra larga e baixa, que desenha distância em vez de bloco. É o que distingue uma casa da outra antes de a pessoa ler uma palavra, e `hard` e `glass` não cabem na mesma casa (ver Vidro). |
+| `glassTint` | a cor que o vidro empresta ao que está atrás | Vidro incolor é a razão de metade dos painéis "de vidro" parecerem o mesmo painel. Sai do `accent` e não do `action`: o vermelho de commit já é a coisa mais forte da tela e não pode estar também no material. |
+| `glassBlur` | espessura, em px de desfoque no painel de 1080 | 26 é uma placa grossa que só deixa passar cor; 5 é uma lâmina onde ainda se lê o que está atrás. A refração de borda é DERIVADA daqui — as duas descrevem a mesma propriedade física. |
+| `glassOpacity` | quanto da tonalidade cobre a pane | Também o piso de legibilidade, e por isso não é um número livre: `glassOf` levanta o valor até o mínimo que segura o texto sobre o pior fundo possível e reclama no console quando precisa. |
+
+**Não existe token de textura, e a ausência foi testada.** Houve um
+`background-image` por tenant — grão diagonal numa casa, listras de toldo na
+outra. Passava em contraste (o padrão ficava abaixo de 1,1:1 contra a página) e
+mesmo assim estava errado: contraste mede legibilidade, não mede RUÍDO. Numa
+grade de dez cartões brancos, a listra é a única coisa que se move quando o olho
+se move, e ela aparece exatamente nas frestas, onde não há informação nenhuma.
+
+As três casas de demonstração e o painel de serviço que troca entre elas estão
+em `docs/DEMO-TENANTS.md`.
 
 **O que NÃO é tematizável, de propósito:**
 

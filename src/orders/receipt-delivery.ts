@@ -1,4 +1,5 @@
 import { deviceClient } from '@/menu/device-session'
+import { isDemoCatalog } from '@/demo/mode'
 import { totemConfig } from '@/config/totem.config'
 import { brl } from '@/cart/useCart'
 import type { CompletedOrder, ServiceMode } from '@/session/useTotemSession'
@@ -95,7 +96,7 @@ const demoDelivery: ReceiptDelivery = {
 }
 
 export function receiptDelivery(): ReceiptDelivery {
-  return import.meta.env.VITE_TOTEM_CATALOG === 'demo' ? demoDelivery : queueDelivery
+  return isDemoCatalog() ? demoDelivery : queueDelivery
 }
 
 /** (11) 9••••-1234 — confirma o número sem imprimi-lo numa tela pública. */

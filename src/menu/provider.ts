@@ -1,3 +1,4 @@
+import { isDemoCatalog } from '@/demo/mode'
 import { createDemoCatalog } from '@/menu/demo-catalog'
 import { createSupabaseCatalog } from '@/menu/supabase-catalog'
 import type { CatalogProvider } from '@/menu/types'
@@ -6,5 +7,5 @@ import type { CatalogProvider } from '@/menu/types'
 // catalog fails the panel says so, because a kiosk that invents a menu takes
 // orders the kitchen will never see.
 export function catalogProvider(): CatalogProvider {
-  return import.meta.env.VITE_TOTEM_CATALOG === 'demo' ? createDemoCatalog() : createSupabaseCatalog()
+  return isDemoCatalog() ? createDemoCatalog() : createSupabaseCatalog()
 }

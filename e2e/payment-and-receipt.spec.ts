@@ -1,3 +1,4 @@
+import { dismissPizzaIntro } from './pizza-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
 async function toPayment(page: Page, url = '/') {
@@ -5,7 +6,8 @@ async function toPayment(page: Page, url = '/') {
   await page.getByTestId('attract').tap()
   await page.getByTestId('mode-dine-in').tap()
   await page.getByTestId('identify-skip').tap()
-  await page.getByTestId('product-zd-p-refri').tap()
+  await dismissPizzaIntro(page)
+  await page.getByTestId('product-ph-p-refri').tap()
   await page.getByTestId('add-to-order').tap()
   await page.getByTestId('open-cart').tap()
   await page.getByTestId('to-payment').tap()

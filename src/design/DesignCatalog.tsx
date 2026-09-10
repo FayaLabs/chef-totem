@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowRight, ShoppingBag } from 'lucide-react'
 import {
   BottomBar,
   ReachModeToggle,
   Chip,
+  GlassWarp,
   NumericKeypad,
   Sheet,
   Stepper,
@@ -25,10 +26,10 @@ export function DesignCatalog() {
     <div
       data-testid="design-catalog"
       // pb reserves the bottom bar so no content ever scrolls under it.
-      className="size-full overflow-y-auto bg-page px-[5cqw] pt-[5cqw] pb-[calc(var(--tap-bar)+5cqw)]"
+      className="size-full overflow-y-auto surface-page px-[5cqw] pt-[5cqw] pb-[calc(var(--tap-bar)+5cqw)]"
     >
       <header className="mb-[5cqw]">
-        <h1 className="font-display uppercase leading-[0.9]" style={{ fontSize: 'var(--step-display)' }}>
+        <h1 className="type-display leading-[0.9]" style={{ fontSize: 'var(--step-display)' }}>
           Design do totem
         </h1>
         <p className="mt-[1cqw] uppercase tracking-[0.3em] text-muted" style={{ fontSize: 'var(--step-label)' }}>
@@ -70,6 +71,57 @@ export function DesignCatalog() {
         />
       </Section>
 
+      {/* O VIDRO, em uma tela. O catálogo é onde uma mudança de token aparece
+          antes de chegar às seis telas, e o material é o token que mais
+          superfície ocupa hoje: se ele estiver leitoso, opaco ou tingido demais,
+          é aqui que se vê primeiro, com as três densidades lado a lado.
+
+          A pane sobre foto vem sobre uma FOTO de verdade — sem ela, o vidro
+          escuro seria um retângulo cinza e a única coisa que ele existe para
+          provar (que o fundo atravessa) não estaria na tela. */}
+      <Section title="Vidro">
+        <div className="flex flex-col gap-[2cqw]">
+          <div className="glass grid min-h-[var(--tap)] place-items-center rounded-totem" data-testid="glass-pane">
+            <span className="uppercase tracking-[0.2em]" style={{ fontSize: 'var(--step-label)' }}>
+              pane · sobre a página, sem desfoque
+            </span>
+          </div>
+
+          <div className="relative h-[34cqw] overflow-hidden rounded-totem bg-ink">
+            <img src="/demo/pizza-house/margherita.jpg" alt="" className="size-full object-cover" />
+            <div className="absolute inset-x-[3cqw] bottom-[3cqw] flex gap-[2cqw]">
+              <span
+                data-testid="glass-media"
+                className="glass-media grid min-h-[var(--tap)] flex-1 place-items-center rounded-totem px-[2cqw] text-center uppercase tracking-[0.2em]"
+                style={{ fontSize: 'var(--step-label)' }}
+              >
+                densa
+              </span>
+              <span
+                data-testid="glass-open"
+                className="glass-media glass-open has-warp relative grid min-h-[var(--tap)] flex-1 place-items-end overflow-hidden rounded-totem"
+              >
+                <GlassWarp />
+                <span
+                  className="glass-plate w-full pb-[1.4cqw] pt-[3cqw] text-center uppercase tracking-[0.2em]"
+                  style={{ fontSize: 'var(--step-label)' }}
+                >
+                  aberta · com refração
+                </span>
+              </span>
+            </div>
+          </div>
+
+          <div className="glass-live grid min-h-[var(--tap)] place-items-center rounded-totem" data-testid="glass-live">
+            <span className="uppercase tracking-[0.2em]" style={{ fontSize: 'var(--step-label)' }}>
+              viva · desfoca conteúdo que rola
+            </span>
+          </div>
+
+          <GlassTokens />
+        </div>
+      </Section>
+
       <Section title="Sheet">
         <TotemButton tone="ink" data-testid="btn-open-sheet" onClick={() => setSheetOpen(true)}>Abrir sheet</TotemButton>
       </Section>
@@ -103,6 +155,48 @@ export function DesignCatalog() {
         <Stepper value={qty} onChange={setQty} />
       </Sheet>
     </div>
+  )
+}
+
+/**
+ * Os números do vidro desta casa, por escrito.
+ *
+ * Existe porque "está mais leitoso do que ontem" não é um relato acionável e
+ * "a cobertura subiu de 0,60 para 0,72" é. Lê do CSS e não do objeto de tema:
+ * o que interessa é o que o navegador está pintando, incluindo os pisos que
+ * `glassOf` levantou por conta própria — que é justamente a parte que o tema
+ * do tenant não sabe.
+ */
+function GlassTokens() {
+  const [rows, setRows] = useState<[string, string][]>([])
+
+  useEffect(() => {
+    const style = getComputedStyle(document.documentElement)
+    const read = (name: string) => style.getPropertyValue(name).trim() || '—'
+    setRows([
+      ['desfoque', read('--glass-blur')],
+      ['saturação', read('--glass-sat')],
+      ['pane', read('--glass-pane')],
+      ['viva', read('--glass-live')],
+      ['véu', read('--glass-veil')],
+      ['placa', read('--glass-plate')],
+      ['refração', read('--glass-warp')],
+    ])
+  }, [])
+
+  return (
+    <dl
+      data-testid="glass-tokens"
+      className="glass grid grid-cols-[auto,1fr] gap-x-[3cqw] gap-y-[1cqw] rounded-totem p-[3cqw]"
+      style={{ fontSize: 'var(--step-label)' }}
+    >
+      {rows.map(([name, value]) => (
+        <div key={name} className="contents">
+          <dt className="uppercase tracking-[0.2em] text-muted">{name}</dt>
+          <dd className="tnum break-all text-right font-semibold">{value}</dd>
+        </div>
+      ))}
+    </dl>
   )
 }
 

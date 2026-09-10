@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Check, ShoppingCart, UtensilsCrossed } from 'lucide-react'
 import { TotemButton } from '@/design'
 import { cartCount, useCart } from '@/cart/useCart'
+import { PizzaVisual } from '@/pizza/PizzaVisual'
+import { BurgerStill } from '@/burger/BurgerStill'
 
 // ---------------------------------------------------------------------------
 // O botão do carrinho, e o instante em que ele confirma.
@@ -51,7 +53,7 @@ export function CartButton({ onOpen }: { onOpen: () => void }) {
           className="flex min-w-0 flex-1 items-center gap-[2.5cqw] motion-safe:animate-[cart-flash_1600ms_cubic-bezier(0.16,1,0.3,1)_forwards]"
         >
         <span className="grid size-[7cqw] shrink-0 place-items-center overflow-hidden rounded-[1.6cqw] bg-hairline">
-          {lastAdded.imageUrl ? (
+          {lastAdded.pizza ? <PizzaVisual pizza={lastAdded.pizza} /> : lastAdded.burgerLayers ? <BurgerStill layers={lastAdded.burgerLayers} fallback={lastAdded.imageUrl} /> : lastAdded.imageUrl ? (
             <img src={lastAdded.imageUrl} alt="" className="size-full object-cover" />
           ) : (
             <UtensilsCrossed strokeWidth={2} className="size-[3.4cqw] text-muted" />
@@ -59,7 +61,7 @@ export function CartButton({ onOpen }: { onOpen: () => void }) {
         </span>
         <span className="min-w-0 flex-1 text-left">
           <span
-            className="flex items-center gap-[1.2cqw] uppercase tracking-[0.25em] text-action"
+            className="flex items-center gap-[1.2cqw] uppercase tracking-[0.25em] text-action-ink"
             style={{ fontSize: 'var(--step-label)' }}
           >
             <Check strokeWidth={3} className="size-[2cqw]" />

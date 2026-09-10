@@ -1,4 +1,5 @@
 import { deviceClient } from '@/menu/device-session'
+import { isDemoCatalog } from '@/demo/mode'
 import { totemConfig } from '@/config/totem.config'
 
 // ---------------------------------------------------------------------------
@@ -118,5 +119,5 @@ const demoLookup: CustomerLookup = {
 }
 
 export function customerLookup(): CustomerLookup {
-  return import.meta.env.VITE_TOTEM_CATALOG === 'demo' ? demoLookup : supabaseLookup
+  return isDemoCatalog() ? demoLookup : supabaseLookup
 }

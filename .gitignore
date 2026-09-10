@@ -8,5 +8,9 @@ playwright-report
 .DS_Store
 .evidence
 
+# Local assistant worktrees, SDK links and browser session logs.
+/.claude/
+/.playwright-mcp/
+
 # local dev TLS
 certs/

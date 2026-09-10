@@ -102,7 +102,7 @@ export function IdentifyScreen() {
   }
 
   return (
-    <div data-testid="screen-identify" className="absolute inset-0 bg-page">
+    <div data-testid="screen-identify" className="absolute inset-0 surface-page">
       {/* pb reserves the bar: this screen had its own action row AND a bar, and
           the bar sat on top of the buttons. Two bottom chromes is one too many
           — the actions ARE the bar. */}
@@ -111,7 +111,7 @@ export function IdentifyScreen() {
         style={{ paddingBottom: `calc(var(--tap-bar) + ${dock} + 4cqw)` }}
       >
         <h1
-          className="font-display uppercase leading-[0.9] tracking-tight"
+          className="type-display leading-[0.9] tracking-tight"
           style={{ fontSize: 'var(--step-display)' }}
         >
           {/* A quebra vem do texto do tenant: "Seu telefone,\ne a gente cuida"
@@ -152,7 +152,7 @@ export function IdentifyScreen() {
             aparecer antes de digitar. */}
         <div
           data-testid="identify-value"
-          className="tnum mt-[4cqw] flex min-h-[var(--tap-lg)] items-center rounded-[2.6cqw] bg-white/60 px-[4cqw] font-semibold tracking-tight backdrop-blur-xl shadow-[inset_0_0.14cqw_0_rgba(255,255,255,0.9),0_0.2cqw_0.6cqw_rgba(11,11,12,0.09)]"
+          className="glass tnum mt-[4cqw] flex min-h-[var(--tap-lg)] items-center rounded-[2.6cqw] px-[4cqw] font-semibold tracking-tight"
           style={{ fontSize: 'var(--step-title)' }}
         >
           {shown || <span className="font-normal text-muted">{rule.hint}</span>}

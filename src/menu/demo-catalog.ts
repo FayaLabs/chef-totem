@@ -1,4 +1,4 @@
-import { activeDemoTenant } from '@/demo/tenants'
+import { activeDemoTenant } from '@/demo/mode'
 import type { CatalogProvider, TotemCatalog } from '@/menu/types'
 
 // ---------------------------------------------------------------------------

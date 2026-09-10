@@ -92,6 +92,37 @@
     /* Reach mode (see useReachMode) pushes the whole UI into the lower half
        for a customer who cannot comfortably reach the top of a 27" panel. */
     --reach-inset: 0px;
+
+    /* Os tokens de MARCA que não são cor nem fonte. Cada um tem aqui o valor
+       do tema padrão; `applyTheme` sobrescreve com o do tenant antes da
+       primeira pintura. O fallback existe para o caso de alguém renderizar um
+       componente fora do app (Storybook, um teste de unidade) — não para o
+       painel, onde o tema sempre chega. */
+    --color-on-action: #ffffff;
+    --color-action-ink: #dc2626;
+    --display-case: uppercase;
+    --display-tracking: -0.02em;
+    --shadow-card: 0 0.35cqw 1.2cqw rgba(11, 11, 12, 0.1);
+    --shadow-action: 0 0.3cqw 1cqw rgba(220, 38, 38, 0.3);
+
+    /* O vidro. Os valores reais vêm de `glassOf` antes da primeira pintura;
+       estes existem só para um componente renderizado fora do app. */
+    --glass-blur: 18px;
+    --glass-sat: 155%;
+    --glass-pane: #f6f2ec;
+    --glass-live: rgba(254, 252, 248, 0.68);
+    --glass-veil: rgba(17, 16, 14, 0.24);
+    --glass-plate: rgba(17, 16, 14, 0.62);
+    /* Neutro e denso, como o `glassOf` agora entrega: o fallback ficou para
+       trás com o valor quente e com 0,88, e um fallback que não é o que o tema
+       pinta é uma armadilha para quem renderiza um componente fora do app. */
+    --glass-chrome: rgba(11, 11, 12, 0.92);
+    --glass-line: rgba(255, 255, 255, 0.58);
+    --glass-rim: rgba(161, 98, 7, 0.2);
+    --glass-rim-width: 0.16cqw;
+    --glass-depth: inset 0 0.14cqw 0 rgba(255, 255, 255, 0.58), 0 0.25cqw 0.8cqw rgba(11, 11, 12, 0.1);
+    --glass-depth-live: inset 0 0.14cqw 0 rgba(255, 255, 255, 0.58), 0 0.25cqw 0.8cqw rgba(11, 11, 12, 0.1);
+    --glass-warp: 10;
   }
 
   html,
@@ -122,6 +153,35 @@
 }
 
 @layer components {
+  /* --------------------------------------------------------------------------
+     O título, do jeito da casa.
+
+     A caixa e o espacejamento do display eram `uppercase tracking-tight` em
+     nove arquivos, o que significa que a tipografia da marca estava espalhada
+     por nove arquivos: uma cafeteria que não quer gritar teria de ser um fork.
+     Aqui os dois viram token, e o mesmo componente escreve BOLO DE FUBÁ numa
+     casa e "Bolo de fubá" na outra.
+
+     Só o DISPLAY varia. Rótulo de botão e de chip continuam em caixa alta
+     fixa: ali a caixa alta é legibilidade a um metro de distância, não marca.
+     -------------------------------------------------------------------------- */
+  .type-display {
+    font-family: var(--font-display, 'Anton', Impact, sans-serif);
+    text-transform: var(--display-case, uppercase);
+    letter-spacing: var(--display-tracking, -0.02em);
+  }
+
+  /* A página. Substitui `bg-page` na raiz de cada tela.
+ 
+     Parece redundante com a utilitária do Tailwind e não é: `bg-page` compila
+     para um `color-mix()`, que o navegador devolve como `color(srgb ...)`. O
+     teste de contraste do e2e lia isso com uma regex de `\d+`, tirava de lá
+     `[0, 956863, 0]` e concluía um contraste de milhares para um — verde
+     vazio, medindo nada. Uma cor simples é uma cor que dá para medir. */
+  .surface-page {
+    background-color: var(--color-page, #f4f4f5);
+  }
+
   /* Press feedback. There is deliberately no :hover rule anywhere in this app:
      on a touch panel :hover latches to the last-touched element and reads as a
      stuck selection that nothing clears. */
@@ -130,6 +190,208 @@
   }
   .press:active {
     transform: scale(0.97);
+  }
+
+  /* ------------------------------------------------------------------------
+     VIDRO
+
+     Três classes, e o que as separa não é a aparência: é DE ONDE VEM O FUNDO.
+     Ver o bloco `glassOf` em design/theme.ts — o piso de alpha de cada uma é
+     calculado contra o pior fundo que ela pode encontrar, não escolhido.
+
+     O que TODAS têm em comum é o realce especular: um fio de luz na quina de
+     cima e um fio da cor da casa na de baixo, desenhados só na BORDA por uma
+     máscara de exclusão. É esse par que faz o olho ler "peça com espessura" em
+     vez de "retângulo mais claro" — e é a única parte do efeito que sobrevive
+     inteira num painel sob a luz de um salão, onde o desfoque some.
+     ------------------------------------------------------------------------ */
+
+  /* Sobre a PÁGINA — uma cor lisa. Sem `backdrop-filter`, de propósito:
+     desfocar uma cor chapada devolve a mesma cor, e a única coisa que muda é
+     uma camada de composição por elemento. Numa grade de dez cartões que rola,
+     essa conta é a diferença entre rolagem lisa e rolagem que engasga.
+     A cor aqui já vem composta de `glassOf`. */
+  .glass {
+    position: relative;
+    background-color: var(--glass-pane);
+    box-shadow: var(--glass-depth);
+  }
+
+  /* Sobre conteúdo VIVO — a barra de baixo, com o cardápio passando por trás.
+     Aqui o desfoque tem o que desfocar, e é a única razão de ele existir. */
+  .glass-live {
+    position: relative;
+    background-color: var(--glass-live);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+    box-shadow: var(--glass-depth-live);
+  }
+
+  /* Sobre FOTO e VÍDEO, com texto branco. O vidro escurece o que passa em vez
+     de clarear: sobre comida, um vidro claro clareia justamente as áreas que já
+     eram claras, e é lá que o texto branco desaparece.
+
+     Esta é a versão DENSA, e ela é para peça pequena: pastilha, etiqueta,
+     botão vazado sobre pôster. Uma peça que é quase só texto pode ter o piso
+     de legibilidade no corpo inteiro sem esconder nada, porque não há nada
+     debaixo dela para esconder. */
+  .glass-media {
+    position: relative;
+    color: #fff;
+    background-color: var(--glass-plate);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  }
+
+  /* A versão ABERTA, para peça grande. A regra é uma linha: quanto maior a
+     pane, mais transparente ela tem de ser — e o texto passa a carregar o
+     próprio fundo (`.glass-plate`) em vez de a pane inteira carregar por ele.
+
+     Os dois cartões de "comer aqui / levar" foram o caso que ensinou isto.
+     Densos, eles tapavam com plástico fosco exatamente a comida que trouxe o
+     cliente até ali, e o piso não fazia falta em lugar nenhum a não ser
+     embaixo do rótulo — que ocupa um sexto da peça. */
+  .glass-open {
+    background-color: var(--glass-veil);
+  }
+
+  /* O fundo do texto, e só dele. Some para cima, então a peça continua aberta
+     onde não há palavra nenhuma. É a única parte da composição cujo alpha é
+     CALCULADO (ver `glassOf`): o pior fundo possível atrás de um texto branco
+     é um prato estourado de luz, e é contra ele que a conta é feita. */
+  .glass-plate {
+    background-image: linear-gradient(
+      to top,
+      var(--glass-plate) 0%,
+      var(--glass-plate) 58%,
+      transparent 100%
+    );
+  }
+
+  /* O CROMO que emoldura o cardápio: o cabeçalho. Vidro escuro e denso, com a
+     grade passando por baixo dele enquanto o cliente rola.
+
+     A regra que separa isto da barra de baixo: CROMO FLUTUA, COMPROMISSO É
+     OPACO. O que emoldura o cardápio — cabeçalho, faixa do garçom — é vidro,
+     porque saber que o cardápio continua ali embaixo é informação útil. O que
+     TIRA o cliente do cardápio — carrinho, finalizar, o meio de pagamento
+     escolhido — é sólido, porque ali a única coisa que importa é o botão.
+
+     ESCURO, não claro, e isso não é gosto: o texto desta faixa é branco e as
+     três páginas são claras, com foto de comida clara rolando por baixo. Um
+     vidro claro derrubaria o branco abaixo de AA no primeiro prato de chapa de
+     aço que passasse. */
+  .glass-chrome {
+    position: relative;
+    color: #fff;
+    background-color: var(--glass-chrome);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+    /* A aresta de baixo. Sem ela o cabeçalho terminava num corte seco contra a
+       página e lia como colado, não como sobreposto — e é justamente a borda
+       inferior que o cliente vê a grade passar por baixo. Uma linha só, clara,
+       porque é a face que recebe a luz de cima de uma peça com espessura. */
+    box-shadow: inset 0 -0.14cqw 0 rgba(255, 255, 255, 0.14);
+  }
+
+  /* O realce, comum às três. `::after` e não uma borda: uma borda de verdade
+     entra no box model e move o conteúdo dois pixels quando a peça é
+     selecionada. A máscara de exclusão recorta o miolo e deixa só o anel. */
+  .glass::after,
+  .glass-live::after,
+  .glass-media::after,
+  .glass-chrome::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
+    padding: var(--glass-rim-width);
+    background: linear-gradient(
+      158deg,
+      var(--glass-line) 0%,
+      transparent 38%,
+      transparent 62%,
+      var(--glass-rim) 100%
+    );
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    /* Nada aqui pode receber toque. `elementFromPoint` no centro de um botão
+       tem de devolver o botão — há um teste que reprova um controle coberto
+       por outro elemento, e um realce decorativo é a forma mais boba possível
+       de enterrar um botão sem que nada na tela pareça errado. */
+    pointer-events: none;
+  }
+
+  /* O mesmo realce, sem transparência nenhuma: para o que é OPACO por decisão
+     e mesmo assim precisa pertencer ao mesmo material. O botão de commit é o
+     caso — ver TotemButton. */
+  .sheen {
+    position: relative;
+  }
+  .sheen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
+    padding: var(--glass-rim-width);
+    background: linear-gradient(158deg, rgba(255, 255, 255, 0.55) 0%, transparent 40%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* A REFRAÇÃO DE BORDA, que é o que separa "vidro líquido" de "vidro fosco".
+     Um `feDisplacementMap` empurra o que está atrás para fora nas quinas e
+     deixa o miolo intacto — ver design/Glass.tsx para o mapa e o porquê de o
+     miolo ficar limpo.
+
+     Ela mora numa camada PRÓPRIA, e não no elemento: `filter` no elemento
+     distorceria também o texto dentro dele, que é a única coisa da peça que
+     não pode entortar. E é opt-in, num punhado de panes grandes e paradas: um
+     filtro SVG por cartão numa grade que rola é o caminho mais curto para um
+     quiosque que treme. */
+  .glass-warp {
+    position: absolute;
+    inset: 0;
+    /* Atrás do conteúdo, e não à frente. Uma camada posicionada pinta ACIMA do
+       texto em fluxo do próprio elemento — foi assim que o rótulo do cartão de
+       modo passou um quadro inteiro atrás do próprio vidro. O `-1` só é seguro
+       porque o host abaixo abre um contexto de empilhamento: sem isso a camada
+       afundaria até atrás do fundo da TELA e o efeito sumiria. */
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background-color: var(--glass-plate);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+    filter: url(#totem-glass-warp);
+  }
+
+  /* A camada de refração de uma pane aberta é aberta também — senão a peça
+     ficaria transparente na borda e opaca no miolo, que é o contrário de tudo. */
+  .glass-open > .glass-warp {
+    background-color: var(--glass-veil);
+  }
+
+  /* O host de uma camada de refração já pinta o vidro na própria camada, então
+     não pode pintá-lo de novo em si mesmo — duas vezes o mesmo alpha é uma
+     pane leitosa e um desfoque cobrado duas vezes.
+
+     `z-index: 0` e não `isolation: isolate`: os dois abrem contexto de
+     empilhamento, mas `isolation` também abre uma RAIZ DE BACKDROP, e uma raiz
+     de backdrop vazia é um `backdrop-filter` que não tem o que amostrar — o
+     vidro fica limpo e ninguém entende por quê. */
+  .glass-media.has-warp {
+    z-index: 0;
+    background-color: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }
 

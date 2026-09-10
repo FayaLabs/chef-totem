@@ -25,6 +25,14 @@ export default {
         surface: alpha('--color-surface', '#FFFFFF'),
         page: alpha('--color-page', '#F4F4F5'),
         action: alpha('--color-action', '#DC2626'),
+        // A tinta que vai SOBRE a cor de ação. Branco na maioria das marcas,
+        // quase preto numa marca amarela — e é por existir como token que uma
+        // marca amarela é possível sem um botão de pagar ilegível.
+        'on-action': alpha('--color-on-action', '#FFFFFF'),
+        // A marca como TEXTO. Igual a `action` na maioria das casas; num tom
+        // claro de marca ela é o irmão escuro da mesma família, porque preço
+        // amarelo sobre cartão branco não se lê.
+        'action-ink': alpha('--color-action-ink', '#DC2626'),
         gold: alpha('--color-accent', '#A16207'),
         muted: '#6B7280',
         // Dividers only — never the sole boundary of something tappable.

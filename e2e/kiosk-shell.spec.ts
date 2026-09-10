@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { dismissPizzaIntro } from './pizza-helpers'
 
 // M0 — the shell. Proves the app boots at panel size, the state machine walks
 // forward and resets, and the browser affordances a customer could fall into
@@ -23,6 +24,7 @@ test.describe('M0 · casca de quiosque', () => {
 
     await page.getByTestId('mode-dine-in').tap()
     await page.getByTestId('identify-skip').tap()
+    await dismissPizzaIntro(page)
     await expect(page.getByTestId('screen-menu')).toBeVisible()
 
     // `reset` is the single door out of a visit — the idle timeout (M7), the

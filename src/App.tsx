@@ -10,6 +10,7 @@ import { ReceiptScreen } from '@/screens/ReceiptScreen'
 import { PlaceholderScreen } from '@/screens/PlaceholderScreen'
 import { useTotemSession, type TotemStep } from '@/session/useTotemSession'
 import { Waiter } from '@/waiter/Waiter'
+import { BurgerPilotScreen } from '@/burger/BurgerPilotScreen'
 
 // The step IS the route. A kiosk has no URL bar, no deep links and no back
 // button of its own, so a router would only add a second source of truth for
@@ -33,13 +34,14 @@ export default function App() {
 
   const isDesign =
     typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('design')
+  const isBurgerPilot = import.meta.env.DEV && new URLSearchParams(window.location.search).has('burger-pilot')
 
   const Screen = SCREENS[step]
 
   return (
     <TotemViewport>
-      {isDesign ? <DesignCatalog /> : Screen ? <Screen /> : <PlaceholderScreen step={step} />}
-      {isDesign ? null : <Waiter />}
+      {isBurgerPilot ? <BurgerPilotScreen /> : isDesign ? <DesignCatalog /> : Screen ? <Screen /> : <PlaceholderScreen step={step} />}
+      {isDesign || isBurgerPilot ? null : <Waiter />}
     </TotemViewport>
   )
 }

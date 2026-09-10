@@ -1,3 +1,4 @@
+import { dismissPizzaIntro } from './pizza-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
 // The waiter is off by default; `?waiter=scripted` turns on the deterministic
@@ -8,6 +9,7 @@ async function toMenuWithWaiter(page: Page) {
   await page.getByTestId('attract').tap()
   await page.getByTestId('mode-dine-in').tap()
   await page.getByTestId('identify-skip').tap()
+  await dismissPizzaIntro(page)
   await expect(page.getByTestId('waiter-dock')).toBeVisible()
 }
 
@@ -260,7 +262,8 @@ test.describe('V3 · quem chama, é atendido', () => {
     await page.getByTestId('attract').tap()
     await page.getByTestId('mode-dine-in').tap()
     await page.getByTestId('identify-skip').tap()
-    await page.getByTestId('product-zd-p-refri').tap()
+  await dismissPizzaIntro(page)
+    await page.getByTestId('product-ph-p-refri').tap()
     await page.getByTestId('add-to-order').tap()
     await page.getByTestId('open-cart').tap()
     await page.getByTestId('to-payment').tap()

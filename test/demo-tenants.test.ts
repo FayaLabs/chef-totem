@@ -4,7 +4,7 @@ import { DEMO_TENANTS, DEMO_TENANT_IDS } from '../src/demo/tenants'
 import { contrast, defaultTheme } from '../src/design/theme'
 
 // ---------------------------------------------------------------------------
-// Os dois tenants de demonstração são DADOS, e dado errado passa despercebido.
+// As três casas de demonstração são DADOS, e dado errado passa despercebido.
 //
 // Estes testes valem mais do que parecem: são a mesma checagem que o
 // `validateKiosk` do @fayz-ai/kiosk faz num documento escrito por um MODELO.
@@ -13,8 +13,8 @@ import { contrast, defaultTheme } from '../src/design/theme'
 // uma marca que reprova em contraste no salão.
 // ---------------------------------------------------------------------------
 
-test('os dois tenants existem e têm identidade própria', () => {
-  assert.deepEqual([...DEMO_TENANT_IDS].sort(), ['cafe-sabor', 'zedek'])
+test('as três casas existem e têm identidade própria', () => {
+  assert.deepEqual([...DEMO_TENANT_IDS].sort(), ['cafe-sabor', 'maxburger', 'pizza-house'])
 
   const brands = DEMO_TENANT_IDS.map((id) => DEMO_TENANTS[id].brand.name)
   assert.equal(new Set(brands).size, brands.length, 'duas marcas com o mesmo nome')
@@ -23,7 +23,73 @@ test('os dois tenants existem e têm identidade própria', () => {
   assert.equal(new Set(personas).size, personas.length, 'dois assistentes com o mesmo nome')
 
   const actions = DEMO_TENANT_IDS.map((id) => DEMO_TENANTS[id].theme.action)
-  assert.equal(new Set(actions).size, actions.length, 'a cor de commit não distingue os dois')
+  assert.equal(new Set(actions).size, actions.length, 'a cor de commit não distingue as casas')
+})
+
+test('o design system distingue as casas por mais do que a cor', () => {
+  // O teste que faltava quando o tema era só paleta. Duas marcas podiam
+  // escolher dois vermelhos parecidos e o painel ficaria idêntico — e o
+  // argumento de "trocar de restaurante é trocar um objeto" só se sustenta se
+  // a troca for VISÍVEL do outro lado do corredor de uma feira.
+  //
+  // O VIDRO entrou na assinatura porque ele é agora a maior superfície do
+  // painel: chip, tecla, cartão de prato, barra de baixo e os dois cartões de
+  // modo são todos a mesma pane. Um material igual nas três casas apagaria de
+  // uma vez a diferença que a cor de página e o raio compram — três casas com
+  // o mesmo desfoque e a mesma tonalidade são três casas com a mesma cara,
+  // por mais que a paleta diga o contrário.
+  const fingerprint = DEMO_TENANT_IDS.map((id) => {
+    const theme = { ...defaultTheme, ...DEMO_TENANTS[id].theme }
+    return [
+      theme.displayFont,
+      theme.displayCase,
+      theme.radius,
+      theme.elevation,
+      theme.glassTint,
+      theme.glassBlur,
+      theme.glassOpacity,
+    ].join('|')
+  })
+  assert.equal(new Set(fingerprint).size, fingerprint.length, 'duas casas com a mesma assinatura de design')
+
+  // E cada eixo do vidro sozinho tem de separar as três: uma casa que só se
+  // distingue pela tonalidade tem o mesmo material das outras pintado de outra
+  // cor, o que a dois metros de distância é o mesmo material.
+  const glassThemes = DEMO_TENANT_IDS.map((id) => ({ ...defaultTheme, ...DEMO_TENANTS[id].theme }))
+  for (const [axis, values] of [
+    ['tonalidade', glassThemes.map((t) => t.glassTint)],
+    ['espessura', glassThemes.map((t) => t.glassBlur)],
+    ['cobertura', glassThemes.map((t) => t.glassOpacity)],
+  ] as const) {
+    assert.equal(new Set(values).size, values.length, `duas casas com a mesma ${axis} de vidro`)
+  }
+
+  // Pelo menos uma casa tem de exercitar cada extremo do sistema, senão o token
+  // existe sem nunca ter sido pintado — e um token nunca pintado é um token que
+  // não funciona, só que ninguém sabe ainda.
+  const themes = DEMO_TENANT_IDS.map((id) => ({ ...defaultTheme, ...DEMO_TENANTS[id].theme }))
+  assert.ok(themes.some((t) => t.displayCase === 'none'), 'nenhuma casa escreve o título fora da caixa alta')
+  // A asserção era `elevation === 'hard'`, e a string perdeu o dono quando a
+  // lanchonete deixou de ser vintage: `hard` é o deslocamento sólido de uma
+  // coisa IMPRESSA, e nenhuma casa que trabalhe com vidro pode usá-lo sem pedir
+  // ao olho que leia "adesivo" e "camada" no mesmo cartão (ver TotemElevation).
+  //
+  // O que a asserção protege não é a string e sim a ideia: uma casa tem de
+  // exercitar a elevação, senão o token existe sem nunca ter sido pintado — e
+  // um token nunca pintado é um token que não funciona, só que ninguém sabe
+  // ainda. Então ela passa a exigir que alguém SAIA do padrão, qualquer que
+  // seja o caminho.
+  //
+  // Fica a dívida honesta: `hard` e `flat` continuam no enum sem casa nenhuma.
+  // Os dois são capacidades reais e documentadas, e a demonstração hoje não
+  // pinta nenhum dos dois. Quem for adicionar uma quarta casa deve um deles.
+  assert.ok(themes.some((t) => t.elevation !== defaultTheme.elevation),
+    'todas as casas usam a elevação padrão — o token não está sendo exercitado por ninguém')
+  // A página é o que carrega "outra casa" antes de qualquer texto ser lido,
+  // desde que a textura por tenant foi removida por ruído. Ver TotemTheme.
+  const pages = themes.map((t) => t.page)
+  assert.equal(new Set(pages).size, pages.length, 'duas casas com a mesma cor de página')
+  assert.ok(themes.some((t) => t.onAction !== '#FFFFFF'), 'nenhuma casa prova que a tinta do commit é token')
 })
 
 for (const id of DEMO_TENANT_IDS) {
@@ -33,7 +99,13 @@ for (const id of DEMO_TENANT_IDS) {
     const theme = { ...defaultTheme, ...tenant.theme }
     // As mesmas três regras de `checkTheme`. Uma marca que reprova aqui é uma
     // tela ilegível às duas da tarde perto da janela.
-    assert.ok(contrast(theme.action, '#FFFFFF') >= 4.5, 'ação × branco')
+    //
+    // O par medido é ação × ONACTION, não ação × branco. Era branco fixo, e
+    // branco fixo reprovava toda marca amarela antes de ela existir — a
+    // checagem media um botão que o painel não pinta.
+    assert.ok(contrast(theme.action, theme.onAction) >= 4.5, 'ação × tinta do commit')
+    // E a marca como TEXTO sobre o cartão, que é onde o preço do prato mora.
+    assert.ok(contrast(theme.actionInk ?? theme.action, theme.surface) >= 4.5, 'marca-texto × cartão')
     assert.ok(contrast(theme.ink, theme.page) >= 4.5, 'texto × página')
     assert.ok(contrast(theme.edge, theme.page) >= 3, 'borda × página')
   })

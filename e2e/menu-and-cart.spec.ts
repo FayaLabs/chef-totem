@@ -1,3 +1,4 @@
+import { dismissPizzaIntro } from './pizza-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
 async function toMenu(page: Page) {
@@ -5,6 +6,7 @@ async function toMenu(page: Page) {
   await page.getByTestId('attract').tap()
   await page.getByTestId('mode-dine-in').tap()
   await page.getByTestId('identify-skip').tap()
+  await dismissPizzaIntro(page)
   await expect(page.getByTestId('menu-grid')).toBeVisible()
 }
 
@@ -13,31 +15,32 @@ async function openProduct(page: Page, id: string) {
   await page.getByTestId(`product-${id}`).tap()
   await expect(page.getByTestId('product-sheet')).toBeVisible()
   await page.waitForTimeout(400)
+  if (await page.getByTestId('pizza-mode-whole').count()) await page.getByTestId('pizza-mode-whole').tap()
 }
 
 test.describe('M3 · cardápio', () => {
   test('rail de categorias filtra o grid', async ({ page }) => {
     await toMenu(page)
-    await expect(page.getByTestId('product-zd-p-pepperoni')).toBeVisible()
-    await expect(page.getByTestId('product-zd-p-refri')).toBeVisible()
+    await expect(page.getByTestId('product-ph-p-pepperoni')).toBeVisible()
+    await expect(page.getByTestId('product-ph-p-refri')).toBeVisible()
 
-    await page.getByTestId('cat-zd-c-bebidas').tap()
-    await expect(page.getByTestId('product-zd-p-refri')).toBeVisible()
-    await expect(page.getByTestId('product-zd-p-pepperoni')).toHaveCount(0)
+    await page.getByTestId('cat-ph-c-bebidas').tap()
+    await expect(page.getByTestId('product-ph-p-refri')).toBeVisible()
+    await expect(page.getByTestId('product-ph-p-pepperoni')).toHaveCount(0)
   })
 
   test('o filtro de promo mostra só quem tem preço riscado', async ({ page }) => {
     await toMenu(page)
     await page.getByTestId('filter-promo').tap()
-    await expect(page.getByTestId('product-zd-p-pepperoni')).toBeVisible()
-    await expect(page.getByTestId('product-zd-p-margherita')).toHaveCount(0)
+    await expect(page.getByTestId('product-ph-p-pepperoni')).toBeVisible()
+    await expect(page.getByTestId('product-ph-p-margherita')).toHaveCount(0)
   })
 
   test('esgotado fica apagado e inerte, nunca some', async ({ page }) => {
     // A dish that vanishes sends the customer to the counter to ask where it
     // went; a dish that is visibly out answers the question by itself.
     await toMenu(page)
-    const soldOut = page.getByTestId('product-zd-p-burrata')
+    const soldOut = page.getByTestId('product-ph-p-burrata')
     await expect(soldOut).toBeVisible()
     await expect(soldOut).toBeDisabled()
     await expect(soldOut).toContainText(/esgotado/i)
@@ -48,7 +51,7 @@ test.describe('M3 · cardápio', () => {
     await expect(page.getByTestId('checkout')).toBeDisabled()
     await expect(page.getByTestId('checkout')).toContainText(/escolha uma pizza/i)
 
-    await page.getByTestId('product-zd-p-refri').tap()
+    await page.getByTestId('product-ph-p-refri').tap()
     await page.getByTestId('add-to-order').tap()
     await expect(page.getByTestId('open-cart')).toContainText('(1)')
     await expect(page.getByTestId('checkout')).toContainText('R$ 8,00')
@@ -58,24 +61,26 @@ test.describe('M3 · cardápio', () => {
 test.describe('M4 · produto e carrinho', () => {
   test('grupo obrigatório bloqueia e DIZ o que falta', async ({ page }) => {
     await toMenu(page)
-    await page.getByTestId('product-zd-p-pepperoni').tap()
+    await page.getByTestId('product-ph-p-pepperoni').tap()
+    await page.getByTestId('pizza-mode-whole').tap()
 
     const add = page.getByTestId('add-to-order')
     await expect(add).toBeDisabled()
     // Not just grey: a disabled button that explains nothing teaches nothing.
     await expect(add).toContainText(/escolha: tamanho/i)
 
-    await page.getByTestId('mod-zd-m-media').tap()
+    await page.getByTestId('mod-ph-m-media').tap()
     await expect(add).toBeEnabled()
   })
 
   test('o preço recalcula ao vivo com modificador e quantidade', async ({ page }) => {
     await toMenu(page)
-    await page.getByTestId('product-zd-p-pepperoni').tap()
-    await page.getByTestId('mod-zd-m-media').tap() // 59,00 + 8,00
+    await page.getByTestId('product-ph-p-pepperoni').tap()
+    await page.getByTestId('pizza-mode-whole').tap()
+    await page.getByTestId('mod-ph-m-media').tap() // 59,00 + 8,00
     await expect(page.getByTestId('sheet-total')).toHaveText('R$ 67,00')
 
-    await page.getByTestId('mod-zd-m-burrata').tap() // + 9,00
+    await page.getByTestId('mod-ph-m-burrata').tap() // + 9,00
     await expect(page.getByTestId('sheet-total')).toHaveText('R$ 76,00')
 
     await page.getByTestId('product-stepper').getByTestId('stepper-plus').tap()
@@ -91,14 +96,14 @@ test.describe('M4 · produto e carrinho', () => {
     // toque — se o elemento andou nesse meio, o toque cai ao lado. Não é
     // defeito da tela (o navegador acerta o hit-test de um elemento
     // transformado); é o harness correndo com a animação.
-    await openProduct(page, 'zd-p-pepperoni')
-    await page.getByTestId('mod-zd-m-media').tap()
+    await openProduct(page, 'ph-p-pepperoni')
+    await page.getByTestId('mod-ph-m-media').tap()
     await page.getByTestId('add-to-order').tap()
 
-    await openProduct(page, 'zd-p-pepperoni')
-    await page.getByTestId('mod-zd-m-grande').tap()
-    await expect(page.getByTestId('mod-zd-m-grande')).toHaveAttribute('aria-pressed', 'true')
-    await page.getByTestId('mod-zd-m-nduja').tap()
+    await openProduct(page, 'ph-p-pepperoni')
+    await page.getByTestId('mod-ph-m-grande').tap()
+    await expect(page.getByTestId('mod-ph-m-grande')).toHaveAttribute('aria-pressed', 'true')
+    await page.getByTestId('mod-ph-m-nduja').tap()
     await page.getByTestId('add-to-order').tap()
 
     await page.getByTestId('open-cart').tap()
@@ -108,22 +113,23 @@ test.describe('M4 · produto e carrinho', () => {
 
   test('o carrinho mostra os modificadores de cada linha', async ({ page }) => {
     await toMenu(page)
-    await page.getByTestId('product-zd-p-pepperoni').tap()
-    await page.getByTestId('mod-zd-m-media').tap()
-    await page.getByTestId('mod-zd-m-sem-cebola').tap()
+    await page.getByTestId('product-ph-p-pepperoni').tap()
+    await page.getByTestId('pizza-mode-whole').tap()
+    await page.getByTestId('mod-ph-m-media').tap()
+    await page.getByTestId('mod-ph-m-sem-cebola').tap()
     await page.getByTestId('add-to-order').tap()
     await page.getByTestId('open-cart').tap()
 
-    await expect(page.getByTestId('cart-line-zd-p-pepperoni')).toContainText('Média')
-    await expect(page.getByTestId('cart-line-zd-p-pepperoni')).toContainText('Sem cebola')
+    await expect(page.getByTestId('cart-line-ph-p-pepperoni')).toContainText('Média')
+    await expect(page.getByTestId('cart-line-ph-p-pepperoni')).toContainText('Sem cebola')
   })
 
   test('remover a última linha esvazia o carrinho', async ({ page }) => {
     await toMenu(page)
-    await page.getByTestId('product-zd-p-refri').tap()
+    await page.getByTestId('product-ph-p-refri').tap()
     await page.getByTestId('add-to-order').tap()
     await page.getByTestId('open-cart').tap()
-    await page.getByTestId('cart-remove-zd-p-refri').tap()
+    await page.getByTestId('cart-remove-ph-p-refri').tap()
     await expect(page.getByTestId('cart-sheet')).toContainText(/vazio/i)
     await expect(page.getByTestId('to-payment')).toBeDisabled()
   })
@@ -135,8 +141,8 @@ test.describe('M4 · o item entrando no carrinho', () => {
     // o número está no canto oposto de onde o dedo tocou. Sem ver nada
     // acontecer, o cliente adiciona de novo — é assim que nasce pedido em dobro.
     await toMenu(page)
-    await openProduct(page, 'zd-p-pepperoni')
-    await page.getByTestId('mod-zd-m-media').tap()
+    await openProduct(page, 'ph-p-pepperoni')
+    await page.getByTestId('mod-ph-m-media').tap()
     await page.getByTestId('add-to-order').tap()
 
     const flash = page.getByTestId('cart-flash')
@@ -155,11 +161,11 @@ test.describe('M4 · o item entrando no carrinho', () => {
     // O gatilho é uma sequência, não o nome: um objeto igual ao anterior não
     // reinicia efeito nenhum, e a segunda adição passaria sem confirmação.
     await toMenu(page)
-    await openProduct(page, 'zd-p-refri')
+    await openProduct(page, 'ph-p-refri')
     await page.getByTestId('add-to-order').tap()
     await expect(page.getByTestId('open-cart')).toContainText('(1)', { timeout: 5_000 })
 
-    await openProduct(page, 'zd-p-refri')
+    await openProduct(page, 'ph-p-refri')
     await page.getByTestId('add-to-order').tap()
     await expect(page.getByTestId('cart-flash')).toBeVisible()
   })

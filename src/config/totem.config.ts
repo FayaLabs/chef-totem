@@ -23,7 +23,8 @@ export interface TotemMedia {
 }
 
 import type { TotemTheme } from '@/design/theme'
-import { activeDemoTenant, type DemoCopy } from '@/demo/tenants'
+import { activeDemoTenant, isDemoCatalog } from '@/demo/mode'
+import type { DemoCopy } from '@/demo/tenants'
 
 export interface TotemConfig {
   totemId: string
@@ -63,7 +64,7 @@ const env = import.meta.env
 // No modo demo o painel inteiro vem do documento do tenant (src/demo/tenants.ts)
 // — marca, paleta, tipografia, mídia, cópia e a voz do assistente. É a prova de
 // que trocar de restaurante é trocar um objeto, não um fork.
-const demo = env.VITE_TOTEM_CATALOG === 'demo' ? activeDemoTenant() : null
+const demo = isDemoCatalog() ? activeDemoTenant() : null
 
 /**
  * Which build is on the glass.

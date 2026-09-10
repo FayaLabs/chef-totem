@@ -1,9 +1,10 @@
 import { useCart } from '@/cart/useCart'
-import { draftBlocking, draftModifiers, useProductDraft } from '@/menu/useProductDraft'
+import { commitProductDraft, draftBlocking, draftModifiers, useProductDraft } from '@/menu/useProductDraft'
 import { useMenuUi } from '@/menu/useMenuUi'
 import { useTotemSession } from '@/session/useTotemSession'
 import { useWaiter } from '@/waiter/useWaiter'
 import type { TotemCatalog, TotemProduct } from '@/menu/types'
+import { composePizza, pizzaName } from '@/pizza/composition'
 
 // ---------------------------------------------------------------------------
 // What the waiter can DO.
@@ -276,11 +277,41 @@ export const WAITER_TOOLS: WaiterTool[] = [
       for (const group of product.modifierGroups) {
         const modifier = group.modifiers.find((m) => norm(m.name).includes(needle))
         if (!modifier) continue
+        if (modifier.pizzaFlavor) useProductDraft.getState().setPizzaMode('half')
         useProductDraft.getState().toggle(group.id, modifier.id, group.maxSelections)
         const on = (useProductDraft.getState().chosen[group.id] ?? []).includes(modifier.id)
         return `${modifier.name} ${on ? 'marcado' : 'desmarcado'} em ${group.name}.`
       }
       return `"${str(args, 'option')}" não é uma opção de ${product.name}.`
+    },
+  },
+
+  {
+    name: 'choose_pizza_flavor',
+    description: 'Troca o sabor da pizza aberta na mesma montagem visível ao cliente. Use first para a primeira metade, second para a segunda e whole para uma pizza de um sabor.',
+    parameters: {
+      type: 'object',
+      properties: { flavor: { type: 'string', description: 'Nome do sabor do cardápio' }, part: { type: 'string', enum: ['first', 'second', 'whole'] } },
+      required: ['flavor', 'part'],
+    },
+    execute: (args, catalog) => {
+      const current = openProductOrNull(catalog)
+      if (!current?.pizza) return 'Abra uma pizza primeiro.'
+      const flavor = findProduct(catalog, str(args, 'flavor'))
+      if (!flavor?.pizza || flavor.soldOut) return 'Esse sabor não está disponível para montagem.'
+      const part = str(args, 'part')
+      if (!['first', 'second', 'whole'].includes(part)) return 'Informe first, second ou whole.'
+      const halfGroup = current.modifierGroups.find((g) => g.kind === 'pizza-half')
+      if (part === 'second' && !halfGroup?.modifiers.some((m) => m.pizzaFlavor?.productId === flavor.id)) return 'Esse segundo sabor não está disponível para esta pizza.'
+      const draft = useProductDraft.getState()
+      if (part === 'whole') {
+        if (halfGroup) useProductDraft.setState({ chosen: { ...draft.chosen, [halfGroup.id]: [] } })
+        draft.setPizzaMode('whole')
+      } else draft.setPizzaMode('half')
+      draft.choosePizza(flavor, part === 'second' ? 1 : 0)
+      const selected = openProductOrNull(catalog)!
+      const pizza = composePizza(selected, draftModifiers(selected, useProductDraft.getState().chosen))!
+      return `Montagem atual: ${pizzaName(pizza)}. Ainda não foi adicionada ao pedido.`
     },
   },
 
@@ -308,16 +339,16 @@ export const WAITER_TOOLS: WaiterTool[] = [
     execute: (_args, catalog) => {
       const product = openProductOrNull(catalog)
       if (!product) return 'Nenhum prato está aberto.'
-      const { quantity, chosen } = useProductDraft.getState()
-      const blocking = draftBlocking(product, chosen)
+      const { quantity, chosen, pizzaMode, pizzaFirstChosen, burgerRecipeChosen } = useProductDraft.getState()
+      const blocking = draftBlocking(product, chosen, pizzaMode, pizzaFirstChosen, burgerRecipeChosen)
       // The same rule the button enforces. The waiter must not be able to put
       // an incomplete item in the kitchen's queue by talking around the UI.
       if (blocking) {
         return `Falta escolher ${blocking.groupName}. Opções: ${blocking.options.join(', ')}.`
       }
-      useCart.getState().add(product, quantity, draftModifiers(product, chosen))
-      useProductDraft.getState().close()
-      return `${quantity}× ${product.name} no pedido.`
+      if (!commitProductDraft(product)) return 'O pedido mudou. Confira a seleção atual antes de adicionar.'
+      const pizza = composePizza(product, draftModifiers(product, chosen))
+      return `${quantity}× ${pizza ? pizzaName(pizza) : product.name} no pedido.`
     },
   },
 
@@ -331,7 +362,7 @@ export const WAITER_TOOLS: WaiterTool[] = [
       useWaiter.getState().setExpanded(false)
       const lines = useCart.getState().lines
       if (lines.length === 0) return 'O carrinho está vazio.'
-      return JSON.stringify(lines.map((l) => ({ item: l.product.name, qtd: l.quantity })))
+      return JSON.stringify(lines.map((l) => ({ item: l.pizza ? pizzaName(l.pizza) : l.product.name, qtd: l.quantity })))
     },
   },
 
