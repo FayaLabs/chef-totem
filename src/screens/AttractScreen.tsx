@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { MediaBackdrop } from '@/design'
-import { TOTEM_RELEASE, totemConfig } from '@/config/totem.config'
+import { totemConfig } from '@/config/totem.config'
 import { prefetchCatalog } from '@/menu/useCatalog'
 import { useTotemSession } from '@/session/useTotemSession'
 import { useWaiter } from '@/waiter/useWaiter'
@@ -97,16 +97,6 @@ export function AttractScreen() {
             <VoiceOrb size="20cqw" />
           </span>
         ) : null}
-      </span>
-
-      {/* Support label. Low contrast and out of the reach zone on purpose: it
-          answers "which build is this?" for whoever is fixing the panel, and
-          is not something a customer ordering lunch needs to read. */}
-      <span
-        className="absolute right-[3cqw] bottom-[2cqw] z-10 uppercase tracking-[0.2em] text-white/25"
-        style={{ fontSize: 'var(--step-label)' }}
-      >
-        {TOTEM_RELEASE}
       </span>
     </button>
   )
