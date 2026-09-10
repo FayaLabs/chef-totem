@@ -31,7 +31,7 @@ test('abrir um prato move a tela, não só os dados', () => {
   reset()
   const out = run('open_product', { product: 'pepperoni' })
   assert.match(out, /Pepperoni/)
-  assert.equal(useProductDraft.getState().productId, 'zd-p-pepperoni')
+  assert.equal(useProductDraft.getState().productId, 'ph-p-pepperoni')
 })
 
 test('um grupo obrigatório impede de adicionar, e diz o que falta', () => {
@@ -59,8 +59,8 @@ test('um grupo de escolha única troca, não acumula', () => {
   run('open_product', { product: 'pepperoni' })
   run('choose_option', { option: 'média' })
   run('choose_option', { option: 'grande' })
-  const chosen = useProductDraft.getState().chosen['zd-g-tamanho']
-  assert.deepEqual(chosen, ['zd-m-grande'], 'tamanho é radio, não checkbox')
+  const chosen = useProductDraft.getState().chosen['ph-g-tamanho']
+  assert.deepEqual(chosen, ['ph-m-grande'], 'tamanho é radio, não checkbox')
 })
 
 test('prato esgotado não abre', () => {
@@ -135,7 +135,7 @@ test('acento não pode derrubar o pedido', () => {
   reset()
   run('open_product', { product: 'pepperoni' })
   assert.match(run('choose_option', { option: 'media' }), /marcado/i)
-  assert.deepEqual(useProductDraft.getState().chosen['zd-g-tamanho'], ['zd-m-media'])
+  assert.deepEqual(useProductDraft.getState().chosen['ph-g-tamanho'], ['ph-m-media'])
 })
 
 test('acento também não derruba busca nem categoria', () => {

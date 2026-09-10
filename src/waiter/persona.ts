@@ -1,4 +1,5 @@
-import { activeDemoTenant, type DemoPersona } from '@/demo/tenants'
+import { activeDemoTenant, isDemoCatalog } from '@/demo/mode'
+import type { DemoPersona } from '@/demo/tenants'
 
 // ---------------------------------------------------------------------------
 // Quem está atendendo.
@@ -33,5 +34,5 @@ const LIVE_PERSONA: DemoPersona = {
 }
 
 export function activeWaiterPersona(): DemoPersona {
-  return import.meta.env.VITE_TOTEM_CATALOG === 'demo' ? activeDemoTenant().persona : LIVE_PERSONA
+  return isDemoCatalog() ? activeDemoTenant().persona : LIVE_PERSONA
 }

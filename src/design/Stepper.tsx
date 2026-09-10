@@ -37,7 +37,11 @@ export function Stepper({ value, onChange, min = 1, max = 99, size = 'lg', ...re
         data-testid="stepper-minus"
         disabled={value <= min}
         onClick={() => step(-1)}
-        className={`press grid ${box} shrink-0 place-items-center rounded-full border-2 border-edge bg-white disabled:border-transparent disabled:bg-disabled-bg disabled:text-disabled-fg`}
+        // Vidro COM a borda de controle, e as duas coisas de propósito. O menos
+        // é um vazado sobre página quase branca: a WCAG 1.4.11 vale para ele, e
+        // a tonalidade do vidro não substitui uma borda de 3:1 — ela é bonita e
+        // some sob o brilho do salão, que é a hora em que a borda existe.
+        className={`press glass grid ${box} shrink-0 place-items-center rounded-full border-2 border-edge disabled:border-transparent disabled:bg-disabled-bg disabled:text-disabled-fg disabled:[&::after]:hidden`}
       >
         <Minus strokeWidth={3} className={icon} />
       </button>
@@ -57,7 +61,7 @@ export function Stepper({ value, onChange, min = 1, max = 99, size = 'lg', ...re
         data-testid="stepper-plus"
         disabled={value >= max}
         onClick={() => step(1)}
-        className={`press grid ${box} shrink-0 place-items-center rounded-full bg-ink text-white disabled:bg-disabled-bg disabled:text-disabled-fg`}
+        className={`press sheen grid ${box} shrink-0 place-items-center rounded-full bg-ink text-white disabled:bg-disabled-bg disabled:text-disabled-fg disabled:[&::after]:hidden`}
       >
         <Plus strokeWidth={3} className={icon} />
       </button>

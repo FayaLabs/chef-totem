@@ -17,6 +17,9 @@ interface MenuUiState {
   categoryId: string | null
   filter: MenuFilter
   cartOpen: boolean
+  /** Intro is offered once per visit, not every return from cart/payment. */
+  pizzaIntroVisit: number | null
+  burgerIntroVisit: number | null
   /**
    * O prato para o qual o garçom está APONTANDO enquanto fala dele.
    *
@@ -42,6 +45,8 @@ export const useMenuUi = create<MenuUiState>((set) => ({
   categoryId: null,
   filter: 'all',
   cartOpen: false,
+  pizzaIntroVisit: null,
+  burgerIntroVisit: null,
   highlightId: null,
 
   // Toda ação do cliente apaga o destaque. Ele é do garçom, e a tela é do
@@ -50,5 +55,5 @@ export const useMenuUi = create<MenuUiState>((set) => ({
   setFilter: (filter) => set({ filter, highlightId: null }),
   setCartOpen: (cartOpen) => set({ cartOpen, highlightId: null }),
   highlight: (highlightId) => set({ highlightId }),
-  reset: () => set({ categoryId: null, filter: 'all', cartOpen: false, highlightId: null }),
+  reset: () => set({ categoryId: null, filter: 'all', cartOpen: false, highlightId: null, pizzaIntroVisit: null, burgerIntroVisit: null }),
 }))

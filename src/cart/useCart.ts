@@ -1,5 +1,10 @@
 import { create } from 'zustand'
 import type { TotemModifier, TotemProduct } from '@/menu/types'
+import { composePizza, pizzaName } from '@/pizza/composition'
+import type { PizzaComposition } from '@/pizza/types'
+import { burgerLayers, composeBurger } from '@/burger/composition'
+import type { BurgerComposition } from '@/burger/types'
+import type { BurgerLayer } from '@/burger/pilot'
 
 // ---------------------------------------------------------------------------
 // The order being built.
@@ -18,6 +23,8 @@ export interface CartLine {
   modifiers: TotemModifier[]
   /** Unit price including modifiers, in cents. */
   unitCents: number
+  pizza?: PizzaComposition
+  burger?: BurgerComposition
 }
 
 /**
@@ -30,6 +37,8 @@ export interface CartLine {
 export interface CartFlash {
   name: string
   imageUrl?: string
+  pizza?: PizzaComposition
+  burgerLayers?: BurgerLayer[]
   /** Muda a cada adição, mesmo repetindo o prato — é o que reinicia a animação. */
   seq: number
 }
@@ -37,7 +46,7 @@ export interface CartFlash {
 interface CartState {
   lines: CartLine[]
   lastAdded: CartFlash | null
-  add: (product: TotemProduct, quantity: number, modifiers: TotemModifier[]) => void
+  add: (product: TotemProduct, quantity: number, modifiers: TotemModifier[], replaceLineId?: string | null) => void
   setQuantity: (lineId: string, quantity: number) => void
   remove: (lineId: string) => void
   clear: () => void
@@ -56,18 +65,24 @@ export const useCart = create<CartState>((set, get) => ({
   lines: [],
   lastAdded: null,
 
-  add: (product, quantity, modifiers) => {
+  add: (product, quantity, modifiers, replaceLineId) => {
+    if (product.soldOut || !Number.isInteger(quantity) || quantity < 1 || quantity > 99) return
     const signature = signatureOf(product, modifiers)
+    const pizza = composePizza(product, modifiers)
+    const burger = composeBurger(product, modifiers)
     const flash: CartFlash = {
-      name: product.name,
+      name: pizza ? pizzaName(pizza) : product.name,
       imageUrl: product.imageUrl,
+      pizza,
+      burgerLayers: burger ? burgerLayers(product, modifiers) : undefined,
       seq: (get().lastAdded?.seq ?? 0) + 1,
     }
-    const existing = get().lines.find((line) => line.id === signature)
+    const current = get().lines.filter((line) => line.id !== replaceLineId)
+    const existing = current.find((line) => line.id === signature)
     if (existing) {
       set({
         lastAdded: flash,
-        lines: get().lines.map((line) =>
+        lines: current.map((line) =>
           line.id === signature ? { ...line, quantity: line.quantity + quantity } : line,
         ),
       })
@@ -76,8 +91,8 @@ export const useCart = create<CartState>((set, get) => ({
     set({
       lastAdded: flash,
       lines: [
-        ...get().lines,
-        { id: signature, product, quantity, modifiers, unitCents: lineUnitCents(product, modifiers) },
+        ...current,
+        { id: signature, product, quantity, modifiers, unitCents: lineUnitCents(product, modifiers), pizza, burger },
       ],
     })
   },

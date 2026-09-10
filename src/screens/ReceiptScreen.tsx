@@ -95,7 +95,7 @@ export function ReceiptScreen() {
             <p
               data-testid="receipt-unpaid"
               role="alert"
-              className="mt-[2cqw] font-bold text-action"
+              className="mt-[2cqw] font-bold text-action-ink"
               style={{ fontSize: 'var(--step-label)' }}
             >
               Pagamento pendente — passe no caixa com este número.
@@ -160,7 +160,7 @@ function WhatsAppOffer({
     return (
       <p
         data-testid="whatsapp-queued"
-        className="mt-[6cqw] flex items-center gap-[2.5cqw] rounded-totem bg-white/12 px-[5cqw] py-[3.5cqw]"
+        className="glass-media mt-[6cqw] flex items-center gap-[2.5cqw] rounded-totem px-[5cqw] py-[3.5cqw]"
         style={{ fontSize: 'var(--step-body)' }}
       >
         <WhatsAppGlyph className="size-[3.4cqw] shrink-0" />
@@ -194,7 +194,12 @@ function WhatsAppOffer({
       data-testid="receipt-whatsapp"
       disabled={sending}
       onClick={onAsk}
-      className="press mt-[6cqw] flex min-h-[var(--tap-lg)] items-center gap-[3cqw] rounded-totem bg-white px-[5cqw] text-ink disabled:opacity-60"
+      // Esta tela é a única de fundo escuro com um controle claro em cima, e
+      // por isso ela usa o vidro VIVO e não o de página: aqui há o que
+      // desfocar, e o piso é medido contra o pior fundo, que é o preto da
+      // própria tela. `.glass` daria a cor da página, que nesta tela não
+      // existe.
+      className="press glass-live mt-[6cqw] flex min-h-[var(--tap-lg)] items-center gap-[3cqw] rounded-totem px-[5cqw] text-ink disabled:opacity-60"
     >
       <WhatsAppGlyph className="size-[4cqw] shrink-0" />
       <span className="text-left">

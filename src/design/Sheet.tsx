@@ -26,7 +26,11 @@ export interface SheetProps {
   onClose: () => void
   /** Rendered against the bottom edge, outside the scrollable body. */
   footer?: ReactNode
+  /** Optional live preview, outside the scrolling choices just like the footer. */
+  header?: ReactNode
   title?: string
+  /** Accessible name when the visible heading lives in the bleed content. */
+  ariaLabel?: string
   /**
    * Corpo sangrado: sem folga lateral e sem título no topo.
    *
@@ -40,7 +44,7 @@ export interface SheetProps {
   'data-testid'?: string
 }
 
-export function Sheet({ open, onClose, footer, title, bleed = false, children, ...rest }: SheetProps) {
+export function Sheet({ open, onClose, footer, header, title, ariaLabel, bleed = false, children, ...rest }: SheetProps) {
   const [drag, setDrag] = useState(0)
   const start = useRef<number | null>(null)
   const body = useRef<HTMLDivElement>(null)
@@ -61,7 +65,9 @@ export function Sheet({ open, onClose, footer, title, bleed = false, children, .
     // Only start a drag when the body is already at the top. Otherwise a
     // customer scrolling a long modifier list would fling the sheet away
     // mid-read.
-    if ((body.current?.scrollTop ?? 0) > 0) return
+    // A fixed preview keeps the handle separate from scrolling choices, so it
+    // can still dismiss the sheet even when those choices are scrolled down.
+    if (!header && (body.current?.scrollTop ?? 0) > 0) return
     start.current = event.clientY
     event.currentTarget.setPointerCapture(event.pointerId)
   }
@@ -86,16 +92,31 @@ export function Sheet({ open, onClose, footer, title, bleed = false, children, .
         aria-label="Fechar"
         data-testid="sheet-scrim"
         onClick={onClose}
-        className="absolute inset-0 bg-black/55 backdrop-blur-md"
+        // O scrim é o vidro mais barato do painel e o mais importante: uma
+        // camada, tela inteira, e é ela que diz que o cardápio atrás está
+        // inerte. O desfoque aqui NÃO é enfeite — sem ele o cliente continua
+        // lendo os cartões de trás e continua tocando neles.
+        className="absolute inset-0 bg-black/55 backdrop-blur-md backdrop-saturate-[0.7]"
         style={{ opacity: Math.max(0.35, 1 - drag / 400) }}
       />
 
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-label={ariaLabel ?? title}
         data-testid={rest['data-testid'] ?? 'sheet'}
-        className="relative flex max-h-[86%] flex-col overflow-hidden rounded-t-sheet bg-white motion-safe:animate-[sheet-in_260ms_cubic-bezier(0.16,1,0.3,1)]"
+        // O CORPO DO SHEET NÃO É DE VIDRO, e a tentação de fazê-lo é grande:
+        // é a maior superfície do painel e a que mais pediria o efeito. Mas é
+        // também onde mora o texto denso — descrição do prato, sete chips de
+        // modificador, as linhas do carrinho — e vidro é exatamente o material
+        // que se paga em superfície grande e se cobra em texto pequeno. Foto de
+        // comida atravessando por trás de uma lista de preços é a definição de
+        // ruído: passa em contraste e continua ilegível.
+        //
+        // O que ele ganha é a ARESTA de vidro: a quina de luz na borda de cima,
+        // que é a única parte da peça que o cliente vê contra o scrim escuro, e
+        // a que faz o sheet parecer subir por baixo da tela e não aparecer nela.
+        className="relative flex max-h-[86%] flex-col overflow-hidden rounded-t-sheet bg-white shadow-[inset_0_0.2cqw_0_var(--glass-line),0_-0.6cqw_2cqw_rgba(11,11,12,0.35)] motion-safe:animate-[sheet-in_260ms_cubic-bezier(0.16,1,0.3,1)]"
         style={{
           transform: drag ? `translateY(${drag}px)` : undefined,
           // No transition while the finger is down — the sheet must track it
@@ -125,6 +146,15 @@ export function Sheet({ open, onClose, footer, title, bleed = false, children, .
             onPointerCancel={onPointerUp}
             className={[
               'pointer-events-auto cursor-grab touch-none pt-[2.2cqw]',
+              // O PUXADOR NÃO GANHA VIDRO, e chegou a ganhar. Uma pastilha de
+              // vidro em volta dele virou um retângulo cinza arredondado
+              // boiando sobre a foto da pizza, com a barrinha branca dentro —
+              // lê como defeito de renderização, não como controle. E come a
+              // foto, que neste sheet é metade do argumento de venda.
+              //
+              // Vidro se paga onde há área e conteúdo por trás. Num traço de
+              // 11cqw por 0,85cqw não há área nenhuma: só sobra o material, que
+              // sem nada para revelar é sujeira em cima do prato.
               bleed ? 'mx-auto w-[30cqw] pb-[2.5cqw]' : '',
             ].join(' ')}
           >
@@ -144,7 +174,7 @@ export function Sheet({ open, onClose, footer, title, bleed = false, children, .
             />
             {title ? (
               <h2
-                className="px-[6cqw] pb-[2cqw] pt-[2.5cqw] text-center font-display uppercase tracking-tight"
+                className="px-[6cqw] pb-[2cqw] pt-[2.5cqw] text-center type-display"
                 style={{ fontSize: 'var(--step-title)' }}
               >
                 {title}
@@ -155,10 +185,14 @@ export function Sheet({ open, onClose, footer, title, bleed = false, children, .
           </div>
         </div>
 
+        {header ? <div className="shrink-0" data-testid="sheet-fixed-header">{header}</div> : null}
+
         <div
           ref={body}
+          data-testid="sheet-body"
           className={[
             'min-h-0 flex-1 overflow-y-auto pb-[4cqw]',
+            header ? 'overscroll-y-contain' : '',
             bleed ? 'px-0' : 'px-[6cqw]',
           ].join(' ')}
         >

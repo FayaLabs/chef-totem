@@ -10,7 +10,7 @@ import { defineConfig } from '@playwright/test'
 // actual 27" panel.
 // ---------------------------------------------------------------------------
 
-const PORT = 5310
+const PORT = Number(process.env.TOTEM_E2E_PORT ?? 5310)
 const BASE_URL = `http://localhost:${PORT}`
 
 export default defineConfig({
@@ -22,6 +22,24 @@ export default defineConfig({
   reporter: [['list']],
   use: {
     baseURL: BASE_URL,
+    // A casa em que a suíte roda, semeada no armazenamento em vez de vir do
+    // `.env` de quem executa.
+    //
+    // O `webServer` abaixo pede `VITE_TOTEM_CATALOG=demo`, mas com
+    // `reuseExistingServer` ele pega o `npm run dev` que já estava aberto — e
+    // esse está no cardápio AO VIVO, porque é nele que se trabalha. O
+    // resultado era uma suíte que passava ou falhava conforme o que a pessoa
+    // tinha na porta 5310, o que é o oposto de um teste.
+    //
+    // A semente usa a MESMA chave do seletor escondido (ver demo/mode.ts), e
+    // `?tenant=` continua ganhando dela: um teste que precisa de outra casa
+    // pede pela URL, como o de troca de tenant faz.
+    storageState: {
+      cookies: [],
+      origins: [
+        { origin: BASE_URL, localStorage: [{ name: 'totem.demo.selection', value: 'pizza-house' }] },
+      ],
+    },
     viewport: { width: 1080, height: 1920 },
     hasTouch: true,
     deviceScaleFactor: 1,
@@ -36,7 +54,7 @@ export default defineConfig({
     // The QA tenant's catalog is test debris (no categories, ingredients priced
     // at zero), so the suite runs against the demo menu. What is under test is
     // the SCREEN; the live provider is covered by its own contract test.
-    command: 'npm run dev',
+    command: `npm run dev -- --port ${PORT}`,
     env: { VITE_TOTEM_CATALOG: 'demo' },
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,

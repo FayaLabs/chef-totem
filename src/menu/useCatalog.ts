@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { catalogProvider } from '@/menu/provider'
 import type { TotemCatalog } from '@/menu/types'
+import { PIZZA_ASSETS } from '@/pizza/composition'
 
 // ---------------------------------------------------------------------------
 // The catalog, fetched BEFORE anyone asks for it.
@@ -24,6 +25,19 @@ let inflight: Promise<TotemCatalog> | null = null
 export function prefetchCatalog(): Promise<TotemCatalog> {
   inflight ??= catalogProvider()
     .load()
+    .then((catalog) => {
+      // Decode composition layers while the visitor is identifying themselves.
+      // A failed image cannot block the catalog or any purchase.
+      if (typeof Image !== 'undefined' && catalog.products.some((p) => p.pizza)) {
+        const urls = new Set([`${PIZZA_ASSETS}/board.webp`, ...catalog.products.flatMap((p) => p.pizza ? [p.pizza.imageUrl] : [])])
+        for (const url of urls) {
+          const picture = new Image()
+          picture.src = url
+          void picture.decode().catch(() => {})
+        }
+      }
+      return catalog
+    })
     .catch((error: unknown) => {
       // A failed fetch must not be cached as a permanent failure: the panel
       // has a retry button and the store may simply have blinked.

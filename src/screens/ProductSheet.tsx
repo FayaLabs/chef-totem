@@ -1,13 +1,15 @@
 import { Plus } from 'lucide-react'
 import { Chip, Sheet, Stepper, TotemButton } from '@/design'
-import { brl, useCart } from '@/cart/useCart'
+import { brl } from '@/cart/useCart'
 import {
   draftBlocking,
-  draftModifiers,
   draftUnitCents,
+  commitProductDraft,
   useProductDraft,
 } from '@/menu/useProductDraft'
 import type { TotemProduct } from '@/menu/types'
+import { PizzaProductSheet } from '@/pizza/PizzaProductSheet'
+import { BurgerProductSheet } from '@/burger/BurgerProductSheet'
 
 // Customising a dish without leaving the menu. The price recalculates as the
 // customer taps, so the total is never a surprise at the till.
@@ -15,7 +17,12 @@ import type { TotemProduct } from '@/menu/types'
 // A pure renderer over `useProductDraft`: everything it shows, the assistant
 // can also set — which is what lets a spoken "sem cebola" light the chip up.
 export function ProductSheet({ product, onClose }: { product: TotemProduct | null; onClose: () => void }) {
-  const add = useCart((s) => s.add)
+  if (product?.pizza) return <PizzaProductSheet product={product} onClose={onClose} />
+  if (product?.burger) return <BurgerProductSheet product={product} onClose={onClose} />
+  return <StandardProductSheet product={product} onClose={onClose} />
+}
+
+function StandardProductSheet({ product, onClose }: { product: TotemProduct | null; onClose: () => void }) {
   const quantity = useProductDraft((s) => s.quantity)
   const chosen = useProductDraft((s) => s.chosen)
   const setQuantity = useProductDraft((s) => s.setQuantity)
@@ -41,8 +48,7 @@ export function ProductSheet({ product, onClose }: { product: TotemProduct | nul
           data-testid="add-to-order"
           disabled={Boolean(missing)}
           onClick={() => {
-            add(product, quantity, draftModifiers(product, chosen))
-            onClose()
+            if (commitProductDraft(product)) onClose()
           }}
         >
           {missing ? (
@@ -72,7 +78,7 @@ export function ProductSheet({ product, onClose }: { product: TotemProduct | nul
 
       <div className="px-[6cqw] pt-[4cqw]">
         <h2
-          className="font-display uppercase leading-[0.95] tracking-tight"
+          className="type-display leading-[0.95] tracking-tight"
           style={{ fontSize: 'var(--step-title)' }}
         >
           {product.name}
@@ -85,7 +91,7 @@ export function ProductSheet({ product, onClose }: { product: TotemProduct | nul
         ) : null}
 
         <div className="mt-[4cqw] flex items-center justify-between">
-          <span className="tnum font-bold text-action" style={{ fontSize: 'var(--step-title)' }}>
+          <span className="tnum font-bold text-action-ink" style={{ fontSize: 'var(--step-title)' }}>
             {brl(unit)}
           </span>
           <Stepper value={quantity} onChange={setQuantity} data-testid="product-stepper" />
@@ -99,7 +105,7 @@ export function ProductSheet({ product, onClose }: { product: TotemProduct | nul
             style={{ fontSize: 'var(--step-label)' }}
           >
             {group.name}
-            {group.required ? <span className="text-action"> · obrigatório</span> : null}
+            {group.required ? <span className="text-action-ink"> · obrigatório</span> : null}
           </h3>
           {/* Three to a row: a five-option group used to be a scroll. */}
           <div className="grid grid-cols-3 gap-[1.5cqw]">

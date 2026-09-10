@@ -107,7 +107,7 @@ export function PaymentScreen() {
   }
 
   return (
-    <div data-testid="screen-payment" className="absolute inset-0 flex flex-col bg-page">
+    <div data-testid="screen-payment" className="absolute inset-0 flex flex-col surface-page">
       <div
         className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[6cqw] pt-[8cqw]"
         // A faixa do garçom, quando ele está acompanhando, come o rodapé desta
@@ -115,13 +115,13 @@ export function PaymentScreen() {
         // por cima do PIX exatamente por não estar reservada aqui.
         style={{ paddingBottom: `calc(var(--tap-bar) + ${dock} + 4cqw)` }}
       >
-        <h1 className="font-display uppercase leading-[0.9] tracking-tight" style={{ fontSize: 'var(--step-display)' }}>
+        <h1 className="type-display leading-[0.9] tracking-tight" style={{ fontSize: 'var(--step-display)' }}>
           {totemConfig.copy.paymentTitle}
         </h1>
 
         {/* The amount is the biggest thing on the screen. It is the one number
             a customer must not be surprised by at the terminal. */}
-        <div className="mt-[4cqw] rounded-totem bg-ink px-[5cqw] py-[4cqw] text-white">
+        <div className="sheen mt-[4cqw] rounded-totem bg-ink px-[5cqw] py-[4cqw] text-white">
           <p className="uppercase tracking-[0.3em] text-white/55" style={{ fontSize: 'var(--step-label)' }}>
             Total a pagar
           </p>
@@ -172,7 +172,10 @@ export function PaymentScreen() {
             onClick={() => setUseCredit((v) => !v)}
             className={[
               'press mt-[3cqw] flex min-h-[var(--tap)] items-center gap-[3cqw] rounded-totem px-[4cqw] text-left',
-              useCredit ? 'bg-ink text-white' : 'border-2 border-edge bg-white text-ink',
+              // Mesmo par do bloco de meios de pagamento logo abaixo: ligado é
+              // sólido, desligado é vidro. Dois pares de estados diferentes na
+              // mesma tela ensinariam duas gramáticas para a mesma pergunta.
+              useCredit ? 'sheen bg-ink text-white' : 'glass text-ink',
               'disabled:opacity-50',
             ].join(' ')}
           >
@@ -197,7 +200,7 @@ export function PaymentScreen() {
         {customer?.offer && totals.offerCents === 0 ? (
           <p
             data-testid="payment-offer-locked"
-            className="mt-[3cqw] flex items-center gap-[2cqw] rounded-totem bg-white p-[3cqw] text-muted"
+            className="glass mt-[3cqw] flex items-center gap-[2cqw] rounded-totem p-[3cqw] text-muted"
             style={{ fontSize: 'var(--step-label)' }}
           >
             <Gift strokeWidth={2.5} className="size-[3.4cqw] shrink-0" />
@@ -238,7 +241,22 @@ export function PaymentScreen() {
             }}
                   className={[
                     'press flex min-h-[var(--tap-lg)] items-center gap-[3cqw] rounded-totem px-[4cqw] text-left',
-                    chosen ? 'bg-ink text-white' : 'bg-white text-ink border-2 border-edge',
+                    // MESMO MATERIAL DO CHIP, e pela mesma razão já escrita
+                    // lá: a borda de 2px desenhava uma moldura preta em volta
+                    // de cada opção, e três molduras numa tela competem com as
+                    // três palavras que estão dentro delas. O vidro separa a
+                    // opção da página sem desenhar nada — o limite fica por
+                    // conta da sombra da pane, que é o que faz a peça flutuar.
+                    //
+                    // O SELECIONADO CONTINUA SÓLIDO, e aqui isso não é
+                    // estética. Esta é a única tela do fluxo em que a escolha é
+                    // irreversível do ponto de vista do cliente: ele vai
+                    // encostar o cartão. A diferença entre escolhido e não
+                    // escolhido tem de ser preto contra claro, que se lê a três
+                    // metros — vidro nos dois lados achataria a distância e a
+                    // pessoa tocaria em PIX achando que escolheu débito. É a
+                    // mesma regra do commit ser o único tom opaco do sistema.
+                    chosen ? 'sheen bg-ink text-white' : 'glass text-ink',
                     'disabled:opacity-50',
                   ].join(' ')}
                 >
@@ -281,7 +299,7 @@ export function PaymentScreen() {
             <p
               data-testid="payment-error"
               role="alert"
-              className="mt-[3cqw] rounded-totem bg-white p-[3cqw] text-center text-action"
+              className="glass mt-[3cqw] rounded-totem p-[3cqw] text-center text-action-ink"
               style={{ fontSize: 'var(--step-body)' }}
             >
               {error}

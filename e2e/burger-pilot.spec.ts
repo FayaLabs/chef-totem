@@ -1,0 +1,47 @@
+import { expect, test } from '@playwright/test'
+
+test('piloto abre e fecha com queijo na carne e recortes carregados', async ({ page }, testInfo) => {
+  const errors: string[] = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await page.goto('/?tenant=maxburger&burger-pilot')
+  const stage = page.getByTestId('burger-stage')
+  await expect(stage).toHaveAttribute('data-open', 'true')
+  await expect(stage.locator('img')).toHaveCount(6)
+  await expect.poll(() => stage.locator('img').evaluateAll((images) => images.every((e) => (e as HTMLImageElement).complete && (e as HTMLImageElement).naturalWidth > 0))).toBe(true)
+  await page.waitForTimeout(800)
+  await stage.screenshot({ path: testInfo.outputPath('burger-open.png') })
+  const group = await page.getByTestId('burger-layer-meat-0').getAttribute('data-group')
+  await expect(page.getByTestId('burger-layer-cheese-0')).toHaveAttribute('data-group', group!)
+  await page.getByTestId('burger-view-closed').tap()
+  await expect(stage).toHaveAttribute('data-open', 'false')
+  await page.waitForTimeout(850)
+  await stage.screenshot({ path: testInfo.outputPath('burger-closed.png') })
+  await page.getByTestId('burger-pilot-bacon').tap()
+  await expect(page.getByTestId('burger-layer-bacon')).toHaveCount(0)
+  await page.getByTestId('burger-pilot-cheese').tap()
+  await expect(page.getByTestId('burger-layer-cheese-0')).toHaveCount(0)
+  await page.getByTestId('burger-pilot-cheese').tap()
+  await page.getByTestId('burger-pilot-double').tap()
+  await expect(page.getByTestId('burger-layer-meat-1')).toBeVisible()
+  await expect(page.getByTestId('burger-layer-cheese-1')).toBeVisible()
+  await page.getByTestId('burger-view-open').tap()
+  await page.waitForTimeout(850)
+  await stage.screenshot({ path: testInfo.outputPath('burger-double.png') })
+  await expect(page.getByTestId('checkout')).toHaveCount(0)
+  expect(errors).toEqual([])
+})
+
+test('movimento reduzido e alternância rápida preservam o estado final', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/?tenant=maxburger&burger-pilot')
+  const stage = page.getByTestId('burger-stage')
+  await expect(page.getByTestId('burger-layer-top')).toBeVisible()
+  await expect(stage.locator('.burger-ambient')).toHaveCount(0)
+  for (let i = 0; i < 4; i++) {
+    await page.getByTestId('burger-view-closed').tap()
+    await page.getByTestId('burger-view-open').tap()
+  }
+  await page.getByTestId('burger-pilot-toggle').tap()
+  await expect(stage).toHaveAttribute('data-open', 'false')
+  await expect(stage.locator('img')).toHaveCount(6)
+})

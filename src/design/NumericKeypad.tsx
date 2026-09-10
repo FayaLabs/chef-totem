@@ -29,14 +29,24 @@ export interface NumericKeypadProps {
 }
 
 /**
- * Vidro: translúcido sobre o fundo da página, com blur e uma linha de luz no
- * topo. `backdrop-blur` sem cor de fundo não aparece — o branco a 55% é o que
- * dá o material; o blur só o torna profundo.
+ * Vidro, com a tonalidade e a espessura da casa — mas sem desfoque nenhum.
+ *
+ * O teclado inteiro mora sobre a PÁGINA, que é uma cor chapada. Era um
+ * `backdrop-blur-xl` por tecla: doze camadas de composição desfocando uma cor
+ * lisa, ou seja, doze camadas pintando exatamente o que já estava embaixo. O
+ * desfoque não é o material; o material é a tonalidade mais a quina de luz, e
+ * essa não custa camada nenhuma. O desfoque fica para as panes que TÊM o que
+ * desfocar — a barra de baixo e o vidro sobre foto.
+ *
+ * O toque afunda a tecla e ESCURECE o vidro, e agora com `brightness` em vez de
+ * trocar de cor de fundo: a cor de fundo vem do tema, e um `active:bg-white/85`
+ * escrito no arquivo devolvia o branco fixo por cima da tonalidade da casa —
+ * a tecla pressionada perdia a marca no instante em que o dedo a tocava.
  */
 const GLASS =
-  'press grid min-h-[calc(var(--tap-lg)*1.25)] place-items-center rounded-[3cqw] bg-white/55 backdrop-blur-xl ' +
-  'shadow-[inset_0_0.14cqw_0_rgba(255,255,255,0.9),0_0.25cqw_0.7cqw_rgba(11,11,12,0.10)] ' +
-  'active:bg-white/85 disabled:bg-black/[0.04] disabled:text-disabled-fg disabled:shadow-none'
+  'press glass grid min-h-[calc(var(--tap-lg)*1.25)] place-items-center rounded-[3cqw] ' +
+  'active:brightness-[0.93] disabled:bg-black/[0.04] disabled:text-disabled-fg disabled:shadow-none ' +
+  'disabled:[&::after]:hidden'
 
 export function NumericKeypad({ onDigit, onBackspace, disabled = false }: NumericKeypadProps) {
   return (
@@ -79,9 +89,11 @@ export function NumericKeypad({ onDigit, onBackspace, disabled = false }: Numeri
         data-testid="key-backspace"
         onClick={onBackspace}
         // Apagar é a única tecla que não é um número, então é a única sem o
-        // vidro: um fundo mais fundo diz "esta é diferente" sem precisar de
-        // cor, que aqui seria vermelho e brigaria com o botão de pagar.
-        className={`${GLASS} !bg-black/[0.05] active:!bg-black/[0.11] text-ink/60`}
+        // vidro: um POÇO em vez de uma pane. A quina de luz sai junto com a
+        // pane — ela é o que diz "isto está por cima", e uma tecla afundada com
+        // brilho de peça saliente é a contradição que faz o olho parar.
+        // Escuro e não vermelho: vermelho aqui brigaria com o botão de pagar.
+        className={`${GLASS} !bg-black/[0.05] active:!bg-black/[0.11] text-ink/60 !shadow-none [&::after]:hidden`}
       >
         <Delete strokeWidth={2} className="size-[3.4cqw]" />
       </button>

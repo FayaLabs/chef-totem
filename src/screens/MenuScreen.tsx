@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Gift, RefreshCw, UtensilsCrossed, Wallet, X } from 'lucide-react'
 import { allCategoriesIcon as AllIcon, categoryIcon } from '@/menu/category-icon'
 import { BottomBar, Chip, Sheet, TotemButton } from '@/design'
@@ -15,6 +15,10 @@ import { CartButton } from '@/screens/CartButton'
 import { offerLabel } from '@/orders/totals'
 import { useTotemSession, type TotemCustomer } from '@/session/useTotemSession'
 import { totemConfig } from '@/config/totem.config'
+import { PizzaCartArrival } from '@/pizza/PizzaCartArrival'
+import { BurgerStill } from '@/burger/BurgerStill'
+import { burgerLayers } from '@/burger/composition'
+import { BurgerCartArrival } from '@/burger/BurgerCartArrival'
 
 // ---------------------------------------------------------------------------
 // Where the customer spends 80% of their time.
@@ -30,6 +34,7 @@ export function MenuScreen() {
   const state = useCatalog()
   const ticket = useTotemSession((s) => s.ticket)
   const customer = useTotemSession((s) => s.customer)
+  const visitId = useTotemSession((s) => s.visitId)
   const reset = useTotemSession((s) => s.reset)
   const clearCart = useCart((s) => s.clear)
   const lines = useCart((s) => s.lines)
@@ -56,6 +61,24 @@ export function MenuScreen() {
   const openProductId = useProductDraft((s) => s.productId)
   const openDraft = useProductDraft((s) => s.open)
   const closeDraft = useProductDraft((s) => s.close)
+  const availablePizzas = state.status === 'ready' ? state.catalog.products.filter((p) => p.pizza && !p.soldOut) : []
+  const introPizza = availablePizzas.find((p) => p.pizza?.defaultForAssembly) ?? availablePizzas[0]
+  const introBurger = state.status === 'ready' ? state.catalog.products.find((p) => p.burger?.defaultForAssembly && !p.soldOut) : undefined
+
+  useLayoutEffect(() => {
+    if (!introBurger || useMenuUi.getState().burgerIntroVisit === visitId) return
+    useMenuUi.setState({ burgerIntroVisit: visitId })
+    if (useProductDraft.getState().productId || useCart.getState().lines.length) return
+    openDraft(introBurger.id, false, false, true)
+  }, [introBurger, visitId, openDraft])
+
+  useLayoutEffect(() => {
+    if (!introPizza || useMenuUi.getState().pizzaIntroVisit === visitId) return
+    useMenuUi.setState({ pizzaIntroVisit: visitId })
+    // A voice-opened draft or a return to a populated order takes precedence.
+    if (useProductDraft.getState().productId || useCart.getState().lines.length) return
+    openDraft(introPizza.id, true, true)
+  }, [introPizza, visitId, openDraft])
 
   const products = useMemo(() => {
     if (state.status !== 'ready') return []
@@ -83,6 +106,35 @@ export function MenuScreen() {
 
   const count = cartCount(lines)
 
+  // A ALTURA DO CABEÇALHO, medida e não constante.
+  //
+  // Ele agora FLUTUA sobre o cardápio (ver Header), e o que flutua tem de
+  // reservar o próprio espaço embaixo — é a mesma lição que criou a BottomBar:
+  // num painel cujo meio rola, um elemento flutuante sempre acaba em cima de
+  // alguma coisa. Uma constante não serve porque a faixa cresce com o que o
+  // cliente trouxe: sem nome e sem crédito ela tem uma altura, com "Oi, Marina"
+  // e dois selos de vantagem tem outra, e a diferença é uma linha inteira de
+  // produto escondida atrás da senha.
+  const header = useRef<HTMLElement>(null)
+  const [headerHeight, setHeaderHeight] = useState(0)
+  useEffect(() => {
+    const node = header.current
+    if (!node) return
+    // `borderBoxSize` e NÃO `contentRect`: o `contentRect` do observador é a
+    // caixa de CONTEÚDO, sem o padding — e esta faixa tem quase um alvo de
+    // toque de padding no topo. A reserva saía menor que a faixa, e o primeiro
+    // item da trilha ("Todos", que é o que mostra o cardápio inteiro) nascia
+    // escondido atrás dela. Um filtro que não dá para ver é um filtro que o
+    // cliente acha que não existe.
+    const measure = (entry?: ResizeObserverEntry) =>
+      setHeaderHeight(entry?.borderBoxSize?.[0]?.blockSize ?? node.getBoundingClientRect().height)
+    const observer = new ResizeObserver(([entry]) => measure(entry))
+    observer.observe(node)
+    measure()
+    return () => observer.disconnect()
+  }, [state.status])
+  const topInset = `${headerHeight}px`
+
   // A única porta de saída da visita, e ela apaga TUDO: carrinho, estado de
   // tela, rascunho aberto e sessão. Espalhar essa limpeza por dois callbacks é
   // como se esquece de zerar uma coisa e o próximo cliente vê o pedido anterior.
@@ -94,8 +146,9 @@ export function MenuScreen() {
   }
 
   return (
-    <div data-testid="screen-menu" className="absolute inset-0 flex flex-col bg-page">
+    <div data-testid="screen-menu" className="absolute inset-0 flex flex-col surface-page">
       <Header
+        ref={header}
         ticket={ticket}
         customer={customer}
         onCancel={() => {
@@ -111,8 +164,13 @@ export function MenuScreen() {
         <div className="flex min-h-0 flex-1">
           <nav
             data-testid="category-rail"
-            className="w-[22cqw] shrink-0 overflow-y-auto border-r-2 border-hairline bg-white"
-            style={{ paddingBottom: bottomInset }}
+            // A trilha é uma pane inteira, e as categorias são recortes nela.
+            // Eram botões brancos sobre um fundo branco: cinco retângulos sem
+            // limite entre si, e a categoria ativa era a única coisa da coluna
+            // que existia. Sobre vidro, a inativa é o próprio material e a
+            // ativa é a única peça sólida — a hierarquia sai de graça.
+            className="glass w-[22cqw] shrink-0 overflow-y-auto border-r-2 border-hairline [&::after]:hidden"
+            style={{ paddingTop: topInset, paddingBottom: bottomInset }}
           >
             <RailButton
               active={categoryId === null}
@@ -138,7 +196,7 @@ export function MenuScreen() {
           </nav>
 
           <div className="flex min-w-0 flex-1 flex-col">
-            <div className="flex shrink-0 gap-[2cqw] px-[3cqw] py-[3cqw]">
+            <div className="flex shrink-0 gap-[2cqw] px-[3cqw] py-[3cqw]" style={{ marginTop: topInset }}>
               <Chip selected={filter === 'all'} data-testid="filter-all" onClick={() => setFilter('all')}>
                 Todos
               </Chip>
@@ -170,7 +228,7 @@ export function MenuScreen() {
                   product={product}
                   highlighted={product.id === highlightId}
                   dimmed={highlightId !== null && product.id !== highlightId}
-                  onOpen={() => openDraft(product.id)}
+                  onOpen={() => openDraft(product.id, Boolean(product.pizza))}
                 />
               ))}
             </div>
@@ -193,6 +251,8 @@ export function MenuScreen() {
       </BottomBar>
 
       <ProductSheet product={openProduct} onClose={closeDraft} />
+      <PizzaCartArrival />
+      <BurgerCartArrival />
       <CartSheet open={cartOpen} onClose={() => setCartOpen(false)} />
       <CancelSheet
         open={confirmingCancel}
@@ -207,15 +267,11 @@ export function MenuScreen() {
   )
 }
 
-function Header({
-  ticket,
-  customer,
-  onCancel,
-}: {
+const Header = forwardRef<HTMLElement, {
   ticket: string | null
   customer: TotemCustomer | null
   onCancel: () => void
-}) {
+}>(function Header({ ticket, customer, onCancel }, ref) {
   const now = new Date().toLocaleString('pt-BR', {
     weekday: 'short',
     day: '2-digit',
@@ -224,7 +280,28 @@ function Header({
     minute: '2-digit',
   })
   return (
-    <header className="shrink-0 bg-ink px-[4cqw] pb-[3cqw] pt-[3cqw] text-white">
+    // O CABEÇALHO FLUTUA, e é vidro escuro.
+    //
+    // Cromo flutua, compromisso é opaco. Esta faixa EMOLDURA o cardápio, e ver
+    // a grade continuar por baixo dela enquanto o cliente rola é informação:
+    // diz que a lista não acabou ali. A barra de baixo é o contrário — ela TIRA
+    // o cliente do cardápio, e ali a única coisa que importa é o próprio botão
+    // (ver design/BottomBar.tsx).
+    //
+    // Escuro e denso, e isso não é gosto. O texto é branco, as três páginas são
+    // claras, e o que passa por baixo é foto de comida — na lanchonete, chapa
+    // de aço com brilho especular, que é o pior fundo das três casas. Um vidro
+    // claro derrubaria o branco abaixo de AA no primeiro prato que passasse; o
+    // `glass-chrome` fica ACIMA do piso de propósito, para o fundo insinuar sem
+    // invadir. Medido em pixel nas três casas: ver .evidence/glass-contrast.mjs.
+    <header
+      ref={ref}
+      className="glass-chrome absolute inset-x-0 top-0 z-20 px-[4cqw] pb-[3cqw] pt-[3cqw]"
+    >
+      {/* O alvo da etiqueta de serviço não é mais reservado aqui: ela passou a
+          existir só no repouso (ver kiosk/TotemViewport.tsx), e um alvo de 88px
+          guardado para um botão que não está na tela é uma faixa de vidro vazia
+          ocupando o topo do cardápio — a parte que o cliente lê primeiro. */}
       {/* Uma linha, três coisas, nada absoluto. O cancelar era `absolute` e caía
           em cima da senha — dois textos no mesmo canto, e o que o cliente
           precisa ler (a senha dele) era o que ficava por baixo. Agora dividem a
@@ -249,7 +326,17 @@ function Header({
           type="button"
           data-testid="reset"
           onClick={onCancel}
-          className="press flex shrink-0 items-center gap-[1.5cqw] rounded-totem border-2 border-white/30 px-[3.5cqw] uppercase tracking-[0.18em] text-white/75"
+          // CONTORNO PRÓPRIO, e não o da faixa. Este é o alvo mais perigoso da
+          // tela: ele joga fora um carrinho inteiro. A confirmação existe (ver
+          // CancelSheet), mas confirmação conserta o toque errado — não conserta
+          // um alvo cujo limite pisca conforme a foto que passa por trás dele.
+          //
+          // Com a faixa opaca, `border-white/30` bastava porque o fundo era
+          // sempre o mesmo preto. Sobre vidro o fundo é o cardápio, então o
+          // botão passou a levar a própria pane densa (`glass-media`, com alpha
+          // calculado) e uma borda de 60%: ele fica igual a si mesmo com um
+          // hambúrguer claro ou uma pizza escura atravessando embaixo.
+          className="press glass-media flex shrink-0 items-center gap-[1.5cqw] rounded-totem border-2 border-white/60 px-[3.5cqw] uppercase tracking-[0.18em]"
           style={{ fontSize: 'var(--step-label)', height: 'var(--tap)' }}
         >
           <X strokeWidth={3} className="size-[2.2cqw]" />
@@ -274,7 +361,7 @@ function Header({
         </p>
       ) : null}
       <h1
-        className="mt-[1.5cqw] font-display uppercase leading-[0.9] tracking-tight"
+        className="mt-[1.5cqw] type-display leading-[0.9] tracking-tight"
         style={{ fontSize: 'var(--step-display)' }}
       >
         {totemConfig.copy.menuTitle}
@@ -296,7 +383,7 @@ function Header({
       ) : null}
     </header>
   )
-}
+})
 
 function Perk({
   icon,
@@ -310,7 +397,10 @@ function Perk({
   return (
     <span
       data-testid={testId}
-      className="flex items-center gap-[1.5cqw] rounded-full bg-white/12 px-[3cqw] py-[1.2cqw] uppercase tracking-[0.14em] text-white/85 backdrop-blur"
+      // Pastilha pequena, quase só texto: leva o vidro DENSO inteiro. Não há
+      // nada debaixo dela para revelar, então abrir a pane aqui só custaria
+      // legibilidade sem devolver foto nenhuma.
+      className="glass-media flex items-center gap-[1.5cqw] rounded-full px-[3cqw] py-[1.2cqw] uppercase tracking-[0.14em]"
       style={{ fontSize: 'var(--step-label)' }}
     >
       {icon}
@@ -376,7 +466,10 @@ function RailButton({
       onClick={onClick}
       className={[
         'press flex min-h-[var(--tap-lg)] w-full flex-col items-center justify-center gap-[1cqw] px-[1cqw] py-[2cqw]',
-        active ? 'bg-ink text-white' : 'bg-white text-ink',
+        // A inativa não tem fundo nenhum: o fundo dela é a pane da trilha. Um
+        // branco próprio por cima do vidro emendaria cinco retângulos num
+        // material que devia ser contínuo.
+        active ? 'sheen bg-ink text-white' : 'bg-transparent text-ink',
       ].join(' ')}
     >
       {icon}
@@ -407,6 +500,7 @@ function ProductCard({
   // box. On a panel whose whole pitch is the food imagery, a silently broken
   // image reads as a broken product.
   const [imageBroken, setImageBroken] = useState(false)
+  const imageUrl = product.pizza?.imageUrl ?? product.imageUrl
   const card = useRef<HTMLButtonElement>(null)
 
   // Desce até ele. Sem isto o destaque acontece fora da vista e o cliente
@@ -426,25 +520,36 @@ function ProductCard({
       disabled={product.soldOut}
       onClick={onOpen}
       className={[
-        'press flex min-h-[34cqw] flex-col overflow-hidden rounded-totem bg-white text-left disabled:opacity-60',
+        'press glass flex min-h-[34cqw] flex-col overflow-hidden rounded-totem text-left disabled:opacity-60',
+        // Como o cartão se descola da página é marca: sombra difusa numa casa
+        // que quer parecer cuidada, deslocamento sólido de placa esmaltada
+        // numa lanchonete. Ver TotemTheme.elevation — `--glass-depth` já traz a
+        // elevação da casa junto com a quina de luz, então o cartão não precisa
+        // mais da sombra avulsa.
+        //
+        // E O CARTÃO NÃO DESFOCA NADA. Ele mora sobre a página, que é uma cor
+        // chapada: desfocar uma cor chapada devolve a mesma cor e cobra uma
+        // camada de composição. Numa grade de dez cartões que rola, dez dessas
+        // é a diferença entre rolagem lisa e rolagem que engasga — e o efeito
+        // visível seria exatamente zero pixel.
         // O "overlay no resto" é feito pelos IRMÃOS recuando, não por uma
         // camada por cima. Uma camada teria de vencer o empilhamento de um
         // container que rola, e o cartão em destaque teria de furá-la — muito
         // aparato para um efeito que a opacidade dos vizinhos entrega melhor.
         'transition-[transform,opacity,filter,box-shadow] duration-300 ease-out',
-        highlighted ? 'z-10 scale-[1.06] shadow-[0_1cqw_3cqw_rgba(11,11,12,0.28)] ring-[0.5cqw] ring-action' : '',
+        highlighted ? 'z-10 scale-[1.06] shadow-[0_1cqw_3cqw_rgba(11,11,12,0.28)] ring-[0.5cqw] ring-action-ink' : '',
         dimmed ? 'scale-[0.97] opacity-30 saturate-50' : '',
       ].join(' ')}
     >
-      <div className="relative h-[18cqw] shrink-0 bg-hairline">
-        {product.imageUrl && !imageBroken ? (
+      <div className={`relative h-[18cqw] shrink-0 ${product.pizza || product.burger ? 'bg-[#292827]' : 'bg-hairline'}`}>
+        {product.burger ? <BurgerStill layers={burgerLayers(product, [])} fallback={imageUrl} /> : imageUrl && !imageBroken ? (
           <img
-            src={product.imageUrl}
+            src={imageUrl}
             alt=""
             loading="lazy"
             data-testid={`img-${product.id}`}
             onError={() => setImageBroken(true)}
-            className="size-full object-cover"
+            className={product.pizza ? 'size-full object-contain p-[.8cqw]' : 'size-full object-cover'}
           />
         ) : (
           <div className="grid size-full place-items-center text-muted">
@@ -455,7 +560,23 @@ function ProductCard({
           // Dimmed and inert, never removed: a dish that vanishes sends the
           // customer to the counter to ask where it went.
           <span
-            className="absolute inset-x-0 bottom-0 bg-ink/85 py-[1cqw] text-center uppercase tracking-[0.2em] text-white"
+            // A TARJA NÃO É DE VIDRO, e foi por meia hora. Ela mora dentro de
+            // um cartão que está inteiro a 60% de opacidade — o único lugar do
+            // painel onde uma camada lava o texto e o fundo dele ao mesmo
+            // tempo. O piso calculado do vidro mede a pane ISOLADA, e a tela
+            // não pinta a pane isolada: medido em pixel, a tarja de vidro caía
+            // para 1,15:1 sobre o pão claro de um lanche esgotado.
+            //
+            // Uma tarja de esgotado também não é material, é CARIMBO. Ela
+            // existe para dizer "não adianta tocar aqui", e essa frase não pode
+            // depender do quadro da foto que estiver atrás.
+            // E é OPACA, o que o `/85` de antes não era. A conta que ninguém
+            // tinha feito: a tarja é composta sobre a foto, e só DEPOIS o
+            // cartão inteiro vai a 60% de opacidade contra a página — dois
+            // estágios, e o segundo lava o branco do texto junto com o preto do
+            // fundo. Medido em pixel sobre o pão claro de um lanche esgotado,
+            // `bg-ink/85` dava 2,88:1. Opaca dá 4,63:1, que é o piso.
+            className="absolute inset-x-0 bottom-0 bg-ink py-[1cqw] text-center uppercase tracking-[0.2em] text-white"
             style={{ fontSize: 'var(--step-label)' }}
           >
             Esgotado
@@ -468,7 +589,7 @@ function ProductCard({
           {product.name}
         </span>
         <span className="mt-[1.5cqw] flex items-baseline gap-[1.5cqw]">
-          <span className="tnum font-bold text-action" style={{ fontSize: 'var(--step-title)' }}>
+          <span className="tnum font-bold text-action-ink" style={{ fontSize: 'var(--step-title)' }}>
             {brl(product.priceCents)}
           </span>
           {product.compareAtCents ? (
@@ -501,7 +622,7 @@ function MenuError({ message, onRetry }: { message: string; onRetry: () => void 
       data-testid="menu-error"
       className="flex min-h-0 flex-1 flex-col items-center justify-center gap-[3cqw] px-[8cqw] text-center"
     >
-      <h2 className="font-display uppercase" style={{ fontSize: 'var(--step-title)' }}>
+      <h2 className="type-display" style={{ fontSize: 'var(--step-title)' }}>
         O cardápio não carregou
       </h2>
       {/* The cause is on screen on purpose: the person who can fix a kiosk is

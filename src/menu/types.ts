@@ -2,6 +2,9 @@
 // the panel should not care that a category is `categories WHERE kind =
 // 'menu_category'`, nor that "sold out" lives in menu_items.status.
 
+import type { PizzaFlavor } from '@/pizza/types'
+import type { BurgerModifierEffect, BurgerRecipeId } from '@/burger/types'
+
 export interface TotemCategory {
   id: string
   name: string
@@ -14,9 +17,15 @@ export interface TotemModifier {
   name: string
   /** Cents. Positive adds to the line. */
   surchargeCents: number
+  /** Structured second flavor, shared by the builder, waiter and kitchen. */
+  pizzaFlavor?: PizzaFlavor
+  /** Physical pizza diameter; drives the preview without parsing display text. */
+  pizzaDiameterCm?: number
+  burgerEffect?: BurgerModifierEffect
 }
 
 export interface TotemModifierGroup {
+  kind?: 'pizza-size' | 'pizza-half' | 'pizza-extras' | 'burger-bread' | 'burger-point' | 'burger-extras' | 'burger-combo' | 'burger-removals'
   id: string
   name: string
   required: boolean
@@ -33,6 +42,9 @@ export interface TotemProduct {
   /** Was-price for a strikethrough. Undefined = not on promotion. */
   compareAtCents?: number
   imageUrl?: string
+  /** Enables the interactive pizza experience with a compositable cutout. */
+  pizza?: { imageUrl: string; defaultForAssembly?: boolean }
+  burger?: { recipe: BurgerRecipeId; defaultForAssembly?: boolean }
   /** Short looping clip shown on the featured card. */
   videoUrl?: string
   categoryId?: string

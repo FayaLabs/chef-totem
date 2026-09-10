@@ -1,0 +1,86 @@
+{
+  "brioche-top": {
+    "width": 1024,
+    "height": 653
+  },
+  "brioche-bottom": {
+    "width": 1024,
+    "height": 634
+  },
+  "blend": {
+    "width": 1024,
+    "height": 691
+  },
+  "cheddar": {
+    "width": 1024,
+    "height": 515
+  },
+  "bacon": {
+    "width": 1024,
+    "height": 576
+  },
+  "onion-crispy": {
+    "width": 1024,
+    "height": 626
+  },
+  "australian-top": {
+    "width": 1024,
+    "height": 775
+  },
+  "australian-bottom": {
+    "width": 1024,
+    "height": 690
+  },
+  "gluten-free-top": {
+    "width": 1024,
+    "height": 741
+  },
+  "gluten-free-bottom": {
+    "width": 1024,
+    "height": 678
+  },
+  "smash": {
+    "width": 1024,
+    "height": 615
+  },
+  "chicken": {
+    "width": 1024,
+    "height": 728
+  },
+  "veggie": {
+    "width": 1024,
+    "height": 717
+  },
+  "prato": {
+    "width": 1024,
+    "height": 598
+  },
+  "vegan-cheese": {
+    "width": 1024,
+    "height": 550
+  },
+  "lettuce": {
+    "width": 1024,
+    "height": 394
+  },
+  "tomato": {
+    "width": 1024,
+    "height": 599
+  },
+  "onion": {
+    "width": 1024,
+    "height": 623
+  },
+  "egg": {
+    "width": 1024,
+    "height": 695
+  },
+  "house-sauce": {
+    "width": 1024,
+    "height": 499
+  },
+  "lemon-mayo": {
+    "width": 1024,
+    "height": 543
+  }
+}

@@ -86,7 +86,17 @@ export function WaiterDock({
     <div
       data-testid="waiter-dock"
       data-phase={phase}
-      className="absolute inset-x-0 z-30 flex items-center gap-[3cqw] border-t-2 border-edge bg-surface px-[3cqw] shadow-[0_-0.6cqw_2cqw_rgba(11,11,12,0.08)] motion-safe:animate-[waiter-dock-in_320ms_cubic-bezier(0.16,1,0.3,1)]"
+      // A faixa é o MESMO MATERIAL da barra de baixo, e tem de ser: as duas se
+      // encostam, e a de baixo já era de vidro. Uma faixa branca chapada colada
+      // numa barra translúcida lê como dois pedaços de interface de sistemas
+      // diferentes empilhados por acidente.
+      //
+      // A borda de 2px saiu junto com o fundo chapado: ela existia para separar
+      // a faixa do cardápio, e o que separa agora é a quina de luz da própria
+      // pane. O piso de legibilidade continua sendo o do `glass-live` — o pior
+      // fundo que pode passar por trás desta faixa é uma foto de prato quase
+      // preta, e o que está escrito nela é tinta escura.
+      className="glass-live absolute inset-x-0 z-30 flex items-center gap-[3cqw] px-[3cqw] shadow-[0_-0.6cqw_2cqw_rgba(11,11,12,0.10)] motion-safe:animate-[waiter-dock-in_320ms_cubic-bezier(0.16,1,0.3,1)]"
       style={{ bottom, height: WAITER_DOCK_HEIGHT }}
     >
       <TalkButton />
@@ -117,7 +127,7 @@ export function WaiterDock({
               // Two lines maximum. A dock that grows with the answer would
               // shove the menu around mid-sentence.
               'line-clamp-2',
-              error ? 'text-action' : live ? 'font-semibold text-ink' : 'text-ink',
+              error ? 'text-action-ink' : live ? 'font-semibold text-ink' : 'text-ink',
             ].join(' ')}
             style={{ fontSize: 'var(--step-body)' }}
           >

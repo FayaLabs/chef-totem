@@ -2,9 +2,11 @@ import {
   PAYMENT_METHODS, addLines, openOrder, setStatus, settle,
   type OrderContext, type OrderLine,
 } from '@fayz-ai/core/orders'
+import { isDemoCatalog } from '@/demo/mode'
 import { totemConfig } from '@/config/totem.config'
 import { deviceClient } from '@/menu/device-session'
 import type { CartLine } from '@/cart/useCart'
+import { pizzaName } from '@/pizza/composition'
 import type { ChargeResult, PaymentMethod } from '@/payment/driver'
 import type { OrderTotals } from '@/orders/totals'
 import type { ServiceMode, TotemCustomer } from '@/session/useTotemSession'
@@ -53,10 +55,10 @@ export interface PlaceOrderInput {
 }
 
 /** Uma linha do carrinho nas palavras da porta compartilhada. */
-const asLine = (line: CartLine): OrderLine => ({
+export const cartLineToOrderLine = (line: CartLine): OrderLine => ({
   id: line.id,
   productId: line.product.id,
-  name: line.product.name,
+  name: line.pizza ? pizzaName(line.pizza) : line.product.name,
   quantity: line.quantity,
   unitPriceCents: line.unitCents,
   // O que a cozinha tem de fazer diferente, numa coluna que a comanda impressa
@@ -64,7 +66,11 @@ const asLine = (line: CartLine): OrderLine => ({
   ...(line.modifiers.length
     ? { description: line.modifiers.map((m) => m.name).join(' · ') }
     : {}),
-  metadata: { modifiers: line.modifiers.map((m) => ({ id: m.id, name: m.name })) },
+  metadata: {
+    modifiers: line.modifiers.map((m) => ({ id: m.id, name: m.name })),
+    ...(line.pizza ? { pizza: line.pizza } : {}),
+    ...(line.burger ? { burger: line.burger } : {}),
+  },
 })
 
 /**
@@ -103,7 +109,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlacedOrder> {
   // Cardápio de mentira, pedido de mentira. `demo` existe para a feira sem rede
   // e para o CI, e um catálogo demonstrativo que tenta gravar num tenant real
   // é incoerente das duas pontas: falha no estande e cria lixo no banco.
-  if (import.meta.env.VITE_TOTEM_CATALOG === 'demo') return placeDemoOrder(input)
+  if (isDemoCatalog()) return placeDemoOrder(input)
 
   const db = await deviceClient()
   const ctx: OrderContext = {
@@ -146,7 +152,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlacedOrder> {
     // canal é ONDE a venda aconteceu, não o nome do app; quem foi o aparelho
     // fica em `metadata.source`, que a porta compartilhada carimba sozinha.
     channel: 'balcao',
-    lines: input.lines.map(asLine),
+    lines: input.lines.map(cartLineToOrderLine),
     notes: input.customer?.phone
       ? `Cliente: ${input.customer.phone}`
       : input.customer?.document
