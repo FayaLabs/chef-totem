@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fayzVite } from '@fayz-ai/sdk/vite'
@@ -28,10 +29,23 @@ function kioskDisplayMode(): Plugin {
   }
 }
 
+// getUserMedia only exists in a secure context, so the waiter's mic is dead on
+// any non-localhost http:// origin — which is every way of reaching this dev
+// server from another device. TOTEM_HTTPS=1 serves the self-signed pair in
+// ./certs instead. Off by default: the e2e suite talks http to this port.
+function devHttps() {
+  if (process.env.TOTEM_HTTPS !== '1') return undefined
+  return {
+    key: readFileSync('certs/dev-key.pem'),
+    cert: readFileSync('certs/dev-cert.pem'),
+  }
+}
+
 export default defineConfig(
   fayzVite({
     port: 5310,
     strictPort: true,
+    server: { https: devHttps() },
     plugins: [react(), kioskDisplayMode()],
     pwa: {
       name: 'Chef Totem',
