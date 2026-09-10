@@ -82,9 +82,20 @@ export function useKioskLock(): void {
   }, [])
 }
 
-/** Fullscreen needs a user gesture, so it rides the first touch of the session. */
+/**
+ * Fullscreen needs a user gesture, so it rides the first touch of the session.
+ *
+ * Skipped in two cases, both of which are the panel getting in the way:
+ *
+ *   dev    a developer's first click on the menu should not swallow their
+ *          editor, their console and every other window on the machine
+ *   shell  the Electron window is already kiosk-fullscreen, and asking the
+ *          page for it again only risks fighting the shell's own state
+ */
 export function useFullscreenOnFirstTouch(): void {
   useEffect(() => {
+    if (import.meta.env.DEV) return
+    if (typeof window !== 'undefined' && window.fayzShell?.isShell) return
     const enter = () => {
       document.removeEventListener('pointerdown', enter)
       if (document.fullscreenElement) return

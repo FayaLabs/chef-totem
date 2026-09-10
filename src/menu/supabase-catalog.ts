@@ -28,7 +28,7 @@ export function createSupabaseCatalog(): CatalogProvider {
       const supabase = await deviceClient()
       const tenantId = totemConfig.tenantId
 
-      const [categories, products, menuItems, groups, modifiers, links] = await Promise.all([
+      const [categories, products, images, menuItems, groups, modifiers, links] = await Promise.all([
         supabase
           .from('categories')
           .select('id,name,icon,sort_order,kind')
@@ -41,6 +41,19 @@ export function createSupabaseCatalog(): CatalogProvider {
           .eq('tenant_id', tenantId)
           .eq('is_active', true)
           .order('name'),
+        // Where the photos actually are.
+        //
+        // `products.image_url` reads like the obvious source and is a trap: of
+        // 615 products in the pool, ONE has it set. Every real photo lives here,
+        // uploaded by the shop plugin. The panel was reading the empty column
+        // and rendering grey cards for a tenant that had pictures all along.
+        //
+        // Kept as a fallback anyway — the column is not forbidden, and a tenant
+        // that fills it should not be punished for using the simpler field.
+        supabase
+          .from('plg_shop_product_images')
+          .select('product_id,url,is_primary,sort_order')
+          .eq('tenant_id', tenantId),
         supabase
           .from('plg_menu_items')
           .select('product_id,status,is_featured,sort_order,available_for_pos')
@@ -93,6 +106,19 @@ export function createSupabaseCatalog(): CatalogProvider {
         ]),
       )
 
+
+      // One photo per product: `is_primary` wins, then the lowest sort_order.
+      // A card shows one image, so picking here keeps that decision out of the
+      // render path where it would be re-made on every scroll.
+      const imageByProduct = new Map<string, string>()
+      for (const row of [...(images.data ?? [])].sort((a, b) => {
+        const primary = Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary))
+        return primary !== 0 ? primary : Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0)
+      })) {
+        const id = row.product_id as string | null
+        const url = row.url as string | null
+        if (id && url && !imageByProduct.has(id)) imageByProduct.set(id, url)
+      }
       const groupsByProduct = new Map<string, TotemModifierGroup[]>()
       for (const row of links.data ?? []) {
         const group = groupById.get(row.group_id as string)
@@ -117,7 +143,7 @@ export function createSupabaseCatalog(): CatalogProvider {
                 typeof metadata.compare_at_price === 'number'
                   ? CENTS(metadata.compare_at_price)
                   : undefined,
-              imageUrl: (row.image_url as string | null) ?? undefined,
+              imageUrl: imageByProduct.get(row.id as string) ?? (row.image_url as string | null) ?? undefined,
               videoUrl: typeof metadata.video_url === 'string' ? metadata.video_url : undefined,
               categoryId: (row.category_id as string | null) ?? undefined,
               soldOut: item ? item.status !== 'available' : false,
