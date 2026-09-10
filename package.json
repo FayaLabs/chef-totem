@@ -18,8 +18,8 @@
     "pack": "npm run build && electron-builder --win --publish never"
   },
   "dependencies": {
-    "@fayz-ai/core": "^0.19.1",
-    "@fayz-ai/sdk": "^0.15.0",
+    "@fayz-ai/core": "^0.21.0",
+    "@fayz-ai/sdk": "^0.19.1",
     "@supabase/supabase-js": "^2.112.4",
     "lucide-react": "^0.400.0",
     "motion": "^13.1.1",
