@@ -5,6 +5,7 @@ import { prefetchCatalog } from '@/menu/useCatalog'
 import { useTotemSession } from '@/session/useTotemSession'
 import { useWaiter } from '@/waiter/useWaiter'
 import { VoiceOrb } from '@/waiter/VoiceOrb'
+import { useTenantBrand } from '@/config/tenant-brand'
 
 // ---------------------------------------------------------------------------
 // The resting state, and the only screen most passers-by ever see.
@@ -32,6 +33,7 @@ export function AttractScreen() {
   // peça de interface possível: ele PARECE que escuta.
   const assistantOn = useWaiter((s) => s.phase) !== 'off'
   const { brand, media } = totemConfig
+  const name = useTenantBrand()
 
   // Sign the device in and pull the menu while nobody is waiting. By the time
   // the customer has chosen dine-in and skipped identification, it is there.
@@ -54,7 +56,7 @@ export function AttractScreen() {
         className="relative z-10 font-display uppercase leading-[0.85] tracking-tight"
         style={{ fontSize: 'var(--step-hero)' }}
       >
-        {brand.name}
+        {name}
       </span>
       <span
         className="relative z-10 mt-[2cqw] uppercase tracking-[0.4em] text-white/75"

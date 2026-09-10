@@ -2,6 +2,7 @@ import { deviceClient } from '@/menu/device-session'
 import { totemConfig } from '@/config/totem.config'
 import { brl } from '@/cart/useCart'
 import type { CompletedOrder, ServiceMode } from '@/session/useTotemSession'
+import { brandName } from '@/config/tenant-brand'
 
 // ---------------------------------------------------------------------------
 // "Quer receber no WhatsApp?"
@@ -47,7 +48,7 @@ export function receiptMessage(input: ReceiptDeliveryInput): string {
 
   return [
     input.customerName ? `Oi, ${input.customerName}!` : 'Oi!',
-    `Seu pedido no ${totemConfig.brand.name} está confirmado.`,
+    `Seu pedido no ${brandName()} está confirmado.`,
     '',
     `Senha: ${input.order.ticket}`,
     `Total: ${brl(input.order.totalCents)}`,

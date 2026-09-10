@@ -24,3 +24,18 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+/**
+ * What `electron/preload.cjs` exposes when the totem runs inside the shell.
+ * Absent in a plain browser, which is how the app tells the two apart.
+ */
+interface FayzShellBridge {
+  isShell: true
+  printRaw(bytes: Uint8Array): Promise<{ ok: boolean; message?: string }>
+  printerName(): Promise<string>
+  requestExit(pin: string): Promise<{ ok: boolean }>
+}
+
+interface Window {
+  fayzShell?: FayzShellBridge
+}
