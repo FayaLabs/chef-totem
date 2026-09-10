@@ -65,6 +65,16 @@ const env = import.meta.env
 // que trocar de restaurante é trocar um objeto, não um fork.
 const demo = env.VITE_TOTEM_CATALOG === 'demo' ? activeDemoTenant() : null
 
+/**
+ * Which build is on the glass.
+ *
+ * At an event nobody can open a console to answer "which version is this
+ * panel running?" — the answer has to be readable from in front of the totem.
+ * It is deliberately a product version, not `package.json`'s: the number that
+ * matters to whoever is standing there is the release, not the npm package.
+ */
+export const TOTEM_RELEASE = 'ChefControl Totem v1.1'
+
 export const totemConfig: TotemConfig = {
   totemId: env.VITE_TOTEM_ID ?? 'totem-dev',
   tenantId: env.VITE_TENANT_ID ?? '',

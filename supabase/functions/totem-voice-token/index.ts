@@ -27,7 +27,7 @@ const OPENAI_KEY = Deno.env.get('OPENAI_API_KEY')?.trim()
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')
 const MODEL = Deno.env.get('TOTEM_REALTIME_MODEL') ?? 'gpt-realtime-2.1'
-const VOICE = Deno.env.get('TOTEM_REALTIME_VOICE') ?? 'marin'
+const VOICE = Deno.env.get('TOTEM_REALTIME_VOICE') ?? 'ash'
 
 // A lista de origens é fixa e curta: um totem tem endereço conhecido. Deixar
 // `*` aqui é deixar qualquer página da internet gastar a cota do lojista.
