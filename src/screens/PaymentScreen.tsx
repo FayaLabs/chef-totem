@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Banknote, Check, CreditCard, Gift, QrCode, Wallet, X } from 'lucide-react'
+import { Check, CreditCard, Gift, QrCode, Wallet, X } from 'lucide-react'
 import { BottomBar, TotemButton } from '@/design'
 import { useWaiterDockInset } from '@/waiter/presence'
 import { brl, cartTotalCents, useCart } from '@/cart/useCart'
@@ -10,10 +10,14 @@ import { useTotemSession } from '@/session/useTotemSession'
 import { totemConfig } from '@/config/totem.config'
 import { announceToWaiter } from '@/waiter/events'
 
+// Crédito e débito são botões separados porque são dinheiro separado: o razão
+// liquida cada um numa conta diferente, e um quiosque que adivinhasse jogaria
+// metade do que passa no cartão na conta errada. Dinheiro não está aqui — o
+// painel não tem gaveta, então a cédula é assunto do caixa.
 const METHODS: { id: PaymentMethod; label: string; icon: React.ReactNode; hint: string }[] = [
-  { id: 'card', label: 'Cartão', icon: <CreditCard strokeWidth={2} className="size-[5cqw]" />, hint: 'na maquininha ao lado' },
+  { id: 'credit', label: 'Crédito', icon: <CreditCard strokeWidth={2} className="size-[5cqw]" />, hint: 'na maquininha ao lado' },
+  { id: 'debit', label: 'Débito', icon: <Wallet strokeWidth={2} className="size-[5cqw]" />, hint: 'na maquininha ao lado' },
   { id: 'pix', label: 'Pix', icon: <QrCode strokeWidth={2} className="size-[5cqw]" />, hint: 'QR code aqui na tela' },
-  { id: 'cash', label: 'Dinheiro', icon: <Banknote strokeWidth={2} className="size-[5cqw]" />, hint: 'pague no caixa' },
 ]
 
 const SAYS: Record<PaymentStatus, string> = {
@@ -30,7 +34,7 @@ export function PaymentScreen() {
   const lines = useCart((s) => s.lines)
   const clearCart = useCart((s) => s.clear)
   const { mode, customer, goTo, completeOrder } = useTotemSession()
-  const [method, setMethod] = useState<PaymentMethod>('card')
+  const [method, setMethod] = useState<PaymentMethod>('credit')
   const [status, setStatus] = useState<PaymentStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const [terminal] = useState(paymentTerminal)
@@ -78,7 +82,7 @@ export function PaymentScreen() {
         mode: mode ?? 'dine_in',
         customer,
         payment: result,
-        method: totalCents === 0 ? 'credit' : method,
+        method,
         totals,
       })
       clearCart()
@@ -206,6 +210,16 @@ export function PaymentScreen() {
           {/* One method per row, not a grid of squares: the label and the
               instruction ("na maquininha ao lado") sit side by side, and the
               chosen one is unmistakable rather than one dark tile among three. */}
+          {/* O painel não tem gaveta. Oferecer um botão que ele não consegue
+              honrar é o cliente parado com a cédula na mão e ninguém a quem
+              entregá-la; dizer para onde ir custa uma linha. */}
+          <p
+            data-testid="payment-no-cash"
+            className="mb-[3cqw] text-muted"
+            style={{ fontSize: 'var(--step-label)' }}
+          >
+            Em dinheiro, faça o pedido no caixa.
+          </p>
           <div className="flex flex-col gap-[2cqw]">
             {METHODS.map((option) => {
               const chosen = method === option.id

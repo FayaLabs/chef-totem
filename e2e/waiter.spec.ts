@@ -271,7 +271,7 @@ test.describe('V3 · quem chama, é atendido', () => {
 
     // Os três meios ficam inteiros e alcançáveis, com a faixa em cena.
     const dock = (await page.getByTestId('waiter-dock').boundingBox())!
-    for (const id of ['pay-card', 'pay-pix', 'pay-cash']) {
+    for (const id of ['pay-credit', 'pay-debit', 'pay-pix']) {
       const option = (await page.getByTestId(id).boundingBox())!
       expect(option.y + option.height, `${id} fica debaixo da faixa do garçom`).toBeLessThanOrEqual(
         dock.y + 1,

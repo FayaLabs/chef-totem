@@ -33,8 +33,9 @@ export function createMockTerminal(): PaymentTerminalDriver {
         onStatus(next)
       }
 
-      set(request.method === 'card' ? 'awaiting_card' : 'processing')
-      await wait(request.method === 'card' ? 1200 : 600)
+      const card = request.method !== 'pix'
+      set(card ? 'awaiting_card' : 'processing')
+      await wait(card ? 1200 : 600)
       if (cancelled) return { status: 'cancelled', message: 'Pagamento cancelado.' }
 
       set('processing')
@@ -50,7 +51,7 @@ export function createMockTerminal(): PaymentTerminalDriver {
       return {
         status: 'approved',
         authCode: `MOCK${String(request.amountCents).padStart(6, '0')}`,
-        brand: request.method === 'card' ? 'MOCK' : undefined,
+        brand: card ? 'MOCK' : undefined,
         nsu: request.orderRef.slice(-8),
         installments: 1,
         pixPayload: request.method === 'pix' ? `00020126MOCK-${request.orderRef}` : undefined,

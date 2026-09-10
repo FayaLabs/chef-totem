@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { totemConfig } from '@/config/totem.config'
 
 // ---------------------------------------------------------------------------
 // The totem's own login.
@@ -38,30 +39,30 @@ function env(key: string): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined
 }
 
+/** Tudo que o painel `live` precisa, ou o nome do que está faltando. */
+export function missingConfig(): string[] {
+  const need: [string, string | undefined][] = [
+    ['VITE_SUPABASE_URL', env('VITE_SUPABASE_URL')],
+    ['VITE_SUPABASE_PUBLISHABLE_KEY', env('VITE_SUPABASE_PUBLISHABLE_KEY')],
+    ['VITE_TENANT_ID', totemConfig.tenantId || undefined],
+    ['VITE_TOTEM_DEVICE_EMAIL', env('VITE_TOTEM_DEVICE_EMAIL')],
+    ['VITE_TOTEM_DEVICE_PASSWORD', env('VITE_TOTEM_DEVICE_PASSWORD')],
+  ]
+  return need.filter(([, value]) => !value).map(([name]) => name)
+}
+
 export function isDeviceConfigured(): boolean {
-  return Boolean(
-    env('VITE_SUPABASE_URL') &&
-      env('VITE_SUPABASE_PUBLISHABLE_KEY') &&
-      env('VITE_TOTEM_DEVICE_EMAIL') &&
-      env('VITE_TOTEM_DEVICE_PASSWORD'),
-  )
+  return missingConfig().length === 0
 }
 
 /** The signed-in client, or a thrown error that says exactly what is missing. */
 export async function deviceClient(): Promise<SupabaseClient> {
-  const url = env('VITE_SUPABASE_URL')
-  const key = env('VITE_SUPABASE_PUBLISHABLE_KEY')
-  const email = env('VITE_TOTEM_DEVICE_EMAIL')
-  const password = env('VITE_TOTEM_DEVICE_PASSWORD')
-
-  if (!url || !key) throw new DeviceSessionError('Totem sem VITE_SUPABASE_URL/PUBLISHABLE_KEY.')
-  if (!email || !password) {
-    throw new DeviceSessionError(
-      'Totem sem credencial de aparelho (VITE_TOTEM_DEVICE_EMAIL/PASSWORD).',
-    )
+  const missing = missingConfig()
+  if (missing.length > 0) {
+    throw new DeviceSessionError(`Totem sem configuração: ${missing.join(', ')}.`)
   }
 
-  client ??= createClient(url, key, {
+  client ??= createClient(env('VITE_SUPABASE_URL')!, env('VITE_SUPABASE_PUBLISHABLE_KEY')!, {
     auth: {
       // The panel is one long session on one machine. Persisting it means a
       // power cut does not need a human to type a password before the store
@@ -70,13 +71,37 @@ export async function deviceClient(): Promise<SupabaseClient> {
       autoRefreshToken: true,
       storageKey: 'chef-totem-device',
     },
+    global: {
+      // O usuário do aparelho pode em princípio pertencer a mais de uma conta, e
+      // `app.current_tenant_id()` responde NULL em vez de adivinhar. Dizer qual
+      // é a diferença entre toda tela funcionar e toda tela vir vazia sem erro.
+      //
+      // Estes cabeçalhos NÃO podem chegar a uma edge function: as ~17 que ainda
+      // carregam lista fixa de CORS recusam o preflight de qualquer cabeçalho
+      // que não nomeiem. `totem-voice-token` escapa disso porque é chamada com
+      // `fetch` direto (ver waiter/realtime-transport.ts), montando os próprios
+      // cabeçalhos — quem passar a usar `functions.invoke` precisa de um cliente
+      // sem estes.
+      headers: {
+        'x-fayz-tenant': totemConfig.tenantId,
+        ...(totemConfig.unitId ? { 'x-fayz-unit': totemConfig.unitId } : {}),
+      },
+    },
   })
 
   signedIn ??= (async () => {
     const { data } = await client!.auth.getSession()
     if (data.session) return
-    const { error } = await client!.auth.signInWithPassword({ email, password })
-    if (error) throw new DeviceSessionError(`Login do aparelho recusado: ${error.message}`)
+    const { error } = await client!.auth.signInWithPassword({
+      email: env('VITE_TOTEM_DEVICE_EMAIL')!,
+      password: env('VITE_TOTEM_DEVICE_PASSWORD')!,
+    })
+    if (error) {
+      // Sem isto uma senha errada envenena a promessa e o painel nunca mais
+      // tenta entrar, nem depois de alguém corrigir o .env e recarregar.
+      signedIn = null
+      throw new DeviceSessionError(`Login do aparelho recusado: ${error.message}`)
+    }
   })()
 
   await signedIn

@@ -42,6 +42,7 @@ function browserPrinter(): ReceiptPrinter {
       <p>${mode === 'takeaway' ? 'PARA LEVAR' : 'COMER AQUI'}</p>
       <p>${order.referenceNumber}</p>
       <p>Total: ${(order.totalCents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+      ${order.paid ? '' : '<p><b>PENDENTE — PASSE NO CAIXA</b></p>'}
       <p>Obrigado!</p>`)
       doc.close()
       frame.contentWindow?.print()

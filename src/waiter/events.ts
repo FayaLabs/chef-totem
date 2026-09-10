@@ -24,7 +24,7 @@ export type WaiterEvent =
   | { type: 'identification_open' }
   | { type: 'menu_open' }
   | { type: 'payment_open' }
-  | { type: 'payment_method_chosen'; method: 'card' | 'pix' | 'cash' }
+  | { type: 'payment_method_chosen'; method: 'credit' | 'debit' | 'pix' }
   | { type: 'payment_awaiting_card' }
   | { type: 'payment_processing' }
   | { type: 'payment_declined'; reason: string }
@@ -45,13 +45,13 @@ export function describeEvent(event: WaiterEvent): string {
     case 'menu_open':
       return 'O cardápio está na tela. Você JÁ cumprimentou — não cumprimente de novo. Uma frase perguntando o que ele vai querer, ou oferecendo o carro-chefe.'
     case 'payment_open':
-      return 'O cliente chegou na tela de pagamento e vê cartão, Pix e dinheiro. UMA frase pedindo para ele escolher como quer pagar. Não ofereça nada, não sugira sobremesa, não puxe assunto: daqui em diante você só acompanha.'
+      return 'O cliente chegou na tela de pagamento e vê crédito, débito e Pix. Se ele falar em dinheiro, diga que aqui é só cartão ou Pix e que em dinheiro o pedido é feito no caixa. UMA frase pedindo para ele escolher como quer pagar. Não ofereça nada, não sugira sobremesa, não puxe assunto: daqui em diante você só acompanha.'
     case 'payment_method_chosen':
-      return event.method === 'card'
-        ? 'O cliente escolheu CARTÃO. Diga em uma frase que ele pode aproximar, inserir ou passar na maquininha ao lado do painel.'
-        : event.method === 'pix'
-          ? 'O cliente escolheu PIX. Diga em uma frase que o QR code aparece na tela depois que ele tocar em pagar.'
-          : 'O cliente escolheu DINHEIRO. Diga em uma frase que o pagamento é no caixa e que a senha sai aqui do mesmo jeito.'
+      return event.method === 'pix'
+        ? 'O cliente escolheu PIX. Diga em uma frase que o QR code aparece na tela depois que ele tocar em pagar.'
+        : event.method === 'debit'
+          ? 'O cliente escolheu DÉBITO. Diga em uma frase que ele pode aproximar, inserir ou passar na maquininha ao lado do painel.'
+          : 'O cliente escolheu CRÉDITO. Diga em uma frase que ele pode aproximar, inserir ou passar na maquininha ao lado do painel.'
     case 'payment_awaiting_card':
       return 'A maquininha está esperando o cartão AGORA. Uma frase curta pedindo para aproximar ou inserir.'
     case 'payment_processing':

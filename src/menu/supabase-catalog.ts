@@ -8,9 +8,9 @@ import type { CatalogProvider, TotemCatalog, TotemModifierGroup } from '@/menu/t
 // Read-only by construction: this file has no insert, update or delete. The
 // totem never edits the menu — if a dish is wrong, it is wrong in ChefControl.
 //
-// The shape here is the restaurant pool's, which is older than plugin-menu's
-// menus/sections model: an item is a `products` row and the restaurant-specific
-// bits (sold out, featured, prep time) live in `menu_items` keyed by product.
+// An item is a `products` row and the restaurant-specific bits (sold out,
+// featured, prep time) live in `plg_menu_items`, keyed by product — the same
+// tables the PDV and the kitchen read, under the plugin's own `plg_` names.
 //
 // Categories are read regardless of `kind`, and then filtered to the ones that
 // actually have something sellable in them. Keying on kind = 'menu_category'
@@ -42,22 +42,22 @@ export function createSupabaseCatalog(): CatalogProvider {
           .eq('is_active', true)
           .order('name'),
         supabase
-          .from('menu_items')
+          .from('plg_menu_items')
           .select('product_id,status,is_featured,sort_order,available_for_pos')
           .eq('tenant_id', tenantId),
         supabase
-          .from('menu_modifier_groups')
+          .from('plg_menu_modifier_groups')
           .select('id,name,is_required,min_selections,max_selections,sort_order')
           .eq('tenant_id', tenantId)
           .order('sort_order'),
         supabase
-          .from('menu_modifiers')
+          .from('plg_menu_modifiers')
           .select('id,group_id,name,price_adjustment,sort_order')
           .eq('tenant_id', tenantId)
           .eq('is_active', true)
           .order('sort_order'),
         supabase
-          .from('menu_item_modifier_groups')
+          .from('plg_menu_item_modifier_groups')
           .select('product_id,group_id,sort_order')
           .eq('tenant_id', tenantId)
           .order('sort_order'),
