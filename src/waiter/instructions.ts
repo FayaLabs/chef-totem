@@ -2,6 +2,7 @@ import { totemConfig } from '@/config/totem.config'
 import { activeWaiterPersona } from '@/waiter/persona'
 import type { TotemCatalog } from '@/menu/types'
 import type { WaiterSnapshot } from '@/waiter/snapshot'
+import { brandName } from '@/config/tenant-brand'
 
 // ---------------------------------------------------------------------------
 // Who the waiter is.
@@ -13,7 +14,7 @@ import type { WaiterSnapshot } from '@/waiter/snapshot'
 
 export function waiterInstructions(catalog: TotemCatalog): string {
   const persona = activeWaiterPersona()
-  return `Você é ${persona.name}, do ${totemConfig.brand.name}, atendendo num totem de autoatendimento.
+  return `Você é ${persona.name}, do ${brandName()}, atendendo num totem de autoatendimento.
 
 QUEM VOCÊ É
 ${persona.voice}

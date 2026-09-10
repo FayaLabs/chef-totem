@@ -1,0 +1,49 @@
+# Packaging for the panel.
+#
+# The app is the web build plus the shell — nothing is compiled here that the
+# browser build does not already contain. `dist/` is produced by `vite build`
+# before this runs.
+appId: ai.fayz.cheftotem
+productName: Chef Totem
+copyright: Faya Labs
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - electron/**/*
+  - dist/**/*
+  - package.json
+
+# The PowerShell the shell shells out to. They must sit NEXT TO the app rather
+# than inside the asar: PowerShell cannot read a file out of an archive, and
+# `-File` on an asar path fails with a file-not-found the operator reads as
+# "the printer is broken".
+extraResources:
+  - from: electron/print-raw.ps1
+    to: print-raw.ps1
+  - from: electron/lockdown.ps1
+    to: lockdown.ps1
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  # Unsigned for now. Windows SmartScreen will warn on first run; a technician
+  # clicks through once per panel. Signing is a certificate purchase, not a
+  # config change, and it belongs in the same decision as auto-update.
+  signAndEditExecutable: false
+
+nsis:
+  oneClick: false
+  perMachine: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Chef Totem
+  # The panel must come back by itself after a power cut, which in a restaurant
+  # happens more often than anyone plans for.
+  include: build/installer.nsh
+
+asar: true

@@ -5,6 +5,7 @@ import { prefetchCatalog } from '@/menu/useCatalog'
 import { useTotemSession } from '@/session/useTotemSession'
 import { useWaiter } from '@/waiter/useWaiter'
 import { VoiceOrb } from '@/waiter/VoiceOrb'
+import { useTenantBrand } from '@/config/tenant-brand'
 
 // ---------------------------------------------------------------------------
 // The resting state, and the only screen most passers-by ever see.
@@ -35,6 +36,9 @@ export function AttractScreen() {
   // Uma logo que não carrega tem de cair no NOME, não num buraco. Mesma regra
   // da foto do prato caindo no ícone de talheres: rede de segurança, não plano.
   const [logoBroken, setLogoBroken] = useState(false)
+  // O nome vem do tenant, não de `brand.name` — este só tem resposta real no
+  // modo demo, e um painel live caía num 'Chef' fixo.
+  const name = useTenantBrand()
 
   // Sign the device in and pull the menu while nobody is waiting. By the time
   // the customer has chosen dine-in and skipped identification, it is there.
@@ -66,7 +70,7 @@ export function AttractScreen() {
       {theme?.logoUrl && !logoBroken ? (
         <img
           src={theme.logoUrl}
-          alt={brand.name}
+          alt={name}
           data-testid="brand-logo"
           onError={() => setLogoBroken(true)}
           className="relative z-10 block"
@@ -80,7 +84,7 @@ export function AttractScreen() {
           className="relative z-10 type-display leading-[0.85] tracking-tight"
           style={{ fontSize: 'var(--step-hero)' }}
         >
-          {brand.name}
+          {name}
         </span>
       )}
       <span

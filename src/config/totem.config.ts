@@ -10,7 +10,14 @@ export interface TotemFlags {
   camera: boolean
   /** Card machine driver (M5). Off = the mock driver approves. */
   terminal: boolean
-  /** Receipt printer (M6). Off = browser print dialog. */
+  /**
+   * Thermal printer. On, the panel renders ESC/POS and hands the bytes to the
+   * shell; off, it falls back to the browser's print dialog.
+   *
+   * Default ON, because the shell only ever runs on a panel that HAS a printer
+   * bolted to it — `VITE_TOTEM_PRINTER=off` is the kill switch for the day one
+   * jams mid-service and the queue has to keep moving.
+   */
   printer: boolean
 }
 
@@ -95,6 +102,6 @@ export const totemConfig: TotemConfig = {
     assistant: env.VITE_TOTEM_ASSISTANT === 'on',
     camera: false,
     terminal: false,
-    printer: false,
+    printer: env.VITE_TOTEM_PRINTER !== 'off',
   },
 }

@@ -20,3 +20,6 @@ playwright-report
 
 # local dev TLS
 certs/
+.vercel
+.env.local
+release/
