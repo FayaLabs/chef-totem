@@ -12,5 +12,11 @@ playwright-report
 /.claude/
 /.playwright-mcp/
 
+# Screenshots que os testes escrevem. Elas sao PROVA de uma execucao, nao
+# documentacao: nascem de novo a cada rodada, pesam megabytes, e um diff de
+# imagem binaria e ilegivel em revisao. O lugar de olhar para elas e o disco de
+# quem rodou o teste — junto de .evidence e test-results, que ja estao aqui.
+/docs/previews/
+
 # local dev TLS
 certs/
