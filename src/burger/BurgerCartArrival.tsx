@@ -19,10 +19,11 @@ export function BurgerCartArrival() {
   const [arrival, setArrival] = useState<Arrival | null>(null)
   const reduced = useReducedMotion()
   useEffect(() => {
-    const receive = (event: Event) => setArrival((event as CustomEvent<Arrival>).detail)
+    if (reduced) setArrival(null)
+    const receive = (event: Event) => { if (!reduced) setArrival((event as CustomEvent<Arrival>).detail) }
     window.addEventListener(EVENT, receive)
     return () => window.removeEventListener(EVENT, receive)
-  }, [])
+  }, [reduced])
   return arrival && !reduced ? createPortal(<ArrivalVisual key={arrival.seq} arrival={arrival}
     onComplete={() => setArrival((current) => current?.seq === arrival.seq ? null : current)} />, document.body) : null
 }

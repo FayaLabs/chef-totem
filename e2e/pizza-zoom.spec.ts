@@ -132,6 +132,7 @@ test('os cinco sabores usam a mesma imagem inteira no menu e na montagem', async
     await image.scrollIntoViewIfNeeded()
     await expect(image).toHaveAttribute('src', source)
     await expect(image).toHaveCSS('object-fit', 'contain')
+    await expect(image.locator('..')).toHaveCSS('background-color', 'rgb(41, 40, 39)')
     await expect.poll(() => image.evaluate((e) => (e as HTMLImageElement).complete && (e as HTMLImageElement).naturalWidth > 0)).toBe(true)
     await page.getByTestId(`product-${id}`).tap()
     await expect(page.getByTestId('pizza-stage').locator('.pizza-flavor img')).toHaveAttribute('src', source)

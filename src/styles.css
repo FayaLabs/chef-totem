@@ -172,7 +172,7 @@
   }
 
   /* A página. Substitui `bg-page` na raiz de cada tela.
- 
+
      Parece redundante com a utilitária do Tailwind e não é: `bg-page` compila
      para um `color-mix()`, que o navegador devolve como `color(srgb ...)`. O
      teste de contraste do e2e lia isso com uma regex de `\d+`, tirava de lá

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import dimensions from '../../public/demo/maxburger/burger/assets.json'
-import { BURGER_ASSETS, burgerPoses, type BurgerLayer } from './pilot'
+import { BURGER_ASSETS, burgerPoses, burgerShadowPose, type BurgerLayer } from './pilot'
 import './burger.css'
 
 export { dimensions as burgerDimensions }
@@ -32,6 +32,18 @@ function still(layers: BurgerLayer[], key: string) {
     const ctx = canvas.getContext('2d')
     if (!ctx) throw new Error('Canvas unavailable')
     const poses = burgerPoses(layers, dimensions, false)
+    const shadow = burgerShadowPose(layers, poses, dimensions, false)
+    if (shadow) {
+      ctx.save()
+      ctx.translate((shadow.left + shadow.width / 2) * 6.4, (shadow.top + shadow.height / 2) * 6.4)
+      ctx.scale(shadow.width * 3.2, shadow.height * 3.2)
+      const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 1)
+      gradient.addColorStop(0, '#0009'); gradient.addColorStop(.24, '#0007')
+      gradient.addColorStop(.5, '#0003'); gradient.addColorStop(.72, '#0000')
+      ctx.fillStyle = gradient
+      ctx.fillRect(-1, -1, 2, 2)
+      ctx.restore()
+    }
     loaded.forEach((img, i) => {
       const pose = poses[i], w = pose.width * 6.4, h = w * img.naturalHeight / img.naturalWidth
       ctx.drawImage(img, pose.centerX * 6.4 - w / 2, pose.centerY * 6.4 - h / 2, w, h)

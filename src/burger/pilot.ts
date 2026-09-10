@@ -13,6 +13,18 @@ export interface BurgerLayer {
 export interface BurgerLayerPose { id: string; width: number; centerX: number; centerY: number; group: number }
 export const BURGER_ASSETS = '/demo/maxburger/burger'
 
+/** Shared contact plane for the live scene and its cached static photograph. */
+export function burgerShadowPose(layers: BurgerLayer[], poses: BurgerLayerPose[], dimensions: Record<string, { width: number; height: number }>, open: boolean) {
+  if (!layers.length) return null
+  const edges = poses.map((pose, i) => {
+    const size = dimensions[layers[i].asset]
+    return pose.centerY + pose.width * (size ? size.height / size.width : .55) / 2
+  })
+  const index = edges.indexOf(Math.max(...edges))
+  const base = poses[index], width = base.width * 1.12
+  return { left: base.centerX - width / 2, top: edges[index] - 3, width, height: open ? 8 : 6, opacity: open ? .7 : 1 }
+}
+
 export function pilotBurger({ bacon = true, onion = true, cheese = true, double = false }: {
   bacon?: boolean; onion?: boolean; cheese?: boolean; double?: boolean
 } = {}): BurgerLayer[] {

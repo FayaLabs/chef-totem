@@ -1,8 +1,21 @@
 import { expect, test } from 'vitest'
-import { burgerPoses, pilotBurger } from '@/burger/pilot'
+import { burgerPoses, burgerShadowPose, pilotBurger } from '@/burger/pilot'
 
 const dimensions = { 'brioche-top': { width: 1000, height: 630 }, 'brioche-bottom': { width: 1000, height: 620 },
   blend: { width: 1000, height: 670 }, cheddar: { width: 1000, height: 510 }, bacon: { width: 1000, height: 570 }, 'onion-crispy': { width: 1000, height: 480 } }
+
+test('sombra acompanha a base visível e suaviza ao abrir; cena vazia não tem sombra', () => {
+  expect(burgerShadowPose([], [], dimensions, false)).toBeNull()
+  for (const double of [false, true]) for (const open of [false, true]) {
+    const layers = pilotBurger({ double }), poses = burgerPoses(layers, dimensions, open)
+    const shadow = burgerShadowPose(layers, poses, dimensions, open)!
+    const lowerEdge = Math.max(...poses.map((p, i) => p.centerY + p.width * dimensions[layers[i].asset].height / dimensions[layers[i].asset].width / 2))
+    expect(shadow.top + 3).toBeCloseTo(lowerEdge)
+    expect(shadow.left + shadow.width / 2).toBeCloseTo(50)
+    expect(shadow.top + shadow.height).toBeLessThanOrEqual(100)
+    expect(shadow.opacity).toBe(open ? .7 : 1)
+  }
+})
 
 test('cheddar permanece preso à mesma carne nos dois estados', () => {
   for (const double of [false, true]) for (const open of [false, true]) {

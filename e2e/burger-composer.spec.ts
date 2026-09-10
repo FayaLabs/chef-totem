@@ -14,7 +14,7 @@ async function ready(page: Page) {
   await expect(page.getByTestId('sheet-total')).toHaveText(/39,00/)
 }
 async function drag(page: Page, id: string, restore = false) {
-  await page.getByTestId('burger-layers-toggle').scrollIntoViewIfNeeded()
+  await page.getByTestId('burger-layers-toggle').tap()
   await page.waitForTimeout(750)
   const element = page.getByTestId(`${restore ? 'burger-restore' : 'burger-hit'}-${id}`)
   const box = (await element.boundingBox())!, scene = (await page.getByTestId('burger-drop-zone').boundingBox())!
@@ -85,7 +85,7 @@ test('Foto e Montagem preservam pão, ponto e preço; os dois lados do pão muda
   await page.getByTestId('burger-layers-toggle').scrollIntoViewIfNeeded()
   await page.waitForTimeout(800)
   await page.screenshot({ path: info.outputPath('australian-open.png') })
-  await page.getByTestId('burger-stack-toggle').tap()
+  await page.getByTestId('burger-photo-toggle').tap()
   await page.waitForTimeout(800)
   await page.screenshot({ path: info.outputPath('australian-closed.png') })
   expect(errors).toEqual([])

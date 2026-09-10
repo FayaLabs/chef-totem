@@ -86,7 +86,7 @@ export function BurgerProductSheet({ product, onClose }: { product: TotemProduct
     header={<div className="burger-preview" data-testid="burger-preview" ref={preview}
       onPointerDownCapture={pause} onPointerUpCapture={resume} onPointerCancelCapture={resume}>
       <div className="burger-preview-content">
-        <div className="burger-live-stage" data-hidden={view === 'photo' || failed} aria-hidden={view === 'photo' || failed}>
+        <div className="burger-live-stage" data-hidden={view === 'photo' || failed}>
           <BurgerInteractiveStage layers={layers} dimensions={burgerDimensions} open={open} removed={NONE}
             restorableLayers={restorable} onRemove={remove} onRestore={restore}
             canRemove={(id) => Boolean(findRemoval(id) || findExtra(id))}

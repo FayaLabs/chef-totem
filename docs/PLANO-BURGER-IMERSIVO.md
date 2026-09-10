@@ -1,6 +1,8 @@
 # Montador de burger em camadas
 
-Status em 10/09/2026: pacote de 21 recortes integrado ao tenant **de demonstração** MaxBurger, em `/?tenant=maxburger`. Inclui três pães, cinco receitas (veggie ainda esgotado), extras, retiradas, entrada uma vez por visita, edição no carrinho e toggle “Foto / Montagem 3D”. A opção chamada 3D é a composição 2,5D de recortes flutuantes do showcase; a geometria removida anteriormente não foi recriada. Essa interpretação foi explicitada ao iniciar a integração. Assets gerados pelo gerador nativo da OpenAI, não pelo Higgsfield, com alfa real.
+Status em 10/09/2026: pacote de 21 recortes integrado ao tenant **de demonstração** MaxBurger, em `/?tenant=maxburger`. Inclui três pães, cinco receitas (veggie ainda esgotado), extras, retiradas, entrada uma vez por visita, edição no carrinho e ícones de burger montado / camadas. É uma composição 2,5D de recortes flutuantes; a geometria removida anteriormente não foi recriada. Essa interpretação foi explicitada ao iniciar a integração. Assets gerados pelo gerador nativo da OpenAI, não pelo Higgsfield, com alfa real.
+
+Prévia fixa centralizada, ícones discretos absolutos à direita e sombra de contato compartilhada com a imagem estática. Escolher receita, pão ou ingrediente abre as camadas por 2,6 segundos, renova o intervalo nas escolhas seguintes e fecha em 650 ms; segurar um gesto pausa o fechamento. Adicionar fecha visualmente e leva o burger ao carrinho, sem condicionar a gravação à animação e respeitando movimento reduzido.
 
 Interação: tocar numa camada expandida a seleciona; arrastar para fora retira ingredientes opcionais e extras. A bandeja “Fora do burger” permite recolocar por arrasto ou toque. No fluxo de compra, retirada de ingrediente incluído registra “Sem…” e retirada de extra desfaz a cobrança; pão/proteína levam às opções de troca, sem criar um produto sem pão/carne e sem preço. No showcase visual, todas as partes continuam removíveis e a carne leva o queijo consigo. Há controles equivalentes por botão, teclado, cancelamento e movimento reduzido.
 
@@ -8,7 +10,7 @@ Interação: tocar numa camada expandida a seleciona; arrastar para fora retira 
 
 O cheddar já é gerado com as bordas caídas e permanece apoiado na carne nos dois estados. Ambos compartilham posição relativa e grupo de flutuação; pão, bacon e cebola se afastam separadamente. Não simular uma fatia rígida que magicamente derrete ao fechar. A camada de queijo continua removível/editável, mas não se desprende sozinha da carne.
 
-Prévias e evidências em `docs/previews/` e nos resultados dos testes de navegador. Assets e prompts completos em `public/demo/maxburger/burger/README.md` e `prompts.json`. Validação automatizada cobre resolvedor, preços, edição, estoque, gestos e alternância; não substitui painel físico. O plano abaixo registra também evoluções: pinça/zoom do burger, paralaxe e envio animado ao carrinho ainda não foram implementados. O carrinho recebe imediatamente uma miniatura estática fiel às escolhas, pelo contrato existente.
+Prévias e evidências em `docs/previews/` e nos resultados dos testes de navegador. Assets e prompts completos em `public/demo/maxburger/burger/README.md` e `prompts.json`. Validação automatizada cobre resolvedor, preços, edição, estoque, gestos e alternância; não substitui painel físico. O plano abaixo registra também evoluções: pinça/zoom do burger e paralaxe ainda não foram implementados. O carrinho recebe imediatamente uma miniatura estática fiel às escolhas, pelo contrato existente.
 
 ## Direção
 

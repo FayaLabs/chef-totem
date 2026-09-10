@@ -54,12 +54,12 @@ export function AttractScreen() {
       <MediaBackdrop videoSrc={media.videoUrl} posterSrc={media.posterUrl} scrim={55} />
 
       {/* A marca aparece UMA vez.
- 
+
           Com a logo no ar, o nome tipografado sai — não fica ao lado dela. Os
           dois juntos são a mesma marca dita duas vezes, e a segunda vez sempre
           contradiz a primeira: a logo já decidiu peso, caixa e espacejamento, e
           o `type-display` decide tudo isso de novo com outros valores.
- 
+
           O `alt` é o nome da casa de propósito: uma logo que não carrega tem de
           continuar dizendo onde a pessoa está, e um leitor de tela nunca soube
           ler um desenho. */}

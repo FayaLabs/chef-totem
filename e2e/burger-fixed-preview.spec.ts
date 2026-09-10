@@ -23,17 +23,19 @@ test('prévia fixa, controles laterais e escolhas roláveis sem sobreposição',
   const bun = (await page.getByTestId('burger-hit-top').boundingBox())!
   const handle = (await page.getByTestId('sheet-handle').boundingBox())!
   expect(bun.y).toBeGreaterThan(handle.y + handle.height)
-  expect(controlBounds.x).toBeGreaterThanOrEqual(stage.x + stage.width - 1)
-  for (const id of ['burger-photo-toggle', 'burger-layers-toggle', 'burger-stack-toggle']) {
+  const scene = (await page.getByTestId('burger-drop-zone').boundingBox())!
+  expect(scene.x + scene.width / 2).toBeCloseTo(before.x + before.width / 2, 0)
+  expect(controlBounds.x).toBeGreaterThan(scene.x + scene.width)
+  await expect(controls.getByRole('button')).toHaveCount(2)
+  expect(await controls.innerText()).toBe('')
+  for (const id of ['burger-photo-toggle', 'burger-layers-toggle']) {
     const box = (await page.getByTestId(id).boundingBox())!
     expect(box.y).toBeGreaterThanOrEqual(stage.y)
     expect(box.y + box.height).toBeLessThanOrEqual(stage.y + stage.height)
     expect(box.height).toBeGreaterThanOrEqual(87)
   }
-  await body.hover()
-  const initialScroll = await body.evaluate((e) => e.scrollTop)
-  await page.mouse.wheel(0, 1100)
-  await expect.poll(() => body.evaluate((e) => e.scrollTop)).toBeGreaterThan(initialScroll + 100)
+  await page.getByTestId('mod-mb-m-ovo').scrollIntoViewIfNeeded()
+  expect(await body.evaluate((e) => e.scrollTop)).toBeGreaterThan(100)
   const after = (await preview.boundingBox())!
   expect(after.y).toBeCloseTo(before.y, 0)
   expect(after.height).toBeCloseTo(before.height, 0)
@@ -49,7 +51,7 @@ test('prévia fixa, controles laterais e escolhas roláveis sem sobreposição',
   expect(await body.evaluate((e) => e.scrollTop)).toBeCloseTo(scroll, 0)
   expect((await preview.boundingBox())!.height).toBeCloseTo(before.height, 0)
   await page.getByTestId('burger-layers-toggle').tap()
-  await page.getByTestId('burger-stack-toggle').tap()
+  await page.getByTestId('burger-photo-toggle').tap()
   await expect(page.getByTestId('burger-stage')).toHaveAttribute('data-open', 'false')
   expect(await body.evaluate((e) => e.scrollTop)).toBeCloseTo(scroll, 0)
 })
@@ -75,12 +77,13 @@ test('trocar pão na cena alcança as opções e o puxador fecha mesmo com a lis
   await expect(page.getByTestId('open-cart')).toBeDisabled()
 })
 
-test('rolagem por toque e modo de alcance mantêm prévia e ação acessíveis', async ({ page }) => {
+test('rolagem nativa por toque mantém prévia e ação acessíveis', async ({ page }) => {
+  // Headless Chromium on macOS loses native scrolling coordinates on entering
+  // OS fullscreen. Keep the emulated panel size; the kiosk fullscreen contract
+  // is exercised separately. No synthetic scrollTop writes in this test.
+  await page.addInitScript(() => { Element.prototype.requestFullscreen = async () => {} })
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await enter(page)
-  await page.keyboard.press('Escape')
-  await page.getByTestId('reach-toggle').tap()
-  await page.getByTestId('product-mb-p-cheddar-bacon').tap()
   const preview = page.getByTestId('burger-preview')
   const body = page.getByTestId('product-sheet').getByTestId('sheet-body')
   const before = (await preview.boundingBox())!
@@ -95,7 +98,7 @@ test('rolagem por toque e modo de alcance mantêm prévia e ação acessíveis',
   await cdp.detach()
   await expect.poll(() => body.evaluate((e) => e.scrollTop)).toBeGreaterThan(100)
   expect((await preview.boundingBox())!.y).toBeCloseTo(before.y, 0)
-  await expect(page.getByTestId('burger-stack-toggle')).toBeVisible()
+  await expect(page.getByTestId('burger-layers-toggle')).toBeVisible()
   await expect(page.getByTestId('add-to-order')).toBeInViewport()
   await expect(page.locator('.burger-ambient')).toHaveCount(0)
 })

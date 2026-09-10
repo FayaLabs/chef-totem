@@ -1,6 +1,7 @@
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import type { PointerEvent } from 'react'
 import { BURGER_ASSETS, burgerPoses, type BurgerLayer } from './pilot'
+import { BurgerShadow } from './BurgerShadow'
 import './burger.css'
 
 export function BurgerVisual({ layers, dimensions, open = false, ambient = false, selectedId, hiddenId, onSelect, onLayerPointerDown, onImageError }: {
@@ -13,7 +14,7 @@ export function BurgerVisual({ layers, dimensions, open = false, ambient = false
   const poses = burgerPoses(layers, dimensions, open)
   return <div className={`burger-visual ${ambient && !reduced ? 'burger-ambient' : ''}`} role={onSelect && open ? 'group' : 'img'}
     aria-label={`Burger ${open ? 'em camadas' : 'montado'}: ${[...new Set(layers.map((l) => l.label))].join(', ')}`} data-testid="burger-visual">
-    <div className="burger-contact-shadow" aria-hidden="true" />
+    <BurgerShadow layers={layers} poses={poses} dimensions={dimensions} open={open} />
     <AnimatePresence initial={false}>
       {layers.map((layer, index) => {
         const pose = poses[index]

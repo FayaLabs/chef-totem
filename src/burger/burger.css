@@ -20,7 +20,7 @@
 .burger-drag-ghost { position: fixed; top: 0; left: 0; z-index: 9999; pointer-events: none; filter: drop-shadow(0 12px 18px #0008); }
 .burger-drag-ghost.is-ready { filter: drop-shadow(0 0 12px #ffcc6380); }
 .burger-drag-ghost img { display: block; width: 100%; height: auto; }
-.burger-contact-shadow { position: absolute; width: 62%; height: 4%; left: 19%; top: 90%; border-radius: 50%; background: #0005; filter: blur(1.2cqw); }
+.burger-contact-shadow { position: absolute; pointer-events: none; border-radius: 50%; background: radial-gradient(ellipse, #0009 0%, #0007 24%, #0003 50%, #0000 72%); }
 .burger-ambient .burger-layer-float { animation: burger-breathe 5s ease-in-out infinite; }
 @keyframes burger-breathe { 0%, 100% { transform: translateY(-.25%); } 50% { transform: translateY(.25%); } }
 @media (prefers-reduced-motion: reduce) { .burger-layer-float { animation: none !important; } }
