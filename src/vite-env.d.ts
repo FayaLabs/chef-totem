@@ -14,6 +14,12 @@ interface ImportMetaEnv {
   readonly VITE_TOTEM_ASSISTANT?: string
   readonly VITE_TOTEM_WAITER?: 'scripted' | 'text' | 'voice'
   readonly VITE_TOTEM_TERMINAL_MOCK?: string
+  /**
+   * Dev only. Mint the realtime ephemeral secret from this URL instead of the
+   * `totem-voice-token` edge function, so voice can be tested without Supabase.
+   * Ignored in production builds — see mintToken in waiter/realtime-transport.
+   */
+  readonly VITE_TOTEM_VOICE_TOKEN_URL?: string
 }
 interface ImportMeta {
   readonly env: ImportMetaEnv
