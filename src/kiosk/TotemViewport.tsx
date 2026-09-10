@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { TOTEM_RELEASE } from '@/config/totem.config'
 import { REACH_INSET_RATIO, useReachMode } from '@/design/useReachMode'
 
 // ---------------------------------------------------------------------------
@@ -39,6 +40,23 @@ export function TotemViewport({ children }: { children: ReactNode }) {
         >
           {children}
         </div>
+
+        {/* Which build is on the glass, on every screen.
+            It sits on the STAGE rather than inside the content box on purpose:
+            content shifts down in reach mode, and a support label that moves
+            with it would land in the middle of the screen.
+            Top corner, because the bottom belongs to the waiter dock and the
+            action bars. `pointer-events-none` so it can never eat a tap.
+            The chip is what makes it legible on both an attract poster and a
+            near-white form — a fixed colour is invisible on one or the other. */}
+        <span
+          data-testid="totem-release"
+          aria-hidden="true"
+          className="pointer-events-none absolute right-[2cqw] top-[1.5cqw] z-50 select-none rounded-full bg-black/25 px-[1.5cqw] py-[0.5cqw] uppercase tracking-[0.2em] text-white/70"
+          style={{ fontSize: 'var(--step-label)' }}
+        >
+          {TOTEM_RELEASE}
+        </span>
       </div>
     </div>
   )
