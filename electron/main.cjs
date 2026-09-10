@@ -25,11 +25,16 @@ const { serveDist } = require('./serve-dist.cjs')
 
 /**
  * Where the panel points, in the order a real deployment resolves it:
- *   TOTEM_DIST  a built bundle on disk — what an installed panel runs
- *   TOTEM_URL   an explicit URL — a dev server, or a hosted build
- *   fallback    the local dev server
+ *
+ *   TOTEM_DIST   an explicit bundle on disk — a hand-staged panel
+ *   packaged     the app's OWN dist, inside the asar. Electron patches `fs`
+ *                to read through the archive, so the static server serves it
+ *                like any directory. This is what an installed panel runs,
+ *                and it must not need an env var to find itself.
+ *   TOTEM_URL    an explicit URL — a dev server, or a hosted build
+ *   fallback     the local dev server
  */
-const DIST = process.env.TOTEM_DIST
+const DIST = process.env.TOTEM_DIST ?? (app.isPackaged ? join(app.getAppPath(), 'dist') : undefined)
 const TARGET = process.env.TOTEM_URL ?? 'http://localhost:5310'
 /** Windows queue name. `Get-Printer` on the panel prints the exact string. */
 const PRINTER = process.env.TOTEM_PRINTER ?? 'POS80'
