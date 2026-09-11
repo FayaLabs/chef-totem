@@ -8,14 +8,18 @@
     "dev:published-sdk": "cross-env FAYZ_SDK_SOURCE=published vite --port 5310 --strictPort",
     "build": "tsc -p tsconfig.json && vite build",
     "preview": "vite preview --port 5311 --strictPort",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "./scripts/link-sdk.sh && tsc -p tsconfig.ci.json --noEmit",
     "e2e": "playwright test",
     "e2e:update": "playwright test --update-snapshots",
     "test": "vitest run",
     "test:watch": "vitest",
     "shell": "electron electron/main.cjs",
     "shell:dev": "cross-env TOTEM_URL=http://localhost:5310 electron electron/main.cjs",
-    "pack": "npm run build && electron-builder --win --publish never"
+    "pack": "npm run build && electron-builder --win --publish never",
+    "panel": "./scripts/deploy-panel.sh",
+    "panel:shell": "./scripts/deploy-panel.sh --shell",
+    "link-sdk": "./scripts/link-sdk.sh",
+    "typecheck:published": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@fayz-ai/core": "^0.21.0",

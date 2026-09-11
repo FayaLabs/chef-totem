@@ -16,24 +16,43 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # O SDK entra como FONTE, não como pacote do npm.
+      #
+      # Antes o CI resolvia `@fayz-ai/*` do registry, e com isso toda mudança no
+      # SDK exigia publicar antes de o totem poder usá-la — release virou
+      # pré-requisito para subir qualquer coisa no painel. O painel nunca
+      # precisou disso: o vite INLINA o SDK no bundle, e o totem não tem
+      # `@fayz-ai` nem no `node_modules` nem no JS que roda.
+      #
+      # Com o checkout ao lado, o CI compila exatamente o que eu compilo na
+      # máquina que faz o deploy, contra o commit do SDK que está em `main`.
+      - name: SDK (fonte)
+        uses: actions/checkout@v4
+        with:
+          repository: FayaLabs/fayz-sdk
+          ref: main
+          path: .sdk
+          token: ${{ secrets.SDK_READ_TOKEN || github.token }}
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
       - run: npm ci
 
+      # `FAYZ_SDK_DIR` é alias do bundler; o `tsc` não o enxerga. O `paths` do
+      # tsconfig.ci.json aponta o TypeScript para a mesma fonte.
+      # `.sdk` vem do checkout acima, não do link local.
       - name: Typecheck
-        run: npm run typecheck
+        run: npx tsc -p tsconfig.ci.json --noEmit
 
       # Runs BEFORE the E2E on purpose: one spec asserts the emitted service
       # worker and the fullscreen/portrait webmanifest by reading dist/.
-      #
-      # No sibling fayz-sdk checkout exists on a runner, so fayzVite resolves
-      # @fayz-ai/* from node_modules — CI always builds against the PUBLISHED
-      # SDK, which is what a store actually deploys.
       - name: Build
-        run: npm run build
+        run: npx vite build
         env:
+          FAYZ_SDK_DIR: ${{ github.workspace }}/.sdk
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_TENANT_ID: ${{ vars.VITE_TENANT_ID }}
@@ -43,6 +62,8 @@ jobs:
       # no network. Runs before the browser is even installed.
       - name: Unit (cérebro do garçom)
         run: npm test
+        env:
+          FAYZ_SDK_DIR: ${{ github.workspace }}/.sdk
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium

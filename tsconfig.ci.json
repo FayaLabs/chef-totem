@@ -1,0 +1,27 @@
+// O TypeScript lendo o SDK como FONTE, igual ao vite com FAYZ_SDK_DIR.
+// Sem isto o `tsc` resolve do node_modules e cobra uma release por mudança.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": [
+        "src/*"
+      ],
+      "@supabase/supabase-js": [
+        "./node_modules/@supabase/supabase-js"
+      ],
+      "@fayz-ai/core": [
+        "./.sdk/packages/core/src"
+      ],
+      "@fayz-ai/core/*": [
+        "./.sdk/packages/core/src/*"
+      ],
+      "@fayz-ai/sdk": [
+        "./.sdk/packages/sdk/src"
+      ],
+      "@fayz-ai/sdk/*": [
+        "./.sdk/packages/sdk/src/*"
+      ]
+    }
+  }
+}

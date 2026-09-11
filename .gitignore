@@ -23,3 +23,4 @@ certs/
 .vercel
 .env.local
 release/
+.sdk/
