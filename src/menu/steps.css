@@ -1,0 +1,58 @@
+/* O cabeçalho numerado de cada etapa. O número não é enfeite: é o que diz que
+   existe uma etapa 3 quando o cliente está na 2, e é a única coisa na tela que
+   promete um fim para a rolagem. */
+.step-heading {
+  display: flex;
+  align-items: center;
+  gap: 1.5cqw;
+  margin-bottom: 1.5cqw;
+  font-size: var(--step-body);
+  font-weight: 650;
+}
+
+.step-heading-index {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 3.6cqw;
+  height: 3.6cqw;
+  border-radius: 999px;
+  background: #E4E4E7;
+  color: #6B7280;
+  font-size: var(--step-label);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.step-heading-index[data-done] {
+  background: var(--color-action, #DC2626);
+  color: var(--color-on-action, #fff);
+}
+
+.step-heading-index svg {
+  width: 2cqw;
+  height: 2cqw;
+}
+
+.step-heading-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.step-heading-hint {
+  flex: none;
+  font-size: var(--step-label);
+  font-weight: 400;
+  color: #6B7280;
+}
+
+/* Obrigatório em aberto é a única dica que precisa gritar: é ela que explica
+   por que o botão de adicionar está cinza. */
+.step-heading-hint[data-required] {
+  color: var(--color-action-ink, #DC2626);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-heading-index { transition: none; }
+}

@@ -2,8 +2,11 @@ import { useReducedMotion } from 'motion/react'
 import { Check, Circle, Plus } from 'lucide-react'
 import { Chip, Sheet, Stepper, TotemButton } from '@/design'
 import { brl } from '@/cart/useCart'
+import { playItemSound } from '@/feedback/itemSound'
 import { useCatalog } from '@/menu/useCatalog'
 import { commitProductDraft, draftBlocking, draftModifiers, draftUnitCents, useProductDraft } from '@/menu/useProductDraft'
+import { StepHeading, stepHint } from '@/menu/StepHeading'
+import { stepDone, stepFilled, stepFull, useStepFlow } from '@/menu/useStepFlow'
 import type { TotemProduct } from '@/menu/types'
 import { composePizza, pizzaName } from './composition'
 import { PizzaStage } from './PizzaStage'
@@ -23,12 +26,29 @@ export function PizzaProductSheet({ product, onClose }: { product: TotemProduct;
   const diameter = draftModifiers(product, draft.chosen).find((m) => m.pizzaDiameterCm)?.pizzaDiameterCm
   const isSecond = draft.pizzaMode === 'half' && draft.activeHalf === 1
   const selectedFlavorId = isSecond ? pizza.second?.productId : draft.pizzaFirstChosen ? product.id : undefined
+  // Os sabores são a etapa 1; tamanho, borda e o resto vêm numerados depois.
+  const groups = product.modifierGroups.filter((group) => group.kind !== 'pizza-half')
+  const flavorsDone = draft.pizzaFirstChosen && (draft.pizzaMode === 'whole' || Boolean(pizza.second))
+  const advance = useStepFlow([
+    { id: 'pizza-flavors', done: flavorsDone },
+    ...groups.map((group) => ({ id: group.id, done: stepDone(group, draft.chosen) })),
+  ])
   const setMode = (mode: 'whole' | 'half') => {
-    if (mode === 'whole' && halfGroup) useProductDraft.setState({ chosen: { ...draft.chosen, [halfGroup.id]: [] } })
+    if (mode === 'whole' && halfGroup) {
+      if (pizza.second) playItemSound('remove')
+      useProductDraft.setState({ chosen: { ...draft.chosen, [halfGroup.id]: [] } })
+    }
     draft.setPizzaMode(mode)
   }
 
-  return <Sheet open onClose={onClose} bleed ariaLabel="Monte sua pizza" data-testid="product-sheet" footer={
+  // A BANCADA FICA PARADA ENQUANTO AS ESCOLHAS ROLAM — igual à prévia do
+  // burger. Dentro do corpo que rola, a pizza que o cliente está montando some
+  // pelo topo assim que ele desce para escolher a borda: ele passa a escolher
+  // no escuro justamente o que a tela existe para mostrar.
+  return <Sheet open onClose={onClose} bleed ariaLabel="Monte sua pizza" data-testid="product-sheet"
+    header={<PizzaStage pizza={pizza} emptyFirst={!draft.pizzaFirstChosen} emptyHalf={draft.pizzaMode === 'half' && !pizza.second}
+      activeHalf={draft.activeHalf} onHalfSelect={draft.setActiveHalf} reduced={reduced} diameterCm={diameter} />}
+    footer={
     <TotemButton tone="action" size="bar" data-testid="add-to-order" disabled={Boolean(missing)}
       onClick={() => { if (commitProductDraft(product)) onClose() }}>
       {missing ? `Escolha: ${missing.groupName}` : <>
@@ -38,8 +58,6 @@ export function PizzaProductSheet({ product, onClose }: { product: TotemProduct;
     </TotemButton>
   }>
     <div data-testid="pizza-composer">
-      <PizzaStage pizza={pizza} emptyFirst={!draft.pizzaFirstChosen} emptyHalf={draft.pizzaMode === 'half' && !pizza.second} activeHalf={draft.activeHalf}
-        onHalfSelect={draft.setActiveHalf} reduced={reduced} diameterCm={diameter} />
       <div className="px-[6cqw] pt-[4cqw]">
         <h2 className="type-display leading-[.95] tracking-tight" style={{ fontSize: 'var(--step-title)' }}>{draft.pizzaMode === 'half' || !draft.pizzaFirstChosen ? 'Monte sua pizza' : pizzaName(pizza)}</h2>
         {draft.pizzaFirstChosen && draft.pizzaMode === 'whole' && product.description && <p className="mt-[1.5cqw] text-muted" style={{ fontSize: 'var(--step-body)' }}>{product.description}</p>}
@@ -60,7 +78,7 @@ export function PizzaProductSheet({ product, onClose }: { product: TotemProduct;
             <span>{flavor ? <><small>Metade {half + 1}</small><strong>{flavor.name}</strong></> : <strong>Adicionar sabor</strong>}</span>
           </button>)}
         </div>}
-        <section className="mt-[3cqw]" aria-label={isSecond ? 'Sabores da segunda metade' : 'Sabores da pizza'}>
+        <section className="mt-[3cqw]" data-step="pizza-flavors" aria-label={isSecond ? 'Sabores da segunda metade' : 'Sabores da pizza'}>
           <h3 className="mb-[2cqw] flex items-center justify-between uppercase tracking-[.2em] text-muted" style={{ fontSize: 'var(--step-label)' }} aria-live="polite">
             {draft.pizzaMode === 'whole' ? 'Sabores' : pizza.second && draft.pizzaFirstChosen ? 'Seus sabores' : isSecond ? 'Complete com outro sabor' : 'Escolha seu sabor'}
             {draft.pizzaMode === 'half' && <span className="pizza-selection-count">{Number(draft.pizzaFirstChosen) + Number(Boolean(pizza.second))} de 2</span>}
@@ -72,7 +90,14 @@ export function PizzaProductSheet({ product, onClose }: { product: TotemProduct;
               return <button type="button" key={flavor.id} className="pizza-choice press"
                 data-testid={isSecond ? `mod-${option!.id}` : `pizza-flavor-${flavor.id}`}
                 aria-pressed={selectedFlavorId === flavor.id}
-                onClick={() => draft.choosePizza(flavor, isSecond ? 1 : 0)}>
+                onClick={() => {
+                  if (selectedFlavorId !== flavor.id) playItemSound('add')
+                  draft.choosePizza(flavor, isSecond ? 1 : 0)
+                  // Meia a meia só desce depois do segundo sabor: sair da lista
+                  // com uma metade vazia é perder o cliente no meio da escolha.
+                  const next = useProductDraft.getState()
+                  if (next.pizzaFirstChosen && (next.pizzaMode === 'whole' || isSecond)) advance('pizza-flavors')
+                }}>
                 <img src={flavor.pizza!.imageUrl} alt="" draggable={false} />
                 <span><strong>{flavor.name}</strong><small className="tnum">{isSecond ? option!.surchargeCents ? `+ ${brl(option!.surchargeCents)}` : 'Sem acréscimo' : brl(flavor.priceCents)}</small></span>
               </button>
@@ -83,14 +108,18 @@ export function PizzaProductSheet({ product, onClose }: { product: TotemProduct;
           </p>}
         </section>
       </div>
-      {product.modifierGroups.filter((group) => group.kind !== 'pizza-half').map((group) => <section key={group.id} className="mt-[4cqw] px-[6cqw]">
-        <h3 className="mb-[2cqw] uppercase tracking-[.25em] text-muted" style={{ fontSize: 'var(--step-label)' }}>
-          {group.name}{group.required && <span className="text-action-ink"> · obrigatório</span>}
-        </h3>
+      {groups.map((group, index) => <section key={group.id} className="mt-[4cqw] px-[6cqw]" data-step={group.id}>
+        <StepHeading index={index + 2} title={group.name} required={group.required} done={stepFilled(group, draft.chosen)}
+          hint={stepHint(group.required, group.minSelections, group.maxSelections, (draft.chosen[group.id] ?? []).length)} />
         <div className="grid grid-cols-3 gap-[1.5cqw]">
           {group.modifiers.map((modifier) => <Chip key={modifier.id} compact data-testid={`mod-${modifier.id}`}
             selected={(draft.chosen[group.id] ?? []).includes(modifier.id)} surchargeCents={modifier.surchargeCents || undefined}
-            onClick={() => draft.toggle(group.id, modifier.id, group.maxSelections)}>{modifier.name}</Chip>)}
+            onClick={() => {
+              const adding = !(draft.chosen[group.id] ?? []).includes(modifier.id)
+              draft.toggle(group.id, modifier.id, group.maxSelections, group.required)
+              if (group.kind === 'pizza-extras') playItemSound(adding ? 'add' : 'remove')
+              if (adding && stepFull(group, useProductDraft.getState().chosen)) advance(group.id)
+            }}>{modifier.name}</Chip>)}
         </div>
       </section>)}
       <div className="mt-[4cqw] flex items-center justify-between px-[6cqw]">

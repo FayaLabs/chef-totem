@@ -21,6 +21,21 @@ import { PIZZA_ASSETS } from '@/pizza/composition'
 
 let inflight: Promise<TotemCatalog> | null = null
 
+/**
+ * O último cardápio carregado, para quem não é componente.
+ *
+ * O hook devolve estado de React, e quem precisa do cardápio fora de um render
+ * — o garçom apontando para um prato enquanto fala — não tem como assinar um
+ * `useState`. Guardar o resolvido aqui não cria uma segunda fonte: é o MESMO
+ * objeto que a promessa devolveu, e ele só existe depois de ela resolver.
+ */
+let loaded: TotemCatalog | null = null
+
+/** O cardápio já carregado, ou null se a busca ainda não terminou. */
+export function catalogNow(): TotemCatalog | null {
+  return loaded
+}
+
 /** Start (or reuse) the catalog fetch. Safe to call as often as you like. */
 export function prefetchCatalog(): Promise<TotemCatalog> {
   inflight ??= catalogProvider()
@@ -36,6 +51,7 @@ export function prefetchCatalog(): Promise<TotemCatalog> {
           void picture.decode().catch(() => {})
         }
       }
+      loaded = catalog
       return catalog
     })
     .catch((error: unknown) => {
@@ -50,6 +66,7 @@ export function prefetchCatalog(): Promise<TotemCatalog> {
 /** Drop the cache — the operator's "force refresh", and the retry button. */
 export function invalidateCatalog(): void {
   inflight = null
+  loaded = null
 }
 
 type State =

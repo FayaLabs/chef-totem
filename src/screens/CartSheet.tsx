@@ -89,7 +89,7 @@ export function CartSheet({ open, onClose }: { open: boolean; onClose: () => voi
             aria-label={`Remover ${line.product.name}`}
             data-testid={`cart-remove-${line.product.id}`}
             onClick={() => remove(line.id)}
-            className="press grid size-[var(--tap)] shrink-0 place-items-center rounded-full text-muted"
+            className="press glass glass-liquid grid size-[var(--tap)] shrink-0 place-items-center rounded-full text-muted"
           >
             <Trash2 strokeWidth={2.5} className="size-[2.6cqw]" />
           </button>

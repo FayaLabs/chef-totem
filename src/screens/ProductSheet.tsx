@@ -1,6 +1,8 @@
 import { Plus } from 'lucide-react'
 import { Chip, Sheet, Stepper, TotemButton } from '@/design'
 import { brl } from '@/cart/useCart'
+import { StepHeading, stepHint } from '@/menu/StepHeading'
+import { stepDone, stepFilled, stepFull, useStepFlow } from '@/menu/useStepFlow'
 import {
   draftBlocking,
   draftUnitCents,
@@ -27,6 +29,8 @@ function StandardProductSheet({ product, onClose }: { product: TotemProduct | nu
   const chosen = useProductDraft((s) => s.chosen)
   const setQuantity = useProductDraft((s) => s.setQuantity)
   const toggle = useProductDraft((s) => s.toggle)
+  const groups = product?.modifierGroups ?? []
+  const advance = useStepFlow(groups.map((group) => ({ id: group.id, done: stepDone(group, chosen) })))
 
   if (!product) return null
 
@@ -98,32 +102,41 @@ function StandardProductSheet({ product, onClose }: { product: TotemProduct | nu
         </div>
       </div>
 
-      {product.modifierGroups.map((group) => (
-        <section key={group.id} className="mt-[4cqw] px-[6cqw]">
-          <h3
-            className="mb-[2cqw] uppercase tracking-[0.25em] text-muted"
-            style={{ fontSize: 'var(--step-label)' }}
-          >
-            {group.name}
-            {group.required ? <span className="text-action-ink"> · obrigatório</span> : null}
-          </h3>
-          {/* Three to a row: a five-option group used to be a scroll. */}
-          <div className="grid grid-cols-3 gap-[1.5cqw]">
-            {group.modifiers.map((modifier) => (
-              <Chip
-                key={modifier.id}
-                compact
-                data-testid={`mod-${modifier.id}`}
-                selected={(chosen[group.id] ?? []).includes(modifier.id)}
-                surchargeCents={modifier.surchargeCents || undefined}
-                onClick={() => toggle(group.id, modifier.id, group.maxSelections)}
-              >
-                {modifier.name}
-              </Chip>
-            ))}
-          </div>
-        </section>
-      ))}
+      {product.modifierGroups.map((group, index) => {
+        const picked = chosen[group.id] ?? []
+        return (
+          <section key={group.id} className="mt-[4cqw] px-[6cqw]" data-step={group.id}>
+            <StepHeading
+              index={index + 1}
+              title={group.name}
+              required={group.required}
+              done={stepFilled(group, chosen)}
+              hint={stepHint(group.required, group.minSelections, group.maxSelections, picked.length)}
+            />
+            {/* Three to a row: a five-option group used to be a scroll. */}
+            <div className="grid grid-cols-3 gap-[1.5cqw]">
+              {group.modifiers.map((modifier) => (
+                <Chip
+                  key={modifier.id}
+                  compact
+                  data-testid={`mod-${modifier.id}`}
+                  selected={picked.includes(modifier.id)}
+                  surchargeCents={modifier.surchargeCents || undefined}
+                  onClick={() => {
+                    const adding = !picked.includes(modifier.id)
+                    toggle(group.id, modifier.id, group.maxSelections, group.required)
+                    // Desce só quando o grupo encheu: tirar uma escolha nunca
+                    // arrasta a tela para longe do que o cliente está mexendo.
+                    if (adding && stepFull(group, useProductDraft.getState().chosen)) advance(group.id)
+                  }}
+                >
+                  {modifier.name}
+                </Chip>
+              ))}
+            </div>
+          </section>
+        )
+      })}
     </Sheet>
   )
 }

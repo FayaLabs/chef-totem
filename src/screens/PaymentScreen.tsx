@@ -175,7 +175,7 @@ export function PaymentScreen() {
               // Mesmo par do bloco de meios de pagamento logo abaixo: ligado é
               // sólido, desligado é vidro. Dois pares de estados diferentes na
               // mesma tela ensinariam duas gramáticas para a mesma pergunta.
-              useCredit ? 'sheen bg-ink text-white' : 'glass text-ink',
+              useCredit ? 'sheen bg-ink text-white' : 'glass glass-liquid text-ink',
               'disabled:opacity-50',
             ].join(' ')}
           >
@@ -256,7 +256,7 @@ export function PaymentScreen() {
                     // metros — vidro nos dois lados achataria a distância e a
                     // pessoa tocaria em PIX achando que escolheu débito. É a
                     // mesma regra do commit ser o único tom opaco do sistema.
-                    chosen ? 'sheen bg-ink text-white' : 'glass text-ink',
+                    chosen ? 'sheen bg-ink text-white' : 'glass glass-liquid text-ink',
                     'disabled:opacity-50',
                   ].join(' ')}
                 >

@@ -673,7 +673,12 @@ export const MAXBURGER: DemoTenant = {
   id: 'maxburger',
   brand: { name: 'MaxBurger', tagline: 'Na chapa, do jeito que você manda' },
   theme: {
-    action: '#FACC15',
+    // O AMARELO É O DA LOGO, medido no arquivo (#F7FF08) e não escolhido por
+    // perto. Eram dois amarelos na mesma tela — o do emblema no topo e o da
+    // barra de finalizar no rodapé — e dois tons da mesma cor a 1900px de
+    // distância não lêem como estilo, lêem como um dos dois estar errado. A
+    // marca manda; o tema segue.
+    action: '#F7FF08',
     // 12,4:1 contra o amarelo. Branco daria 1,7:1 — ver o comentário do bloco.
     onAction: '#18181B',
     // E como TEXTO o amarelo não serve de jeito nenhum: 1,6:1 sobre o cartão
@@ -757,16 +762,16 @@ export const MAXBURGER: DemoTenant = {
     emptyCta: 'Escolha um lanche',
   },
   persona: {
-    name: 'Duda',
+    name: 'Dudu',
     voice: [
-      'Você é a Duda, do balcão do MaxBurger. Fale rápido e animada, como quem',
+      'Você é o Dudu, do balcão do MaxBurger. Fale rápido e animado, como quem',
       'está de frente para a chapa: "esse sai em cinco minutos", "esse é o que',
       'mais vende no almoço". Nada de cerimônia — aqui ninguém quer conversa,',
       'quer o lanche. Se pedirem recomendação, dê UMA e diga por quê em meia frase.',
     ].join(' '),
     voiceId: 'verse',
     accent: [
-      'Português do Brasil, sotaque paulistano jovem, voz feminina, ritmo rápido e alto.',
+      'Português do Brasil, sotaque paulistano jovem, voz masculina, ritmo rápido e alto.',
       'Pode usar "manda", "fechou", "bora" — sem exagerar na gíria.',
       'Preços em reais lidos por extenso: "trinta e seis reais", não "R$ 36,00".',
     ].join(' '),

@@ -159,7 +159,7 @@ export const WAITER_TOOLS: WaiterTool[] = [
   {
     name: 'highlight_product',
     description:
-      'APONTA para um prato no cardápio: desce até ele, aumenta e apaga os outros por alguns segundos. Use quando for FALAR de um prato — recomendar, comparar, responder "o que tem de bom". NUNCA no mesmo turno que open_product: apontar e abrir são duas formas de dizer "é este", e as duas juntas são dois movimentos ao mesmo tempo. Aponte para falar; abra para personalizar.',
+      'APONTA para um prato no cardápio: desce até ele, aumenta e apaga os outros por alguns segundos. Chame SEMPRE que for citar um prato pelo nome — recomendar, comparar, responder "o que tem de bom" — e chame ANTES de falar, para o nome e o cartão chegarem juntos. Só não aponte para o que o cliente já pôs no pedido. NUNCA no mesmo turno que open_product: apontar e abrir são duas formas de dizer "é este", e as duas juntas são dois movimentos ao mesmo tempo. Aponte para falar; abra para personalizar.',
     parameters: {
       type: 'object',
       properties: { product: { type: 'string', description: 'Nome do prato' } },
@@ -278,7 +278,7 @@ export const WAITER_TOOLS: WaiterTool[] = [
         const modifier = group.modifiers.find((m) => norm(m.name).includes(needle))
         if (!modifier) continue
         if (modifier.pizzaFlavor) useProductDraft.getState().setPizzaMode('half')
-        useProductDraft.getState().toggle(group.id, modifier.id, group.maxSelections)
+        useProductDraft.getState().toggle(group.id, modifier.id, group.maxSelections, group.required)
         const on = (useProductDraft.getState().chosen[group.id] ?? []).includes(modifier.id)
         return `${modifier.name} ${on ? 'marcado' : 'desmarcado'} em ${group.name}.`
       }

@@ -41,7 +41,7 @@ export function Stepper({ value, onChange, min = 1, max = 99, size = 'lg', ...re
         // é um vazado sobre página quase branca: a WCAG 1.4.11 vale para ele, e
         // a tonalidade do vidro não substitui uma borda de 3:1 — ela é bonita e
         // some sob o brilho do salão, que é a hora em que a borda existe.
-        className={`press glass grid ${box} shrink-0 place-items-center rounded-full border-2 border-edge disabled:border-transparent disabled:bg-disabled-bg disabled:text-disabled-fg disabled:[&::after]:hidden`}
+        className={`press glass glass-liquid grid ${box} shrink-0 place-items-center rounded-full border-2 border-edge disabled:border-transparent disabled:bg-disabled-bg disabled:bg-none disabled:text-disabled-fg disabled:shadow-none disabled:[&::after]:hidden`}
       >
         <Minus strokeWidth={3} className={icon} />
       </button>

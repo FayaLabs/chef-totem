@@ -14,7 +14,7 @@ alvos, altura de barra nem a linha da zona de alcance: isso é física de vidro 
 | | Café Sabor | Pizza House | MaxBurger |
 |---|---|---|---|
 | O que é | cafeteria de bairro | pizzaria napolitana | lanchonete de chapa |
-| Atende | Bia (`coral`) | Téo (`ash`) | Duda (`verse`) |
+| Atende | Bia (`coral`) | Téo (`ash`) | Dudu (`verse`) |
 | Página | `#F6F1E7` creme quente | `#EDE9E4` pedra | **`#F5F5F7` neutro frio** |
 | Ação | `#4D7C0F` verde | `#C2410C` tijolo | `#FACC15` amarelo |
 | Tinta sobre a ação | branco | branco | **`#18181B`** |
