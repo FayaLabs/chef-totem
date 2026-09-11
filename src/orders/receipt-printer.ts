@@ -1,6 +1,7 @@
 import {
   memoryPrinter, renderEscPos,
-  type CustomerTicket, type EscPosOptions, type PrinterPort, type PrintJob, type PrintResult,
+  type BillJob, type CustomerTicket, type EscPosOptions, type PrinterPort, type PrintJob,
+  type PrintResult,
 } from '@fayz-ai/core/printing'
 import { totemConfig } from '@/config/totem.config'
 import type { CompletedOrder, ServiceMode } from '@/session/useTotemSession'
@@ -27,6 +28,31 @@ const MODE_LABEL: Record<ServiceMode, string> = {
   takeaway: 'para levar',
 }
 
+/**
+ * The itemised copy — what was bought, at what price.
+ *
+ * NOT the fiscal cupom, and it says so on the paper. A DANFE NFC-e is built
+ * from an AUTHORIZED XML and carries an access key SEFAZ issued; printing one
+ * from what the panel believes it sold would be a fake fiscal document. When
+ * NFC-e lands this becomes a `fiscal_receipt` job in the same slot.
+ */
+export function orderBill(order: CompletedOrder, mode: ServiceMode): BillJob {
+  return {
+    kind: 'bill',
+    brandName: brandName(),
+    reference: order.referenceNumber,
+    lines: order.lines.map((l) => ({
+      name: l.name,
+      quantity: l.quantity,
+      unitPriceCents: l.unitPriceCents,
+      ...(l.note ? { note: l.note } : {}),
+    })),
+    subtotalCents: order.totalCents,
+    totalCents: order.totalCents,
+    footer: `${MODE_LABEL[mode].toUpperCase()} · Este documento não é documento fiscal`,
+  }
+}
+
 /** The sale, as a document. The only totem-specific knowledge in this module. */
 export function customerTicket(order: CompletedOrder, mode: ServiceMode): CustomerTicket {
   return {
@@ -47,9 +73,15 @@ export function customerTicket(order: CompletedOrder, mode: ServiceMode): Custom
  * cannot cut or kick a drawer — but it needs nothing installed and it is what
  * runs today.
  */
-function browserPrinter(): PrinterPort {
+function browserPrinter(): TotemPrinter {
   return {
     id: 'browser-print',
+    // The browser path cannot emit a strip: `window.print()` is one document,
+    // and the queue number is the one that has to come out.
+    printAll(jobs) {
+      const ticket = jobs.find((j) => j.kind === 'customer_ticket') ?? jobs[jobs.length - 1]!
+      return this.print(ticket)
+    },
     async print(job: PrintJob): Promise<PrintResult> {
       if (job.kind !== 'customer_ticket') {
         return { ok: false, message: 'Esta impressora só imprime a senha do cliente.' }
@@ -98,21 +130,45 @@ function browserPrinter(): PrinterPort {
  */
 const PANEL_ESCPOS: EscPosOptions = { codepage: 'cp860', dots: 384, qrModuleScale: 5 }
 
-function shellPrinter(shell: FayzShellBridge): PrinterPort {
+/**
+ * A printer that can put several documents on ONE strip of paper.
+ *
+ * `PrinterPort` takes a single job, which is the right shape for a port and the
+ * wrong shape for this printer: the POS80 driver appends its own FULL cut at
+ * the end of every spooler job. Two jobs means two full cuts, and the first
+ * ticket hits the floor before anyone can take it.
+ *
+ * It is an SDK gap — `PrinterPort` wants a batch primitive — but the workaround
+ * belongs here, next to the driver that forces it.
+ */
+export interface TotemPrinter extends PrinterPort {
+  printAll(jobs: PrintJob[]): Promise<PrintResult>
+}
+
+function shellPrinter(shell: FayzShellBridge): TotemPrinter {
+  const send = async (jobs: PrintJob[]): Promise<PrintResult> => {
+    let bytes: Uint8Array
+    try {
+      // Only the first document resets the printer. `ESC @` arriving after the
+      // previous one's partial cut FINISHES that cut, and the ticket meant to
+      // hang by a tab lands on the floor.
+      const parts = jobs.map((job, i) =>
+        renderEscPos(job, i === 0 ? PANEL_ESCPOS : { ...PANEL_ESCPOS, continued: true }))
+      bytes = new Uint8Array(parts.reduce((n, b) => n + b.length, 0))
+      let at = 0
+      for (const part of parts) { bytes.set(part, at); at += part.length }
+    } catch (cause) {
+      // A job that cannot be rendered is a bug in the caller, and it must not
+      // read to the operator as a printer that is out of paper.
+      const said = cause instanceof Error ? cause.message : String(cause)
+      return { ok: false, message: `Cupom não pôde ser montado: ${said}` }
+    }
+    return shell.printRaw(bytes)
+  }
   return {
     id: 'escpos-shell',
-    async print(job: PrintJob): Promise<PrintResult> {
-      let bytes: Uint8Array
-      try {
-        bytes = renderEscPos(job, PANEL_ESCPOS)
-      } catch (cause) {
-        // A job that cannot be rendered is a bug in the caller, and it must not
-        // read to the operator as a printer that is out of paper.
-        const said = cause instanceof Error ? cause.message : String(cause)
-        return { ok: false, message: `Cupom não pôde ser montado: ${said}` }
-      }
-      return shell.printRaw(bytes)
-    },
+    print: (job) => send([job]),
+    printAll: (jobs) => send(jobs),
   }
 }
 
@@ -122,7 +178,7 @@ function shellPrinter(shell: FayzShellBridge): PrinterPort {
  * The shell wins whenever it is there: it is the only one that cuts, and the
  * browser path exists for the panels that are still a Chrome window.
  */
-export function receiptPrinter(): PrinterPort {
+export function receiptPrinter(): TotemPrinter {
   const shell = typeof window !== 'undefined' ? window.fayzShell : undefined
   if (shell?.isShell && totemConfig.flags.printer) return shellPrinter(shell)
   return browserPrinter()
@@ -131,6 +187,12 @@ export function receiptPrinter(): PrinterPort {
 /** Kept for the demo catalog and the e2e suite: records instead of printing. */
 export { memoryPrinter }
 
+/**
+ * Two documents, one spooler job, held together by a partial cut.
+ *
+ * Order matters: whoever tears the strip off ends up holding the queue number
+ * face-up, which is what they show at the counter.
+ */
 export function printReceipt(order: CompletedOrder, mode: ServiceMode): Promise<PrintResult> {
-  return receiptPrinter().print(customerTicket(order, mode))
+  return receiptPrinter().printAll([orderBill(order, mode), customerTicket(order, mode)])
 }

@@ -9,7 +9,7 @@ import type { CartLine } from '@/cart/useCart'
 import { pizzaName } from '@/pizza/composition'
 import type { ChargeResult, PaymentMethod } from '@/payment/driver'
 import type { OrderTotals } from '@/orders/totals'
-import type { ServiceMode, TotemCustomer } from '@/session/useTotemSession'
+import type { ServiceMode, SoldLine, TotemCustomer } from '@/session/useTotemSession'
 
 // ---------------------------------------------------------------------------
 // A venda do quiosque, pela mesma estrada do caixa.
@@ -36,6 +36,7 @@ import type { ServiceMode, TotemCustomer } from '@/session/useTotemSession'
 export interface PlacedOrder {
   orderId: string
   ticket: string
+  lines: SoldLine[]
   /** O número da fatura, quando a venda gerou uma; senão a referência do totem. */
   referenceNumber: string
   totalCents: number
@@ -53,6 +54,14 @@ export interface PlaceOrderInput {
   /** Subtotal, oferta e crédito, já calculados em `orders/totals.ts`. */
   totals?: OrderTotals
 }
+
+/** A mesma linha, nas palavras do papel. */
+const asSold = (line: CartLine): SoldLine => ({
+  name: line.product.name,
+  quantity: line.quantity,
+  unitPriceCents: line.unitCents,
+  ...(line.modifiers.length ? { note: line.modifiers.map((m) => m.name).join(' · ') } : {}),
+})
 
 /** Uma linha do carrinho nas palavras da porta compartilhada. */
 export const cartLineToOrderLine = (line: CartLine): OrderLine => ({
@@ -235,6 +244,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlacedOrder> {
   return {
     orderId,
     ticket,
+    lines: input.lines.map(asSold),
     referenceNumber,
     totalCents: totals.totalCents,
     paid,
@@ -259,6 +269,7 @@ function placeDemoOrder(input: PlaceOrderInput): PlacedOrder {
   return {
     orderId: `demo-${demoSequence}`,
     ticket: `#${String(demoSequence % 1000).padStart(3, '0')}`,
+    lines: input.lines.map(asSold),
     referenceNumber: `DEMO-${String(demoSequence).padStart(6, '0')}`,
     totalCents: input.totals?.totalCents ?? subtotalCents,
     paid: true,

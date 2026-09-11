@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { totemConfig } from '@/config/totem.config'
+import { isDemoCatalog } from '@/demo/mode'
 import { deviceClient } from '@/menu/device-session'
 
 // ---------------------------------------------------------------------------
@@ -34,6 +35,10 @@ export function brandName(): string {
 
 /** Primes {@link brandName}. Safe to call more than once. */
 export function loadTenantBrand(): Promise<string> {
+  // A demo house names itself. Reading the pool here would let whichever tenant
+  // the panel's credentials point at overwrite it — which is exactly what put
+  // "Artorius" on a MaxBurger ticket.
+  if (isDemoCatalog()) return Promise.resolve(brandName())
   if (resolved) return Promise.resolve(resolved)
   inflight ??= (async () => {
     try {

@@ -164,6 +164,38 @@ function grantPanelPermissions() {
 }
 
 /**
+ * Let the panel talk to its own backend.
+ *
+ * `totem-voice-token` answers every preflight with a hardcoded
+ * `Access-Control-Allow-Origin: https://chef-totem.vercel.app`, whatever origin
+ * asked. The shell serves the app from `http://127.0.0.1:<port>` on a port the
+ * OS picks fresh each launch, so no allowlist on the server could ever name it
+ * — the voice assistant fails with "Failed to fetch" before it reaches the mic.
+ *
+ * Rewriting the header here is not a hole being punched. CORS exists to stop a
+ * web page from reading another origin's responses; this is a native app we
+ * ship, reading its OWN backend, with the device session it already holds. The
+ * browser rule protects a threat model the kiosk does not have.
+ *
+ * Narrow on purpose: only Supabase Edge Function responses, only the two CORS
+ * headers. The real fix is the function answering with the requesting origin,
+ * and it belongs in the function — this keeps the panel working meanwhile.
+ */
+function allowOwnBackend() {
+  session.defaultSession.webRequest.onHeadersReceived(
+    { urls: ['https://*.supabase.co/functions/v1/*'] },
+    (details, callback) => {
+      const headers = { ...details.responseHeaders }
+      for (const key of Object.keys(headers)) {
+        if (/^access-control-allow-(origin|credentials)$/i.test(key)) delete headers[key]
+      }
+      headers['Access-Control-Allow-Origin'] = ['*']
+      callback({ responseHeaders: headers })
+    },
+  )
+}
+
+/**
  * Drop the PWA's own cache before loading.
  *
  * The web build registers a service worker, which is right in a browser and
@@ -191,6 +223,7 @@ app.whenReady().then(async () => {
     console.warn('[fayz] TOTEM_EXIT_PIN não configurado — usando 0000. Defina antes de instalar em loja.')
   }
   grantPanelPermissions()
+  allowOwnBackend()
   await lockdown(false)
   await dropStaleAppCache()
   const origin = await targetOrigin()
