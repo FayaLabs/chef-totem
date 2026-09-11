@@ -50,10 +50,32 @@
 .burger-drag-ghost.is-ready { filter: drop-shadow(0 0 12px #ffcc6380); }
 .burger-drag-ghost img { display: block; width: 100%; height: auto; }
 .burger-contact-shadow { position: absolute; pointer-events: none; border-radius: 50%; background: radial-gradient(ellipse, #0009 0%, #0007 24%, #0003 50%, #0000 72%); }
-.burger-ambient .burger-layer-float { animation: burger-breathe 5s ease-in-out infinite; }
-@keyframes burger-breathe { 0%, 100% { transform: translateY(-.25%); } 50% { transform: translateY(.25%); } }
-@media (prefers-reduced-motion: reduce) { .burger-layer-float { animation: none !important; } .burger-photo-stage { transition: none; } .burger-photo-stage:active { transform: none; } }
-.burger-still { display: block; position: relative; width: 100%; height: 100%; }
+/* ABERTO, O BURGER RESPIRA — e cada camada no seu tempo.
+   Todas na mesma fase e com .25% de curso é o que o olho lê como PARADO: a
+   pilha inteira sobe e desce junta, que é o mesmo desenho de sempre deslocado
+   alguns pixels. Fora de fase e com o triplo do curso, as camadas abrem e
+   fecham os vãos entre si — e é o vão mudando, não a camada subindo, que diz
+   que aquilo está flutuando e pode ser tocado.
+   Sutil ainda: .8% de 47cqw é meio milímetro no painel, e a duração varia por
+   camada para o ciclo nunca fechar igual. */
+.burger-ambient .burger-layer-float { animation: burger-breathe var(--float-dur, 5s) ease-in-out infinite; }
+/* Órbita, não gangorra: o movimento é uma volta rasa em X e Y, com a
+   horizontal defasada da vertical. Só para cima e para baixo, o olho lê
+   elevador; com a horizontal entrando um quarto de ciclo depois, lê coisa
+   boiando — que é o que a cena promete quando as camadas se separam. */
+@keyframes burger-breathe {
+  0%, 100% { transform: translate(-.35%, -.8%) rotate(-.18deg); }
+  25% { transform: translate(.4%, -.1%) rotate(.06deg); }
+  50% { transform: translate(.35%, .8%) rotate(.18deg); }
+  75% { transform: translate(-.4%, .1%) rotate(-.06deg); }
+}
+@media (prefers-reduced-motion: reduce) { .burger-layer-float { animation: none !important; } .burger-still { transition: none; } .burger-photo-stage { transition: none; } .burger-photo-stage:active { transform: none; } }
+/* O PRIMEIRO QUADRO DO BURGER ENTRA POR FADE. A imagem é composta camada a
+   camada e só existe quando todas decodificam: sem transição ela APARECE, de
+   nada para tudo, no meio de uma tela parada — e um salto desses num painel
+   de 27" lê como falha de carregamento, não como imagem chegando. */
+.burger-still { display: block; position: relative; width: 100%; height: 100%; opacity: 0; transition: opacity 520ms cubic-bezier(.16, 1, .3, 1); }
+.burger-still[data-shown="true"] { opacity: 1; }
 .burger-photo-note { position: absolute; bottom: 3%; width: 100%; text-align: center; font-size: 11px; color: #888; }
 .burger-builder { position: relative; }
 .burger-preview { position: relative; background: radial-gradient(ellipse at 50% 44%, #494541, #292827 70%, #222120); }
@@ -145,4 +167,20 @@
    grupos logo abaixo, então a lista inteira lê como uma coisa só. */
 .burger-recipe-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5cqw; padding-bottom: 1cqw; }
 .burger-recipe-thumb { width: 17cqw; height: 13cqw; margin: -.8cqw auto .5cqw; }
+/* O mesmo par da grade: a foto apaga, a tarja não. Ver o cartão do cardápio —
+   quem apaga é a comida, porque a tarja é a única frase que precisa ser lida
+   num item que não dá para comprar. */
+/* A tarja atravessa o CHIP INTEIRO, de quina a quina, encostada na base da
+   foto — que é exatamente onde ela mora no cartão da grade. Centrada só sobre
+   a miniatura ela vira um retângulo preto boiando no meio do desenho: mesma
+   informação, outro objeto. As margens negativas cancelam o respiro do chip;
+   sem elas a faixa termina antes da borda e lê como etiqueta colada torta. */
+.burger-recipe-media { position: relative; display: block; align-self: stretch; margin-inline: -2.2cqw; }
+.burger-recipe-media[data-sold-out] .burger-still { opacity: .4; filter: grayscale(1); }
+.burger-recipe-soldout {
+  position: absolute; inset-inline: 0; bottom: 0;
+  padding: .5cqw 0; text-align: center;
+  background: var(--color-ink, #0B0B0C); color: #fff;
+  font-size: var(--step-label); text-transform: uppercase; letter-spacing: .18em; font-weight: 600;
+}
 .burger-bread-thumb { display: block; width: 15cqw; height: 8cqw; object-fit: contain; margin: 0 auto 1cqw; }

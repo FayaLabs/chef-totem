@@ -166,8 +166,20 @@ export function BurgerProductSheet({ product, onClose }: { product: TotemProduct
                 if (bread) scrollToStepSoon(bread.id)
                 else advance('burger-recipe')
               }}>
-              <BurgerStill layers={burgerLayers(recipe, [])} fallback={recipe.imageUrl} className="burger-recipe-thumb" />
-              <span>{recipe.name}</span><span className="mt-[.5cqw] block font-normal">{recipe.soldOut ? 'Esgotado' : brl(recipe.priceCents)}</span>
+              {/* ESGOTADO AQUI É O MESMO ESGOTADO DA GRADE: foto apagada e em
+                  cinza, tarja opaca por cima. Eram dois desenhos para o mesmo
+                  fato — lá fora um carimbo, aqui uma palavra no lugar do preço
+                  — e o cliente que acabou de ver o cartão apagado na grade não
+                  reconhece o mesmo lanche indisponível dentro do sheet. */}
+              <span className="burger-recipe-media" data-sold-out={recipe.soldOut || undefined}>
+                <BurgerStill layers={burgerLayers(recipe, [])} fallback={recipe.imageUrl} className="burger-recipe-thumb" />
+                {recipe.soldOut ? <span className="burger-recipe-soldout">Esgotado</span> : null}
+              </span>
+              {/* O PREÇO FICA, mesmo esgotado — a tarja já diz que hoje não
+                  tem, e trocar o preço pela mesma palavra é dizer duas vezes a
+                  mesma coisa e esconder a única informação que ainda serve:
+                  quanto custa quando voltar. É o que o cartão da grade faz. */}
+              <span>{recipe.name}</span><span className="mt-[.5cqw] block font-normal">{brl(recipe.priceCents)}</span>
             </Chip>)}
           </div>
         </section>
