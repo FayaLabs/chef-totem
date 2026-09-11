@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { MediaBackdrop } from '@/design'
+import { readableOn } from '@/design/theme'
 import { totemConfig } from '@/config/totem.config'
 import { prefetchCatalog } from '@/menu/useCatalog'
 import { useTotemSession } from '@/session/useTotemSession'
@@ -115,7 +116,17 @@ export function AttractScreen() {
           // numa casa de marca clara o branco herdado deixava a única chamada
           // da tela em 1,7:1.
           className="shrink-0 rounded-full bg-action px-[7cqw] text-center uppercase tracking-[0.2em] text-on-action motion-safe:animate-[attract-pulse_2.4s_ease-in-out_infinite] grid place-items-center"
-          style={{ fontSize: 'var(--step-body)', minHeight: 'var(--tap-bar)' }}
+          // A COR VEM CALCULADA, e não só do token. `text-on-action` depende de
+          // `--color-on-action` estar no ar; se por qualquer motivo ela não
+          // estiver — tema não aplicado ainda, CSS de um build antigo no cache
+          // do quiosque — o Tailwind cai no branco, e branco sobre o amarelo
+          // desta casa é 1,7:1 na ÚNICA chamada da tela de repouso. Esta é a
+          // peça que não pode depender de nada dar certo.
+          style={{
+            fontSize: 'var(--step-body)',
+            minHeight: 'var(--tap-bar)',
+            color: readableOn(theme?.action ?? '#DC2626', theme?.onAction),
+          }}
         >
           {totemConfig.copy.attractCta}
         </span>

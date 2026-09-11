@@ -245,6 +245,24 @@ function luminance(hex: string): number {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b
 }
 
+/**
+ * A tinta que vai sobre a cor de ação — e nunca o branco por omissão.
+ *
+ * O token tem branco como valor padrão do Tailwind, e esse padrão é uma
+ * armadilha exatamente na casa que mais precisa dele: numa marca AMARELA, o
+ * branco herdado deixa "toque e monte o seu" em 1,7:1, que é a única chamada
+ * da tela de repouso. Um tema que não diz nada (uma marca vinda do banco, um
+ * tenant novo) não pode cair no pior caso possível — então a cor da marca
+ * decide: fundo claro pede tinta escura, fundo escuro pede branca.
+ *
+ * O tema continua mandando quando ele TEM opinião: isto só entra quando o
+ * valor está vazio, ou quando o que ele pede não se lê contra o próprio fundo.
+ */
+export function readableOn(action: string, declared?: string): string {
+  if (declared && contrast(action, declared) >= 4.5) return declared
+  return luminance(action) > 0.4 ? '#18181B' : '#FFFFFF'
+}
+
 export function contrast(a: string, b: string): number {
   const [x, y] = [luminance(a), luminance(b)]
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)
@@ -532,7 +550,7 @@ export function applyTheme(theme: TotemTheme, root: HTMLElement = document.docum
   const shadow = shadows(theme)
 
   root.style.setProperty('--color-action', theme.action)
-  root.style.setProperty('--color-on-action', theme.onAction)
+  root.style.setProperty('--color-on-action', readableOn(theme.action, theme.onAction))
   root.style.setProperty('--color-action-ink', theme.actionInk ?? theme.action)
   root.style.setProperty('--color-ink', theme.ink)
   root.style.setProperty('--color-surface', theme.surface)
