@@ -68,7 +68,13 @@ export function BurgerStill({ layers, alt = '', fallback, className = '' }: {
   }, [key])
   const resolved = result?.key === key ? result : undefined
   const src = resolved?.url ?? (resolved?.failed ? fallback : result?.url)
-  return <span className={`burger-still ${className}`} data-testid="burger-still" data-ready={Boolean(resolved)} data-fallback={Boolean(resolved?.failed)} aria-busy={!resolved}>
+  // `data-shown` e `data-ready` não são a mesma pergunta, e o fade depende da
+  // primeira. `ready` cai para falso a cada recomposição — trocar o pão,
+  // tirar a cebola — e o fade preso nele pisca a imagem inteira a cada toque,
+  // que é exatamente o oposto do que ele existe para fazer. `shown` diz se já
+  // existe ALGUMA imagem na tela: vira verdadeiro uma vez, na primeira
+  // montagem, e daí em diante a troca é imagem por imagem, sem apagão no meio.
+  return <span className={`burger-still ${className}`} data-testid="burger-still" data-ready={Boolean(resolved)} data-shown={Boolean(src)} data-fallback={Boolean(resolved?.failed)} aria-busy={!resolved}>
     {src ? <img src={src} alt={alt} draggable={false} className="size-full object-contain" />
       : <span className="sr-only">{alt || 'Preparando imagem do burger'}</span>}
     {resolved?.failed && <span className="burger-photo-note">Imagem de referência</span>}

@@ -166,11 +166,6 @@ export function Sheet({ open, onClose, footer, header, title, ariaLabel, bleed =
           transition: start.current === null ? 'transform 220ms cubic-bezier(0.16,1,0.3,1)' : 'none',
         }}
       >
-        {/* A aresta de vidro da peça — ver `.sheet-rim`. Decorativa e inerte:
-            ela cobre o sheet inteiro para pegar as duas quinas de cima, então
-            não pode interceptar um toque em lugar nenhum. */}
-        <span aria-hidden className="sheet-rim" />
-
         {/* The grab area: the handle plus the title, so the whole top of the
             sheet is draggable rather than a 4px bar nobody can hit.
 
