@@ -482,6 +482,19 @@
   }
 }
 
+/* Os três pontos da faixa enquanto a sessão de voz sobe. Opacidade só: um
+   keyframe de transform aqui disputaria GPU com o orbe, que já é o item mais
+   caro da tela no painel. */
+@keyframes waiter-dot {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 @keyframes waiter-bar {
   0%,
   100% {

@@ -117,6 +117,15 @@ function discountLines(orderId: string, totals: OrderTotals, customer: TotemCust
 }
 
 export async function placeOrder(input: PlaceOrderInput): Promise<PlacedOrder> {
+  // `?order=fail` força a pior falha do painel: o dinheiro saiu e o pedido não
+  // gravou. Vale para QUALQUER destino — enquanto vivia só no caminho de
+  // demonstração, ligar o backend do cluster desarmava a costura, e o único
+  // teste que cobre a tela onde o cliente descobre que tem de procurar o caixa
+  // passava a testar uma venda real.
+  if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('order') === 'fail') {
+    throw new Error('falha de gravação simulada')
+  }
+
   // The cluster backend is chosen independently of the catalogue on the glass,
   // and therefore comes FIRST: at an event the panel shows a demo house and the
   // sale still has to land in the tenant's own kitchen, comanda and till. See
@@ -264,14 +273,8 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlacedOrder> {
 let demoSequence = 0
 
 function placeDemoOrder(input: PlaceOrderInput): PlacedOrder {
-  // `?order=fail` força a pior falha do painel: o dinheiro saiu e o pedido não
-  // gravou. É a costura de teste do mesmo formato de `?waiter=scripted`, e
-  // existe porque esse caminho não pode ser coberto só quando a rede cai por
-  // acaso — ele é o que decide se o cliente vai embora sabendo ou não que tem
-  // de procurar o caixa.
-  if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('order') === 'fail') {
-    throw new Error('falha de gravação simulada')
-  }
+  // A costura `?order=fail` subiu para `placeOrder`: ela vale para todo
+  // destino, não só para o de mentira.
   demoSequence += 1
   const subtotalCents = input.lines.reduce((sum, line) => sum + line.unitCents * line.quantity, 0)
   return {

@@ -538,7 +538,12 @@ export function createRealtimeTransport(): WaiterTransport {
   const connect = async (catalog: TotemCatalog): Promise<void> => {
     if (pc) return
     catalogRef = catalog
-    store().setPhase('thinking')
+    // `connecting`, não `thinking`: minting the token, asking for the microphone
+    // and completing the WebRTC handshake take seconds on a panel's network, and
+    // in those seconds nothing has been said yet. The dock reads this phase to
+    // show that something IS happening — a silent strip is read as a dead panel,
+    // and the customer joins the till queue.
+    store().setPhase('connecting')
 
     const { key, model } = await mintToken(waiterInstructions(catalog))
 
@@ -606,6 +611,11 @@ export function createRealtimeTransport(): WaiterTransport {
       // vez de ficar preso numa promise rejeitada para sempre.
       connecting = null
       store().setError(cause instanceof Error ? cause.message : String(cause))
+      // E a fase VOLTA. Sem isto o painel ficava em `connecting` para sempre —
+      // pontinhos pulsando ao lado de uma frase de erro, e o orbe oferecendo
+      // "parar" uma sessão que nunca existiu. Parado, o próximo toque tenta de
+      // novo, que é o que a frase vermelha está pedindo.
+      store().setPhase('idle')
       throw cause
     })
     return connecting
@@ -716,9 +726,28 @@ export function createRealtimeTransport(): WaiterTransport {
       if (responseGuard) clearTimeout(responseGuard)
       responseGuard = null
       detach()
+      // Cala a resposta em curso ANTES de derrubar o transporte. O canal morre
+      // logo abaixo de qualquer jeito, mas um cancelamento explícito é o que
+      // faz a OpenAI parar de gerar em vez de continuar falando para uma
+      // conexão que já não existe.
+      if (channel?.readyState === 'open') {
+        try {
+          channel.send(JSON.stringify({ type: 'response.cancel' }))
+        } catch {
+          // Um canal que fechou entre o teste e o envio já está calado.
+        }
+      }
       mic?.getTracks().forEach((track) => track.stop())
       channel?.close()
       pc?.close()
+      // `remove()` não bastava: este elemento nunca esteve no documento, e um
+      // <audio> destacado com `srcObject` continua tocando o que já estava no
+      // buffer. Pausar e soltar a stream é o que realmente faz silêncio — que é
+      // a única coisa que o botão de parar promete.
+      if (audio) {
+        audio.pause()
+        audio.srcObject = null
+      }
       audio?.remove()
       mic = null
       channel = null

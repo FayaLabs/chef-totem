@@ -46,6 +46,7 @@ export function Waiter() {
   const presence = useWaiterPresence()
   const catalogState = useCatalog()
   const resetWaiter = useWaiter((s) => s.reset)
+  const endSession = useWaiter((s) => s.endSession)
   const setPhase = useWaiter((s) => s.setPhase)
   const setControls = useWaiter((s) => s.setControls)
 
@@ -99,6 +100,18 @@ export function Waiter() {
     void transport?.stopListening?.()
   }, [transport])
 
+  // O botão de PARAR de verdade.
+  //
+  // Fechar o microfone não cala um garçom que já começou a falar: a resposta em
+  // curso continua tocando, e enquanto ela toca o controle ficava desabilitado.
+  // O único jeito de interromper uma sessão que começou a dizer bobagem era
+  // fechar a aplicação — na frente de uma fila. Aqui a sessão é DERRUBADA
+  // (microfone, conexão e áudio), e o próximo toque abre outra do zero.
+  const endTalking = useCallback(() => {
+    transport?.dispose()
+    endSession()
+  }, [transport, endSession])
+
   // O botão de falar mora na barra inferior, que é chrome global; o transporte
   // mora aqui, que só existe no cardápio. O registro é o que liga os dois sem
   // arrastar duas props por seis telas — e a limpeza é o que garante que o
@@ -108,9 +121,9 @@ export function Waiter() {
       setControls(null)
       return
     }
-    setControls({ start: startTalking, stop: stopTalking })
+    setControls({ start: startTalking, stop: stopTalking, end: endTalking })
     return () => setControls(null)
-  }, [transport, step, startTalking, stopTalking, setControls])
+  }, [transport, step, startTalking, stopTalking, endTalking, setControls])
 
   // O canal por onde a TELA avisa o garçom. Vale em todo passo, não só no
   // cardápio: é no pagamento que a orientação falada mais serve.

@@ -70,13 +70,19 @@ export function WaiterDock({
   if (phase === 'off') return null
 
   const listening = phase === 'listening'
-  const busy = phase === 'thinking' || phase === 'speaking'
+  const connecting = phase === 'connecting'
+  const persona = activeWaiterPersona()
 
   // One line, chosen by what matters most at this instant: what the customer is
   // saying beats what the waiter last said beats an invitation.
-  const fallback =
-    invitation === undefined ? `Peça como pediria a ${activeWaiterPersona().name}.` : invitation
-  const line = error ?? (live || null) ?? lastWaiterLine(turns) ?? fallback
+  const fallback = invitation === undefined ? `Peça como pediria a ${persona.name}.` : invitation
+  // ABRIR A SESSÃO GANHA DE TUDO menos de um erro. Enquanto o token é emitido, o
+  // microfone é pedido e o WebRTC sobe, o cliente já tocou e nada respondeu —
+  // e o que a faixa mostrava era o convite genérico ("peça como pediria à
+  // Bia"), ou seja, exatamente a instrução que ele acabou de seguir. Uma frase
+  // parada depois de um toque lê como painel travado.
+  const line = error ?? (connecting ? `Um instante — chamando ${persona.name}` : null)
+    ?? (live || null) ?? lastWaiterLine(turns) ?? fallback
 
   // Sem frase e sem convite não há faixa. É o que impede a barra de aparecer
   // vazia no pagamento só porque o componente foi montado.
@@ -118,7 +124,13 @@ export function WaiterDock({
             {/* O nome do tenant, não "garçom". A Bia da cafeteria e o Téo da
                 pizzaria são pessoas diferentes, e essa é a linha em que o
                 cliente descobre com quem está falando. */}
-            {listening ? 'ouvindo' : phase === 'thinking' ? 'só um instante' : activeWaiterPersona().name}
+            {listening
+              ? 'ouvindo'
+              : connecting
+                ? 'conectando'
+                : phase === 'thinking'
+                  ? 'só um instante'
+                  : persona.name}
           </span>
           <span
             data-testid="waiter-line-text"
@@ -132,6 +144,22 @@ export function WaiterDock({
             style={{ fontSize: 'var(--step-body)' }}
           >
             {line}
+            {/* Três pontos que pulsam enquanto a sessão sobe. O orbe já anima,
+                mas ele anima em quase todo estado; estes pontos só existem
+                aqui, e é isso que os torna uma resposta à pergunta "está
+                carregando ou travou?". CSS puro — o painel é um N100 e o orbe
+                já é o processo mais caro da tela. */}
+            {connecting ? (
+              <span data-testid="waiter-connecting" className="ml-[0.6ch] inline-flex gap-[0.25ch]">
+                {[0, 1, 2].map((index) => (
+                  <span
+                    key={index}
+                    className="inline-block size-[0.28em] rounded-full bg-current motion-safe:animate-[waiter-dot_1.1s_ease-in-out_infinite]"
+                    style={{ animationDelay: `${index * 160}ms` }}
+                  />
+                ))}
+              </span>
+            ) : null}
           </span>
         </span>
         <ChevronUp strokeWidth={3} className="size-[2.4cqw] shrink-0 text-muted" />

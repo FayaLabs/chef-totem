@@ -29,6 +29,10 @@ import type { AIState } from '@/vendor/smoothui/ai-core'
 /** A nossa fase, no vocabulário do componente. */
 const AS_STATE: Record<WaiterPhase, AIState> = {
   off: 'idle',
+  // Opening the session looks like thinking, and should: the orb is already the
+  // panel's "working on it" animation, so the wait has a face from the first
+  // frame instead of a frozen circle.
+  connecting: 'thinking',
   idle: 'idle',
   listening: 'listening',
   thinking: 'thinking',
