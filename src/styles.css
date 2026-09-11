@@ -550,3 +550,23 @@
     backdrop-filter: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   <button> estica os filhos, como no Chrome em que a interface é desenhada.
+
+   O Chromium do Electron 33 (130, o do painel) ainda traz na folha de estilo
+   do próprio navegador `button { align-items: flex-start }`. Todo cartão que é
+   um `<button class="flex flex-col">` perde o esticar dos filhos, que ficam
+   com a largura do conteúdo: medido no painel, a foto do produto saía com
+   194px num cartão de 365, e as opções de "Seu burger" dentro da folha iam
+   junto. No Chromium novo o mesmo cartão já esticava — por isso o defeito só
+   aparecia no painel.
+
+   Seletor de elemento, especificidade (0,0,1): qualquer `items-*` explícito
+   continua ganhando. Muda apenas o botão que dependia do padrão do navegador.
+   --------------------------------------------------------------------------- */
+@layer base {
+  button {
+    align-items: stretch;
+  }
+}
