@@ -17,7 +17,12 @@ const WINDOW_MS = 500
 
 export function FpsMeter() {
   const [fps, setFps] = useState<number | null>(null)
+  // Only the shell can answer this: no web API exposes the adapter's load, so
+  // the main process reads the Windows counters and pushes the number in.
+  const [gpu, setGpu] = useState<number | null>(null)
   const frame = useRef(0)
+
+  useEffect(() => window.fayzShell?.onGpuUsage?.(setGpu), [])
 
   useEffect(() => {
     let frames = 0
@@ -63,7 +68,14 @@ export function FpsMeter() {
         letterSpacing: '0.02em',
       }}
     >
-      {fps} fps
+      <div>{fps} fps</div>
+      {gpu === null ? null : (
+        // Amber from 70%: a panel that sits there has nothing left for the next
+        // effect, even while the frame rate still looks fine.
+        <div style={{ marginTop: 3, color: gpu >= 90 ? '#f87171' : gpu >= 70 ? '#fbbf24' : '#9ca3af' }}>
+          gpu {gpu}%
+        </div>
+      )}
     </div>
   )
 }

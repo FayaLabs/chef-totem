@@ -1,5 +1,5 @@
 import { brl, cartTotalCents, cartCount, useCart } from '@/cart/useCart'
-import { draftBlocking, draftModifiers, useProductDraft, type DraftBlocking } from '@/menu/useProductDraft'
+import { draftBlocking, draftModifiers, draftNextQuestion, useProductDraft, type DraftBlocking } from '@/menu/useProductDraft'
 import { composePizza, pizzaName } from '@/pizza/composition'
 import { useMenuUi } from '@/menu/useMenuUi'
 import { useTotemSession, type ServiceMode, type TotemStep } from '@/session/useTotemSession'
@@ -49,6 +49,14 @@ export interface WaiterSnapshot {
   }
   /** What stops the open item from being added. The reason to speak up. */
   blocking?: DraftBlocking
+  /**
+   * O próximo grupo VAZIO na ordem da tela, obrigatório ou não.
+   *
+   * `blocking` diz o que impede de adicionar; este diz o que perguntar. Sem ele
+   * o assistente só sabia dos obrigatórios e perguntava fora da ordem que a
+   * pessoa está vendo.
+   */
+  nextQuestion?: DraftBlocking & { required: boolean }
   categoryOpen: string | null
   cartSheetOpen: boolean
 }
@@ -114,6 +122,7 @@ export function buildSnapshot(catalog: TotemCatalog | null): WaiterSnapshot {
         .filter((entry) => entry.options.length > 0),
     }
     snapshot.blocking = draftBlocking(product, draft.chosen, draft.pizzaMode, draft.pizzaFirstChosen, draft.burgerRecipeChosen)
+    snapshot.nextQuestion = draftNextQuestion(product, draft.chosen)
   }
 
   return snapshot

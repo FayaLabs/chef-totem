@@ -34,6 +34,8 @@ interface FayzShellBridge {
   printRaw(bytes: Uint8Array): Promise<{ ok: boolean; message?: string }>
   printerName(): Promise<string>
   requestExit(pin: string): Promise<{ ok: boolean }>
+  /** GPU load, pushed once a second by the shell. Returns an unsubscribe. */
+  onGpuUsage?(fn: (value: number) => void): () => void
 }
 
 interface Window {

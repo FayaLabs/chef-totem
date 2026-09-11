@@ -16,7 +16,7 @@
 // ---------------------------------------------------------------------------
 
 const { app, BrowserWindow, ipcMain, session } = require('electron')
-const { execFile } = require('node:child_process')
+const { execFile, spawn } = require('node:child_process')
 const { writeFile, unlink, mkdtemp } = require('node:fs/promises')
 const { join } = require('node:path')
 const { tmpdir } = require('node:os')
@@ -118,6 +118,40 @@ ipcMain.handle('fayz:request-exit', (_event, pin) => {
   return { ok: true }
 })
 
+/**
+ * GPU load, sampled in the main process and pushed to the page.
+ *
+ * One long-lived PowerShell rather than one spawn per sample: starting a shell
+ * costs ~200ms, and a panel that pays that every second to display a debug
+ * number is measuring the cost of its own instrument.
+ *
+ * Silent by design on failure — a missing counter must never stop a totem from
+ * selling. The meter simply shows nothing.
+ */
+function streamGpuUsage(win) {
+  if (process.platform !== 'win32') return
+  let child
+  try {
+    child = spawn('powershell',
+      ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(resourceDir(), 'gpu-usage.ps1')],
+      { windowsHide: true })
+  } catch { return }
+  let buffer = ''
+  child.stdout?.on('data', (chunk) => {
+    buffer += chunk.toString()
+    const lines = buffer.split(/\r?\n/)
+    buffer = lines.pop() ?? ''
+    for (const line of lines) {
+      const value = Number(line.trim())
+      if (Number.isFinite(value) && !win.isDestroyed()) {
+        win.webContents.send('fayz:gpu-usage', value)
+      }
+    }
+  })
+  child.on('error', () => {})
+  win.on('closed', () => child.kill())
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     kiosk: true,
@@ -145,6 +179,7 @@ function createWindow() {
     if (!win.isDestroyed()) win.setAlwaysOnTop(true, 'screen-saver')
   })
   installExitHatch(win, { pin: EXIT_PIN, onExit: () => void quitCleanly() })
+  streamGpuUsage(win)
   return win
 }
 

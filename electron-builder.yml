@@ -25,6 +25,8 @@ extraResources:
     to: print-raw.ps1
   - from: electron/lockdown.ps1
     to: lockdown.ps1
+  - from: electron/gpu-usage.ps1
+    to: gpu-usage.ps1
 
 win:
   target:

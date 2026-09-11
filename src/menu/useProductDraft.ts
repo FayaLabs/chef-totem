@@ -143,6 +143,36 @@ export function draftBlocking(
     : undefined
 }
 
+/**
+ * What to ask about NEXT — which is not the same question as what blocks.
+ *
+ * `draftBlocking` answers "why can this not go in the cart", so it only ever
+ * looks at required groups; widening it would stop anyone from adding an item
+ * with an untouched optional group.
+ *
+ * This answers "what does the screen show that is still empty", in the order the
+ * screen shows it. The two diverge exactly where the waiter used to: on a burger
+ * whose bread is optional and whose doneness is required, the panel drew bread
+ * first and the assistant was handed doneness, so each followed a different rule
+ * about the same list and the customer heard the questions inverted.
+ */
+export function draftNextQuestion(
+  product: TotemProduct,
+  chosen: Record<string, string[]>,
+): (DraftBlocking & { required: boolean }) | undefined {
+  const group = product.modifierGroups.find(
+    (g) => (chosen[g.id] ?? []).length < Math.max(g.required ? 1 : 0, g.minSelections),
+  )
+  return group
+    ? {
+        groupId: group.id,
+        groupName: group.name,
+        options: group.modifiers.map((m) => m.name),
+        required: group.required,
+      }
+    : undefined
+}
+
 /** Commit once from the current draft. Animation callbacks never change the cart. */
 export function commitProductDraft(product: TotemProduct): boolean {
   const draft = useProductDraft.getState()

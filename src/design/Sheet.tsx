@@ -48,6 +48,23 @@ export function Sheet({ open, onClose, footer, header, title, ariaLabel, bleed =
   const [drag, setDrag] = useState(0)
   const start = useRef<number | null>(null)
   const body = useRef<HTMLDivElement>(null)
+  /** Onde a folha começa, em px. Mede o quanto do véu alguém realmente vê. */
+  const panel = useRef<HTMLDivElement>(null)
+  const [panelTop, setPanelTop] = useState<number | null>(null)
+
+  // A altura da folha é de conteúdo, então a faixa desfocada não pode ser um
+  // número escrito à mão: ela é medida da própria folha, e remedida quando o
+  // conteúdo muda de tamanho — um prato com sete grupos de modificador é uma
+  // folha bem mais alta que um refrigerante.
+  useEffect(() => {
+    const node = panel.current
+    if (!node) return
+    const measure = () => setPanelTop(Math.round(node.getBoundingClientRect().top))
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     if (!open) return
@@ -86,7 +103,7 @@ export function Sheet({ open, onClose, footer, header, title, ariaLabel, bleed =
   }
 
   return (
-    <div className="absolute inset-0 z-40 flex flex-col justify-end">
+    <div className="absolute inset-0 z-40 flex flex-col justify-end" data-sheet-open="">
       <button
         type="button"
         aria-label="Fechar"
@@ -96,9 +113,34 @@ export function Sheet({ open, onClose, footer, header, title, ariaLabel, bleed =
         // camada, tela inteira, e é ela que diz que o cardápio atrás está
         // inerte. O desfoque aqui NÃO é enfeite — sem ele o cliente continua
         // lendo os cartões de trás e continua tocando neles.
-        className="absolute inset-0 bg-black/55 backdrop-blur-md backdrop-saturate-[0.7]"
-        style={{ opacity: Math.max(0.35, 1 - drag / 400) }}
-      />
+        // `contain: paint` prende o repinte ao próprio véu. Sem isso o
+        // compositor trata a área desfocada como podendo afetar o que está
+        // fora dela, e reamostra mais do que precisa a cada quadro da folha
+        // subindo.
+          className="absolute inset-0 bg-black/55"
+        style={{ contain: 'paint', opacity: Math.max(0.35, 1 - drag / 400) }}
+        />
+
+        {/* O desfoque, recortado ao que aparece.
+
+            Tinta e desfoque sao camadas separadas, e essa separacao e a
+            diferenca entre 60 fps e 24: desfocar a viewport inteira derrubava
+            a tela do item para 24-38 fps neste painel, medido. O que alguem
+            ve do veu e so a faixa acima da folha — o resto esta debaixo de
+            uma superficie branca opaca.
+
+            `panelTop` vem medido da propria folha: a altura dela e de
+            conteudo (`max-h-[86%]`), entao nao da para supor. Na primeira
+            pintura, antes da medida, a faixa assume 20%. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 backdrop-blur-md backdrop-saturate-[0.7]"
+          style={{
+            height: panelTop ?? '20%',
+            contain: 'paint',
+            opacity: Math.max(0.35, 1 - drag / 400),
+          }}
+        />
 
       <div
         role="dialog"

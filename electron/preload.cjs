@@ -9,6 +9,12 @@ contextBridge.exposeInMainWorld('fayzShell', {
   /** ESC/POS bytes straight to the spooler. Returns {ok, message?}. */
   printRaw: (bytes) => ipcRenderer.invoke('fayz:print-raw', Array.from(bytes)),
   printerName: () => ipcRenderer.invoke('fayz:printer-name'),
+  /** GPU load, pushed once a second. Returns an unsubscribe. */
+  onGpuUsage: (fn) => {
+    const handler = (_e, value) => fn(value)
+    ipcRenderer.on('fayz:gpu-usage', handler)
+    return () => ipcRenderer.off('fayz:gpu-usage', handler)
+  },
   /** Quits the shell if the PIN matches. Verified in main, not here. */
   requestExit: (pin) => ipcRenderer.invoke('fayz:request-exit', pin),
 })
