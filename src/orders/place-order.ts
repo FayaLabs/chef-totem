@@ -3,6 +3,8 @@ import {
   type OrderContext, type OrderLine,
 } from '@fayz-ai/core/orders'
 import { isDemoCatalog } from '@/demo/mode'
+import { isBeautyplaceBackend } from '@/config/beautyplace.config'
+import { placeBeautyplaceOrder } from '@/orders/beautyplace'
 import { totemConfig } from '@/config/totem.config'
 import { deviceClient } from '@/menu/device-session'
 import type { CartLine } from '@/cart/useCart'
@@ -115,6 +117,12 @@ function discountLines(orderId: string, totals: OrderTotals, customer: TotemCust
 }
 
 export async function placeOrder(input: PlaceOrderInput): Promise<PlacedOrder> {
+  // The cluster backend is chosen independently of the catalogue on the glass,
+  // and therefore comes FIRST: at an event the panel shows a demo house and the
+  // sale still has to land in the tenant's own kitchen, comanda and till. See
+  // `config/beautyplace.config.ts` for why that separation exists.
+  if (isBeautyplaceBackend()) return placeBeautyplaceOrder(input)
+
   // Cardápio de mentira, pedido de mentira. `demo` existe para a feira sem rede
   // e para o CI, e um catálogo demonstrativo que tenta gravar num tenant real
   // é incoerente das duas pontas: falha no estande e cria lixo no banco.

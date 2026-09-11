@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Check } from 'lucide-react'
 import { Sheet, TotemButton } from '@/design'
 import { totemConfig, TOTEM_RELEASE } from '@/config/totem.config'
+import { beautyplaceConfig, isBeautyplaceBackend, missingBeautyplaceConfig } from '@/config/beautyplace.config'
+import { beautyplaceCatalog } from '@/orders/beautyplace'
 import {
   activeDemoTenant,
   activeSelection,
@@ -140,10 +142,39 @@ export function ServicePanel({ open, onClose }: { open: boolean; onClose: () => 
  */
 function Debug() {
   const [stage, setStage] = useState('—')
+  // The cluster catalogue is checked HERE and not at payment time: a panel that
+  // discovers mid-queue that the tenant never heard of its burgers has already
+  // taken the money. See `orders/beautyplace.ts`.
+  const [cluster, setCluster] = useState('—')
 
   useEffect(() => {
     const box = document.querySelector('[data-totem-stage]')?.getBoundingClientRect()
     if (box) setStage(`${Math.round(box.width)}×${Math.round(box.height)}`)
+  }, [])
+
+  useEffect(() => {
+    if (!isBeautyplaceBackend()) {
+      const missing = missingBeautyplaceConfig()
+      setCluster(missing.length > 0 ? `falta ${missing.join(', ')}` : 'desligado')
+      return
+    }
+    let alive = true
+    setCluster('conferindo…')
+    beautyplaceCatalog(true)
+      .then((catalog) => {
+        if (!alive) return
+        const problems = [
+          catalog.missing.length > 0 ? `${catalog.missing.length} sem produto` : null,
+          catalog.mismatched.length > 0 ? `${catalog.mismatched.length} com preço diferente` : null,
+        ].filter(Boolean)
+        setCluster(problems.length > 0 ? problems.join(' · ') : `${catalog.byInternalCode.size} produtos conferem`)
+      })
+      .catch((cause: unknown) => {
+        if (alive) setCluster(cause instanceof Error ? cause.message : 'indisponível')
+      })
+    return () => {
+      alive = false
+    }
   }, [])
 
   const env = import.meta.env
@@ -159,6 +190,8 @@ function Debug() {
     ['Tenant', totemConfig.tenantId || '—'],
     ['Unidade', totemConfig.unitId || '—'],
     ['Projeto', host],
+    ['Pedidos', isBeautyplaceBackend() ? `ChefControl · tenant ${beautyplaceConfig.tenantId}` : 'pool (resto-saas)'],
+    ['Catálogo do cluster', cluster],
     ['Assistente', totemConfig.flags.assistant ? (env.VITE_TOTEM_WAITER ?? 'scripted') : 'desligado'],
     ['Palco', stage],
   ]
