@@ -128,10 +128,16 @@ export function Sheet({ open, onClose, footer, header, title, ariaLabel, bleed =
         {/* Da borda da folha até o topo da tela, e só isso: o que fica debaixo
             da folha branca opaca ninguém vê. Desfocar a viewport inteira
             derrubava a tela do item de 60 para 24-38 fps neste painel.
-            `100vh` é só um teto — o overflow do véu corta no topo da tela. */}
+            `100vh` é só um teto — o overflow do véu corta no topo da tela.
+
+            It runs one corner radius PAST that edge, under the sheet. Ending
+            exactly at the edge left the two rounded corners unblurred: the
+            sheet doesn't paint there, so the menu showed through sharp in a
+            little wedge at each top corner. The overlap is hidden everywhere
+            else, behind opaque sheet. */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-full backdrop-blur-md backdrop-saturate-[0.7]"
+          className="pointer-events-none absolute inset-x-0 bottom-[calc(100%-theme(borderRadius.sheet))] backdrop-blur-md backdrop-saturate-[0.7]"
           style={{ height: '100vh', contain: 'paint', opacity: Math.max(0.35, 1 - drag / 400) }}
         />
         <div
