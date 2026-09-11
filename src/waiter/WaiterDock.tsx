@@ -144,22 +144,6 @@ export function WaiterDock({
             style={{ fontSize: 'var(--step-body)' }}
           >
             {line}
-            {/* Três pontos que pulsam enquanto a sessão sobe. O orbe já anima,
-                mas ele anima em quase todo estado; estes pontos só existem
-                aqui, e é isso que os torna uma resposta à pergunta "está
-                carregando ou travou?". CSS puro — o painel é um N100 e o orbe
-                já é o processo mais caro da tela. */}
-            {connecting ? (
-              <span data-testid="waiter-connecting" className="ml-[0.6ch] inline-flex gap-[0.25ch]">
-                {[0, 1, 2].map((index) => (
-                  <span
-                    key={index}
-                    className="inline-block size-[0.28em] rounded-full bg-current motion-safe:animate-[waiter-dot_1.1s_ease-in-out_infinite]"
-                    style={{ animationDelay: `${index * 160}ms` }}
-                  />
-                ))}
-              </span>
-            ) : null}
           </span>
         </span>
         <ChevronUp strokeWidth={3} className="size-[2.4cqw] shrink-0 text-muted" />

@@ -24,8 +24,10 @@ test('abrir a sessão aparece na faixa, em vez de silêncio', async ({ page }) =
   await setPhase(page, 'connecting')
 
   await expect(page.getByTestId('waiter-dock')).toHaveAttribute('data-phase', 'connecting')
-  await expect(page.getByTestId('waiter-connecting')).toBeVisible()
   await expect(page.getByTestId('waiter-line-text')).toContainText(/chamando/i)
+  // Quem carrega o "está carregando" é o orbe, no estado de trabalho da lib.
+  await expect(page.getByTestId('voice-orb').first()).toHaveAttribute('data-phase', 'connecting')
+  await expect(page.getByTestId('talk-stop')).toHaveCount(0)
 })
 
 test('o mesmo botão derruba a sessão enquanto ela conecta, pensa ou fala', async ({ page }) => {
@@ -38,12 +40,14 @@ test('o mesmo botão derruba a sessão enquanto ela conecta, pensa ou fala', asy
     // parava fechando a aplicação.
     await expect(button).toBeEnabled()
     await expect(button).toHaveAttribute('data-action', 'end')
-    await expect(page.getByTestId('talk-stop')).toBeVisible()
+    // O quadrado só entra depois que há o que parar; abrindo a sessão, quem
+    // ocupa o botão é o orbe.
+    await expect(page.getByTestId('talk-stop')).toHaveCount(phase === 'connecting' ? 0 : 1)
   }
 
   await page.getByTestId('talk-button').tap()
   await expect(page.getByTestId('waiter-dock')).toHaveAttribute('data-phase', 'idle')
-  await expect(page.getByTestId('waiter-connecting')).toHaveCount(0)
+  await expect(page.getByTestId('voice-orb').first()).toHaveAttribute('data-phase', 'idle')
 })
 
 test('parado, o botão volta a ser o microfone', async ({ page }) => {

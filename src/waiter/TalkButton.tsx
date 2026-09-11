@@ -50,6 +50,11 @@ export function TalkButton() {
   if (!action) return null
 
   const stops = action === 'end'
+  // Abrir a sessão é o único momento "parado" da fase: ninguém falou ainda, e a
+  // pergunta do cliente é "carregou ou travou?". O orbe já responde isso — é
+  // exatamente o estado `thinking` da lib, churn alto e silhueta parada — e o
+  // quadrado branco, com 35% do botão, cobria justo a animação que responde.
+  const connecting = phase === 'connecting'
   const label =
     action === 'stop-listening'
       ? 'Parar de falar'
@@ -70,8 +75,12 @@ export function TalkButton() {
       <VoiceOrb size="var(--tap-lg)" />
       {/* O quadrado de parar, por cima do orbe. Sem ele o botão continua
           parecendo "fale comigo" exatamente quando faz o contrário — e quem
-          está tentando calar o painel não tem tempo de descobrir isso tocando. */}
-      {stops ? (
+          está tentando calar o painel não tem tempo de descobrir isso tocando.
+
+          Só depois que o garçom começa a trabalhar: enquanto conecta, o toque
+          continua derrubando a sessão, mas quem está esperando precisa ver o
+          orbe, não um botão de parar algo que ainda não começou. */}
+      {stops && !connecting ? (
         <Square
           data-testid="talk-stop"
           strokeWidth={0}
