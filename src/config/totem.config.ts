@@ -81,7 +81,7 @@ const demo = isDemoCatalog() ? activeDemoTenant() : null
  * It is deliberately a product version, not `package.json`'s: the number that
  * matters to whoever is standing there is the release, not the npm package.
  */
-export const TOTEM_RELEASE = 'ChefControl Totem v1.1'
+export const TOTEM_RELEASE = 'ChefControl Totem v1.2'
 
 export const totemConfig: TotemConfig = {
   totemId: env.VITE_TOTEM_ID ?? 'totem-dev',
