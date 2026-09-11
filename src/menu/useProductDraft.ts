@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import type { TotemModifier, TotemProduct } from '@/menu/types'
 import { lineUnitCents, useCart, type CartLine } from '@/cart/useCart'
+import { defaultBreadChoice } from '@/burger/composition'
+import { catalogNow } from '@/menu/useCatalog'
 
 // ---------------------------------------------------------------------------
 // The item being customised, before it becomes a cart line.
@@ -37,8 +39,22 @@ interface ProductDraftState {
   chooseBurger: (product: TotemProduct) => void
   setActiveHalf: (half: 0 | 1) => void
   setQuantity: (quantity: number) => void
-  /** Honours the group's max: 1 behaves as a radio, N as a capped checkbox. */
-  toggle: (groupId: string, modifierId: string, max: number) => void
+  /**
+   * Honours the group's max: 1 behaves as a radio, N as a capped checkbox.
+   *
+   * `required` fecha a única saída ruim do rádio: desmarcar a opção marcada de
+   * um grupo obrigatório de escolha única deixa o pedido travado com um botão
+   * cinza, e o cliente que tocou de novo no pão que já estava escolhido não
+   * quis apagar o pão — quis conferir. Num grupo obrigatório de escolha única,
+   * tocar no que já está marcado não faz nada.
+   */
+  toggle: (groupId: string, modifierId: string, max: number, required?: boolean) => void
+}
+
+/** As marcações que um prato já nasce com — hoje, o pão da receita. */
+function defaultChoices(productId: string): Record<string, string[]> {
+  const product = catalogNow()?.products.find((p) => p.id === productId)
+  return product ? defaultBreadChoice(product) : {}
 }
 
 export const useProductDraft = create<ProductDraftState>((set, get) => ({
@@ -54,7 +70,15 @@ export const useProductDraft = create<ProductDraftState>((set, get) => ({
   // Opening always starts clean — this replaces the effect that reset on
   // `product?.id` change, and makes "open then immediately tick" atomic for a
   // tool call.
-  open: (productId, assemblePizza = false, blankFirst = false, blankBurger = false) => set({ productId, quantity: 1, chosen: {}, pizzaMode: assemblePizza ? 'half' : 'whole', pizzaFirstChosen: !blankFirst, burgerRecipeChosen: !blankBurger, activeHalf: 0, editingLineId: null }),
+  open: (productId, assemblePizza = false, blankFirst = false, blankBurger = false) => set({
+    productId, quantity: 1,
+    // O pão da casa já vem marcado quando o burger JÁ está escolhido — quem
+    // tocou no cartão do Cheddar Bacon na grade já disse qual lanche quer, e
+    // repetir a pergunta do pão zero é cobrar um toque por nada. Na montagem
+    // em branco não há receita ainda, então não há pão padrão a marcar.
+    chosen: blankBurger ? {} : defaultChoices(productId),
+    pizzaMode: assemblePizza ? 'half' : 'whole', pizzaFirstChosen: !blankFirst, burgerRecipeChosen: !blankBurger, activeHalf: 0, editingLineId: null,
+  }),
   close: () => set({ productId: null, quantity: 1, chosen: {}, pizzaMode: 'whole', pizzaFirstChosen: false, burgerRecipeChosen: true, activeHalf: 0, editingLineId: null }),
   edit: (line) => set({
     productId: line.product.id,
@@ -71,6 +95,12 @@ export const useProductDraft = create<ProductDraftState>((set, get) => ({
     const chosen = Object.fromEntries(product.modifierGroups.map((group) => [group.id,
       (get().chosen[group.id] ?? []).filter((id) => group.modifiers.some((m) => m.id === id)),
     ]))
+    // O pão escolhido à mão sobrevive à troca de receita; só o grupo VAZIO
+    // recebe o padrão da casa. Sobrescrever uma escolha explícita é o jeito
+    // mais rápido de o cliente achar que o totem desfez o que ele fez.
+    for (const [groupId, ids] of Object.entries(defaultBreadChoice(product))) {
+      if (!(chosen[groupId] ?? []).length) chosen[groupId] = ids
+    }
     set({ productId: product.id, chosen, burgerRecipeChosen: true })
   },
   choosePizza: (product, slot) => {
@@ -92,9 +122,10 @@ export const useProductDraft = create<ProductDraftState>((set, get) => ({
   },
   setQuantity: (quantity) => set({ quantity: Math.max(1, Math.min(99, quantity)) }),
 
-  toggle: (groupId, modifierId, max) => {
+  toggle: (groupId, modifierId, max, required = false) => {
     const list = get().chosen[groupId] ?? []
     if (list.includes(modifierId)) {
+      if (required && max === 1) return
       set({ chosen: { ...get().chosen, [groupId]: list.filter((id) => id !== modifierId) } })
       return
     }

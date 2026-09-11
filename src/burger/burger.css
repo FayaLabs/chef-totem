@@ -7,15 +7,44 @@
 .burger-layer-hit:active { cursor: grabbing; }
 .burger-layer-hit[aria-pressed="true"] img { filter: drop-shadow(0 0 9px #ffcc63b0); }
 .burger-layer-hit:focus-visible { outline: 3px solid #ffcf6d; outline-offset: 8px; border-radius: 50%; }
-.burger-selection { position: absolute; bottom: 1.5cqw; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 3cqw; padding: .5cqw 1cqw .5cqw 3cqw; border: 1px solid #ffffff25; border-radius: 99px; background: #222d; color: #fff; font-size: var(--step-label); white-space: nowrap; }
-.burger-selection button { min-height: var(--tap); padding: 0 3cqw; border-radius: 99px; background: #ffffff1a; font-weight: 700; }
+/* A PASTILHA DA CAMADA SELECIONADA É DE VIDRO, e aqui o material tem o que
+   revelar: ela pousa em cima da própria montagem, a 1,5cqw do pão. Chapa cinza
+   ali é um adesivo tapando justamente a camada de que ela fala. */
+.burger-selection {
+  position: absolute; bottom: 1.5cqw; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 3cqw;
+  padding: .5cqw 1cqw .5cqw 3cqw; border: 0; border-radius: 99px;
+  background-color: var(--glass-plate);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  color: #fff; font-size: var(--step-label); white-space: nowrap;
+  box-shadow: 0 .4cqw 1.2cqw rgba(0, 0, 0, .32);
+}
+.burger-selection::after {
+  content: ''; position: absolute; inset: 0; z-index: 1; border-radius: inherit;
+  padding: var(--glass-rim-width);
+  background: linear-gradient(158deg, var(--glass-line) 0%, transparent 38%, transparent 62%, var(--glass-rim) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+/* "Retirar" é a ação, então ela é a peça SÓLIDA da pastilha — vidro dos dois
+   lados achataria a diferença entre o rótulo e o botão. */
+.burger-selection button {
+  position: relative; z-index: 2;
+  min-height: var(--tap); padding: 0 3cqw; border-radius: 99px;
+  background: #ffffff26; font-weight: 700;
+  box-shadow: inset 0 .16cqw 0 rgba(255, 255, 255, .35);
+}
 .burger-drop-message { position: absolute; inset-inline: 0; bottom: 2cqw; text-align: center; color: #fff; font-size: var(--step-label); pointer-events: none; }
 .burger-stage[data-drop-ready="true"] { box-shadow: inset 0 0 0 3px #ffcd6f88; }
 .burger-empty { position: absolute; inset: 0; display: grid; place-items: center; color: #fff9; font-size: var(--step-body); }
 .burger-removed-tray { padding: 2cqw 6cqw; background: #f4f2ee; }
 .burger-removed-tray > p { color: var(--color-muted, #666); text-transform: uppercase; font-size: var(--step-label); margin-bottom: 1cqw; }
-.burger-removed-items { display: flex; gap: 1cqw; overflow-x: auto; padding: 1cqw 0; }
-.burger-restore-item { display: flex; flex-shrink: 0; align-items: center; gap: 1cqw; min-height: var(--tap); padding: 1cqw 2cqw; border: 1px solid #ddd; border-radius: 2cqw; background: #fff; color: #222; font-size: var(--step-label); touch-action: none; }
+.burger-removed-items { display: flex; flex-wrap: wrap; gap: 1cqw; padding: 1cqw 0; }
+.burger-restore-item { position: relative; display: flex; flex-shrink: 0; align-items: center; gap: 1cqw; min-height: var(--tap); padding: 1cqw 2cqw; border: 1px solid #ddd; border-radius: 2cqw; background: #fff; color: #222; font-size: var(--step-label); touch-action: none; }
 .burger-restore-item img { width: 7cqw; height: 6cqw; object-fit: contain; pointer-events: none; }
 .burger-drag-ghost { position: fixed; top: 0; left: 0; z-index: 9999; pointer-events: none; filter: drop-shadow(0 12px 18px #0008); }
 .burger-drag-ghost.is-ready { filter: drop-shadow(0 0 12px #ffcc6380); }
@@ -23,7 +52,7 @@
 .burger-contact-shadow { position: absolute; pointer-events: none; border-radius: 50%; background: radial-gradient(ellipse, #0009 0%, #0007 24%, #0003 50%, #0000 72%); }
 .burger-ambient .burger-layer-float { animation: burger-breathe 5s ease-in-out infinite; }
 @keyframes burger-breathe { 0%, 100% { transform: translateY(-.25%); } 50% { transform: translateY(.25%); } }
-@media (prefers-reduced-motion: reduce) { .burger-layer-float { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .burger-layer-float { animation: none !important; } .burger-photo-stage { transition: none; } .burger-photo-stage:active { transform: none; } }
 .burger-still { display: block; position: relative; width: 100%; height: 100%; }
 .burger-photo-note { position: absolute; bottom: 3%; width: 100%; text-align: center; font-size: 11px; color: #888; }
 .burger-builder { position: relative; }
@@ -33,18 +62,87 @@
 /* Keep the top bun below the sheet handle's touch area, including while open. */
 .burger-preview .burger-scene { width: 47cqw; height: 47cqw; left: calc(50% - 23.5cqw); top: calc(50% + 2cqw); }
 .burger-preview-controls { position: absolute; z-index: 3; right: 3cqw; top: 26cqw; transform: translateY(-50%); display: flex; flex-direction: column; gap: 1cqw; color: #fff; }
-.burger-preview-controls button { display: grid; place-items: center; width: var(--tap); height: var(--tap); border: 1px solid transparent; border-radius: 50%; background: #ffffff06; color: #ffffffa6; transition: background 180ms, color 180ms; }
-.burger-preview-controls button[aria-pressed="true"] { background: #ffffff14; border-color: #ffffff18; color: #fff; }
+/* OS DOIS CONTROLES SÃO DE VIDRO. Eles boiam sobre a prévia — a única
+   superfície da tela que tem algo atrás valendo a pena revelar — e antes eram
+   um véu branco a 2% de opacidade: nem chapa, nem vidro, só uma mancha um
+   pouco mais clara que ninguém lia como botão. Com o material certo o botão
+   pesado é o ativo, e o outro é o próprio fundo com uma quina de luz. */
+.burger-preview-controls button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  border: 0;
+  border-radius: 50%;
+  background-color: var(--glass-plate);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  color: #ffffffb3;
+  transition: background-color 180ms, color 180ms;
+}
+.burger-preview-controls button::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  padding: var(--glass-rim-width);
+  background: linear-gradient(158deg, var(--glass-line) 0%, transparent 38%, transparent 62%, var(--glass-rim) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.burger-preview-controls button[aria-pressed="true"] { background-color: #ffffff26; color: #fff; }
 .burger-preview-controls button:disabled { opacity: .35; }
 .burger-preview-controls svg { width: 38%; height: 38%; }
 .burger-preview-controls button:focus-visible { outline: 3px solid #ffcf6d; outline-offset: 3px; }
 .burger-live-stage[data-hidden="true"] .burger-stage { visibility: hidden; }
-.burger-photo-stage { position: absolute; inset: 0 0 auto; height: 52cqw; pointer-events: none; }
+.burger-photo-stage { position: absolute; inset: 0 0 auto; width: 100%; height: 52cqw; display: block; padding: 0; border: 0; background: transparent; appearance: none; cursor: pointer; transition: transform 200ms cubic-bezier(.16,1,.3,1); }
+.burger-photo-stage:active { transform: scale(.985); }
+.burger-photo-stage:disabled { pointer-events: none; cursor: default; }
+.burger-photo-stage:focus-visible { outline: 3px solid #ffcf6d; outline-offset: -6px; border-radius: 2cqw; }
 .burger-preview .burger-removed-tray { padding: 1cqw 3cqw; background: transparent; }
 .burger-preview .burger-removed-tray > p { color: #ffffffb3; }
+/* VIDRO nas pastilhas do que saiu do burger. Elas moram sobre a prévia escura,
+   e uma pílula branca opaca ali é um adesivo colado na foto: a peça mais
+   pesada da tela é a que menos importa nela. Em vidro, o que passa por trás é
+   o próprio burger, que é o assunto — e a pastilha continua sendo um alvo de
+   toque com piso de legibilidade, porque o plate carrega o texto. */
+.burger-preview .burger-restore-item {
+  border-color: transparent;
+  background-color: var(--glass-plate);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  color: #fff;
+  box-shadow: 0 .3cqw 1cqw rgba(0, 0, 0, .28);
+}
+/* A quina de luz, igual à das outras panes: é ela que faz a pastilha ter
+   espessura em vez de ser um retângulo mais claro. Ver .glass::after. */
+.burger-preview .burger-restore-item::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  padding: var(--glass-rim-width);
+  background: linear-gradient(158deg, var(--glass-line) 0%, transparent 38%, transparent 62%, var(--glass-rim) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
 .burger-cart-arrival { position: fixed; left: 0; top: 0; z-index: 70; pointer-events: none; container-type: inline-size; }
 .burger-group-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5cqw; font-size: var(--step-body); font-weight: 650; }
 .burger-required { font-size: var(--step-label); color: var(--color-muted, #666); font-weight: 400; }
-.burger-recipe-list { display: grid; grid-auto-flow: column; grid-auto-columns: 29%; gap: 1.5cqw; overflow-x: auto; padding-bottom: 1cqw; }
+/* AS RECEITAS QUEBRAM EM LINHAS, não rolam para o lado. Rolagem horizontal num
+   totem esconde metade do cardápio atrás de um gesto que ninguém faz de pé com
+   fila atrás: o cliente vê três burgers e conclui que a casa tem três. Em
+   linhas, a mesma altura mostra todas — e é a mesma grade de três colunas dos
+   grupos logo abaixo, então a lista inteira lê como uma coisa só. */
+.burger-recipe-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5cqw; padding-bottom: 1cqw; }
 .burger-recipe-thumb { width: 17cqw; height: 13cqw; margin: -.8cqw auto .5cqw; }
 .burger-bread-thumb { display: block; width: 15cqw; height: 8cqw; object-fit: contain; margin: 0 auto 1cqw; }

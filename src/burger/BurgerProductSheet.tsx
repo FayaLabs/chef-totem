@@ -2,8 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { Layers, Plus } from 'lucide-react'
 import { Chip, Sheet, Stepper, TotemButton } from '@/design'
 import { brl, useCart } from '@/cart/useCart'
+import { playItemSound } from '@/feedback/itemSound'
 import { useCatalog } from '@/menu/useCatalog'
 import { commitProductDraft, draftBlocking, draftModifiers, draftUnitCents, useProductDraft } from '@/menu/useProductDraft'
+import { StepHeading, stepHint } from '@/menu/StepHeading'
+import { scrollToStepSoon, stepDone, stepFilled, stepFull, useStepFlow } from '@/menu/useStepFlow'
 import type { TotemModifierGroup, TotemProduct } from '@/menu/types'
 import { BurgerInteractiveStage } from './BurgerInteractiveStage'
 import { BurgerStill, burgerDimensions } from './BurgerStill'
@@ -45,23 +48,41 @@ export function BurgerProductSheet({ product, onClose }: { product: TotemProduct
   const restorable = [...allLayers.filter((l) => removedIds.has(l.id)), ...removedExtras.filter((l) => !layers.some((included) => included.id === l.id))]
   const findRemoval = (id: string) => removal.find(({ modifier }) => modifier.burgerEffect?.kind === 'remove' && modifier.burgerEffect.layerId === id)
   const findExtra = (id: string) => extras.find(({ modifier }) => `extra-${modifier.id}` === id)
+  // A receita é a etapa 1; os grupos vêm depois, na ordem em que aparecem.
+  const advance = useStepFlow([
+    { id: 'burger-recipe', done: draft.burgerRecipeChosen },
+    ...product.modifierGroups.map((group) => ({ id: group.id, done: stepDone(group, draft.chosen) })),
+  ])
   const focusSection = (id: string) => {
     const section = body.current?.querySelector<HTMLElement>(`[data-section="${id}"]`)
     section?.scrollIntoView({ block: 'nearest', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })
     section?.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true })
   }
   useEffect(() => { setRemovedExtras([]) }, [product.id])
+  // ABRE NA ETAPA DO PÃO quando o lanche já veio escolhido da grade. Quem
+  // tocou no cartão do Cheddar Bacon já respondeu "qual lanche"; abrir o sheet
+  // na lista de lanches é pedir a mesma resposta de novo, e a segunda pergunta
+  // igual é onde o cliente conclui que o totem não entendeu a primeira.
+  const openedChosen = useRef(draft.burgerRecipeChosen)
+  useEffect(() => {
+    if (!openedChosen.current) return
+    const bread = product.modifierGroups.find((g) => g.kind === 'burger-bread')
+    if (bread) scrollToStepSoon(bread.id)
+  }, [product.modifierGroups])
 
   function remove(id: string) {
     const option = findRemoval(id) ?? findExtra(id)
     if (!option) return
     const { group, modifier } = option
     const selected = (draft.chosen[group.id] ?? []).includes(modifier.id)
-    if (modifier.burgerEffect?.kind === 'remove' && !selected) draft.toggle(group.id, modifier.id, group.maxSelections)
+    if (modifier.burgerEffect?.kind === 'remove' && !selected) {
+      draft.toggle(group.id, modifier.id, group.maxSelections); playItemSound('remove')
+    }
     if (modifier.burgerEffect?.kind === 'extra' && selected) {
       const layer = ingredientLayer(id, modifier.burgerEffect.asset)
       setRemovedExtras((previous) => [...previous.filter((l) => l.id !== id), layer])
-      draft.toggle(group.id, modifier.id, group.maxSelections)
+      draft.toggle(group.id, modifier.id, group.maxSelections, group.required)
+      playItemSound('remove')
     }
   }
   function restore(id: string) {
@@ -70,7 +91,8 @@ export function BurgerProductSheet({ product, onClose }: { product: TotemProduct
     const { group, modifier } = option
     const selected = (draft.chosen[group.id] ?? []).includes(modifier.id)
     if ((modifier.burgerEffect?.kind === 'remove' && selected) || (modifier.burgerEffect?.kind === 'extra' && !selected)) {
-      draft.toggle(group.id, modifier.id, group.maxSelections)
+      draft.toggle(group.id, modifier.id, group.maxSelections, group.required)
+      playItemSound('add')
     }
   }
 
@@ -93,9 +115,15 @@ export function BurgerProductSheet({ product, onClose }: { product: TotemProduct
             onChangeLayer={(id) => focusSection(id === 'top' || id === 'bottom' ? 'burger-bread' : 'burger-recipe')}
             onImageError={() => setFailed(true)} />
         </div>
-        {view === 'photo' && <div className="burger-photo-stage">
+        {/* A FOTO É O BOTÃO. Ela ocupava metade da prévia com `pointer-events:
+            none`: o cliente tocava no burger, nada acontecia, e o caminho para
+            ver as camadas era um ícone de 6cqw no canto. Num totem, o dedo vai
+            na comida — é o único alvo que a pessoa tem certeza de ter visto. */}
+        {view === 'photo' && <button type="button" className="burger-photo-stage" data-testid="burger-photo-expand"
+          aria-label="Ver as camadas do burger" title="Ver as camadas do burger" disabled={failed}
+          onClick={() => { reveal(); pause() }}>
               <div className="burger-scene"><BurgerStill layers={layers} alt={`${product.name}, sua montagem`} fallback={product.imageUrl} /></div>
-            </div>}
+            </button>}
       </div>
       <div className="burger-preview-controls" data-testid="burger-preview-controls" role="group" aria-label="Visualização do burger">
         <button type="button" aria-pressed={!open} aria-label="Ver burger montado" title="Ver burger montado" onClick={close} data-testid="burger-photo-toggle">
@@ -121,24 +149,47 @@ export function BurgerProductSheet({ product, onClose }: { product: TotemProduct
             <h2 className="type-display mt-[1cqw]" style={{ fontSize: 'var(--step-title)' }}>{draft.burgerRecipeChosen ? product.name : 'Monte seu burger'}</h2></div>
           <Stepper value={draft.quantity} onChange={draft.setQuantity} data-testid="product-stepper" />
         </div>
-        <section className="mt-[3cqw]" data-section="burger-recipe">
-          <h3 className="burger-group-title">Seu burger</h3>
+        <section className="mt-[3cqw]" data-section="burger-recipe" data-step="burger-recipe">
+          <StepHeading index={1} title="Seu burger" required done={draft.burgerRecipeChosen}
+            hint={draft.burgerRecipeChosen ? 'Pronto' : 'Escolha 1'} />
           <div className="burger-recipe-list">
             {recipes.map((recipe) => <Chip key={recipe.id} compact selected={draft.burgerRecipeChosen && recipe.id === product.id}
-              disabled={recipe.soldOut} data-testid={`burger-recipe-${recipe.id}`} onClick={() => draft.chooseBurger(recipe)}>
+              disabled={recipe.soldOut} data-testid={`burger-recipe-${recipe.id}`}
+              onClick={() => {
+                if (!draft.burgerRecipeChosen || recipe.id !== product.id) playItemSound('add')
+                draft.chooseBurger(recipe)
+                // Desce até O PÃO, e não até a próxima etapa em aberto: o pão
+                // da receita já vem marcado, então "em aberto" pularia justo a
+                // escolha que o cliente pode querer trocar — e ele nunca veria
+                // que ela foi feita por ele.
+                const bread = recipe.modifierGroups.find((g) => g.kind === 'burger-bread')
+                if (bread) scrollToStepSoon(bread.id)
+                else advance('burger-recipe')
+              }}>
               <BurgerStill layers={burgerLayers(recipe, [])} fallback={recipe.imageUrl} className="burger-recipe-thumb" />
               <span>{recipe.name}</span><span className="mt-[.5cqw] block font-normal">{recipe.soldOut ? 'Esgotado' : brl(recipe.priceCents)}</span>
             </Chip>)}
           </div>
         </section>
-        <p className="mt-[2cqw] text-muted" style={{ fontSize: 'var(--step-label)' }}>{product.description}</p>
-        {product.modifierGroups.map((group) => <section key={group.id} className="mt-[3cqw]" data-section={group.kind}>
-          <h3 className="burger-group-title">{GROUP_TITLES[group.kind!] ?? group.name}
-            {group.required && <span className="burger-required">{(draft.chosen[group.id] ?? []).length ? '✓' : 'Escolha 1'}</span>}</h3>
+        {/* AS PERSONALIZAÇÕES SÓ EXISTEM DEPOIS DO LANCHE. Pão, ponto e
+            adicionais de um burger que ainda não foi escolhido são sete grupos
+            perguntando sobre nada — e, pior, perguntando ANTES da única
+            pergunta que importa. Na montagem em branco a tela mostra só os
+            lanches; escolhido um, o resto aparece. */}
+        {draft.burgerRecipeChosen && <p className="mt-[2cqw] text-muted" style={{ fontSize: 'var(--step-label)' }}>{product.description}</p>}
+        {draft.burgerRecipeChosen && product.modifierGroups.map((group, index) => <section key={group.id} className="mt-[3cqw]" data-section={group.kind} data-step={group.id}>
+          <StepHeading index={index + 2} title={GROUP_TITLES[group.kind!] ?? group.name} required={group.required}
+            done={stepFilled(group, draft.chosen)}
+            hint={stepHint(group.required, group.minSelections, group.maxSelections, (draft.chosen[group.id] ?? []).length)} />
           <div className="grid grid-cols-3 gap-[1.5cqw]">
             {group.modifiers.map((modifier) => <Chip key={modifier.id} compact data-testid={`mod-${modifier.id}`}
               selected={(draft.chosen[group.id] ?? []).includes(modifier.id)} surchargeCents={modifier.surchargeCents || undefined}
-              onClick={() => draft.toggle(group.id, modifier.id, group.maxSelections)}>
+              onClick={() => {
+                const adding = !(draft.chosen[group.id] ?? []).includes(modifier.id)
+                draft.toggle(group.id, modifier.id, group.maxSelections, group.required)
+                if (modifier.burgerEffect) playItemSound(modifier.burgerEffect.kind === 'remove' ? (adding ? 'remove' : 'add') : (adding ? 'add' : 'remove'))
+                if (adding && stepFull(group, useProductDraft.getState().chosen)) advance(group.id)
+              }}>
               {modifier.burgerEffect?.kind === 'bread' && <img src={`${BURGER_ASSETS}/${modifier.burgerEffect.bread}-top.webp`} alt="" className="burger-bread-thumb" />}
               {modifier.burgerEffect?.kind === 'extra' && <img src={`${BURGER_ASSETS}/${modifier.burgerEffect.asset}.webp`} alt="" className="burger-bread-thumb" />}
               {modifier.name}

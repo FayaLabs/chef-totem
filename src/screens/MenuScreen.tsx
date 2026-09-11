@@ -15,6 +15,7 @@ import { CartButton } from '@/screens/CartButton'
 import { offerLabel } from '@/orders/totals'
 import { useTotemSession, type TotemCustomer } from '@/session/useTotemSession'
 import { totemConfig } from '@/config/totem.config'
+import { useTenantBrand } from '@/config/tenant-brand'
 import { PizzaCartArrival } from '@/pizza/PizzaCartArrival'
 import { BurgerStill } from '@/burger/BurgerStill'
 import { burgerLayers } from '@/burger/composition'
@@ -32,7 +33,6 @@ const HIGHLIGHT_MS = 7_000
 
 export function MenuScreen() {
   const state = useCatalog()
-  const ticket = useTotemSession((s) => s.ticket)
   const customer = useTotemSession((s) => s.customer)
   const visitId = useTotemSession((s) => s.visitId)
   const reset = useTotemSession((s) => s.reset)
@@ -149,7 +149,6 @@ export function MenuScreen() {
     <div data-testid="screen-menu" className="absolute inset-0 flex flex-col surface-page">
       <Header
         ref={header}
-        ticket={ticket}
         customer={customer}
         onCancel={() => {
           if (count > 0) return setConfirmingCancel(true)
@@ -267,18 +266,44 @@ export function MenuScreen() {
   )
 }
 
+/**
+ * A marca da casa no cardápio.
+ *
+ * O repouso mostra a logo grande e o cliente atravessa DUAS telas até chegar
+ * aqui — tempo suficiente para a pergunta "é do restaurante certo que estou
+ * pedindo?" voltar, e num totem de feira, com três painéis lado a lado, ela
+ * volta mesmo. A logo no topo responde sem cobrar uma linha de texto.
+ *
+ * PEQUENA e na linha da senha, não ao lado do título: o título já é a voz da
+ * casa ("Monta o seu"), e marca duas vezes na mesma tela é a segunda sempre
+ * contradizendo a primeira — a mesma regra da tela de repouso.
+ *
+ * Sem logo, nada: o nome tipografado aqui competiria com o título logo abaixo.
+ */
+function BrandMark() {
+  const { theme } = totemConfig
+  const name = useTenantBrand()
+  const [broken, setBroken] = useState(false)
+  if (!theme?.logoUrl || broken) return null
+  return (
+    <img
+      src={theme.logoUrl}
+      alt={name}
+      data-testid="header-logo"
+      onError={() => setBroken(true)}
+      className="block shrink-0"
+      // Altura travada e largura livre: as logos das casas vão de emblema
+      // quadrado a wordmark deitado, e é a altura que tem de bater com a linha
+      // da senha para as duas lerem como uma coisa só.
+      style={{ height: '9cqw', width: 'auto', maxWidth: '34cqw', objectFit: 'contain' }}
+    />
+  )
+}
+
 const Header = forwardRef<HTMLElement, {
-  ticket: string | null
   customer: TotemCustomer | null
   onCancel: () => void
-}>(function Header({ ticket, customer, onCancel }, ref) {
-  const now = new Date().toLocaleString('pt-BR', {
-    weekday: 'short',
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+}>(function Header({ customer, onCancel }, ref) {
   return (
     // O CABEÇALHO FLUTUA, e é vidro escuro.
     //
@@ -307,17 +332,15 @@ const Header = forwardRef<HTMLElement, {
           precisa ler (a senha dele) era o que ficava por baixo. Agora dividem a
           linha, e a régua de 88px vale para o botão sem empurrar nada. */}
       <div className="flex min-h-[var(--tap)] items-center gap-[3cqw]">
-        <div
-          className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-[3cqw] uppercase tracking-[0.25em] text-white/60"
-          style={{ fontSize: 'var(--step-label)' }}
-        >
-          <span>{now}</span>
-          {ticket ? (
-            <span className="tnum text-white/85">
-              senha <span className="font-bold">{ticket}</span>
-            </span>
-          ) : null}
-        </div>
+        <BrandMark />
+        {/* O TOPO É SÓ A MARCA. Data, senha e título saíram daqui, e cada um
+            por um motivo diferente: a data ninguém consulta num quiosque (quem
+            está de pé na fila já sabe que dia é), a senha só vale depois de o
+            pedido sair — e ela volta em tamanho grande no recibo —, e o título
+            repetia em texto o que a logo já diz em desenho. O que sobra é a
+            resposta da única pergunta que o cliente faz olhando para cima:
+            "estou no painel do restaurante certo?". */}
+        <div className="min-w-0 flex-1" />
 
         {/* A customer who changed their mind must be able to leave without
             waiting out the idle timeout in front of a queue. Secondary, so it
@@ -360,13 +383,6 @@ const Header = forwardRef<HTMLElement, {
           Oi, {customer.name}
         </p>
       ) : null}
-      <h1
-        className="mt-[1.5cqw] type-display leading-[0.9] tracking-tight"
-        style={{ fontSize: 'var(--step-display)' }}
-      >
-        {totemConfig.copy.menuTitle}
-      </h1>
-
       {customer && ((customer.creditCents ?? 0) > 0 || customer.offer) ? (
         <div className="mt-[2.5cqw] flex flex-wrap gap-[2cqw]">
           {(customer.creditCents ?? 0) > 0 ? (
@@ -469,7 +485,13 @@ function RailButton({
         // A inativa não tem fundo nenhum: o fundo dela é a pane da trilha. Um
         // branco próprio por cima do vidro emendaria cinco retângulos num
         // material que devia ser contínuo.
-        active ? 'sheen bg-ink text-white' : 'bg-transparent text-ink',
+        //
+        // A ATIVA É A COR DA CASA, e não o preto de antes. A trilha é a única
+        // peça do cardápio que fica acesa o tempo todo, e preto ali é a cor de
+        // qualquer painel — a casa só aparecia lá embaixo, no botão de
+        // finalizar. Com a cor da marca, a coluna que o cliente olha para se
+        // localizar é a mesma coisa que o logo no topo.
+        active ? 'sheen bg-action text-on-action' : 'bg-transparent text-ink',
       ].join(' ')}
     >
       {icon}
@@ -542,14 +564,23 @@ function ProductCard({
       ].join(' ')}
     >
       <div className={`relative h-[18cqw] shrink-0 ${product.pizza || product.burger ? 'bg-[#292827]' : 'bg-hairline'}`}>
-        {product.burger ? <BurgerStill layers={burgerLayers(product, [])} fallback={imageUrl} /> : imageUrl && !imageBroken ? (
+        {product.burger ? <BurgerStill layers={burgerLayers(product, [])} fallback={imageUrl} className={product.soldOut ? 'opacity-45 grayscale' : undefined} /> : imageUrl && !imageBroken ? (
           <img
             src={imageUrl}
             alt=""
             loading="lazy"
             data-testid={`img-${product.id}`}
             onError={() => setImageBroken(true)}
-            className={product.pizza ? 'size-full object-contain p-[.8cqw]' : 'size-full object-cover'}
+            // ESGOTADO APAGA A FOTO, não a tarja. O cartão inteiro já vive a
+            // 60% — descer dali derruba junto o branco de "ESGOTADO" sobre o
+            // preto da tarja, que é a única frase que o cliente precisa ler
+            // nesse cartão. Então quem apaga é a comida: cinza e meia luz
+            // dizem "hoje não" de longe, e a tarja continua com o contraste
+            // medido.
+            className={[
+              product.pizza ? 'size-full object-contain p-[.8cqw]' : 'size-full object-cover',
+              product.soldOut ? 'opacity-45 grayscale' : '',
+            ].join(' ')}
           />
         ) : (
           <div className="grid size-full place-items-center text-muted">

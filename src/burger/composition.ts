@@ -3,12 +3,17 @@ import type { BurgerLayer } from './pilot'
 import type { BurgerAsset, BurgerBread, BurgerComposition, BurgerRecipeId } from './types'
 
 export const BURGER_BREADS: Record<BurgerBread, string> = { brioche: 'Brioche', australian: 'Australiano', 'gluten-free': 'Sem glúten' }
-export const BURGER_RECIPES: Record<BurgerRecipeId, { name: string; ingredients: BurgerAsset[]; protein: BurgerAsset; patties: number; cheese?: BurgerAsset }> = {
-  classic: { name: 'Max Clássico', protein: 'blend', patties: 1, cheese: 'prato', ingredients: ['house-sauce', 'lettuce', 'tomato'] },
-  'cheddar-bacon': { name: 'Cheddar Bacon', protein: 'blend', patties: 1, cheese: 'cheddar', ingredients: ['bacon', 'onion-crispy'] },
-  'smash-double': { name: 'Smash Duplo', protein: 'smash', patties: 2, cheese: 'prato', ingredients: [] },
-  chicken: { name: 'Frango Crocante', protein: 'chicken', patties: 1, ingredients: ['lemon-mayo'] },
-  veggie: { name: 'Veggie do Chef', protein: 'veggie', patties: 1, cheese: 'vegan-cheese', ingredients: [] },
+// `bread` é o PÃO DA RECEITA, e não um palpite: é o pão em que a casa serve
+// aquele lanche quando ninguém pede nada. Está aqui, e não escondido no valor
+// padrão de `recipeLayers`, porque é ele que já vem marcado no sheet — o
+// cliente que só quer o lanche do jeito da casa não deveria ter de responder
+// uma pergunta cuja resposta a cozinha já sabe.
+export const BURGER_RECIPES: Record<BurgerRecipeId, { name: string; ingredients: BurgerAsset[]; protein: BurgerAsset; patties: number; cheese?: BurgerAsset; bread: BurgerBread }> = {
+  classic: { name: 'Max Clássico', protein: 'blend', patties: 1, cheese: 'prato', bread: 'brioche', ingredients: ['house-sauce', 'lettuce', 'tomato'] },
+  'cheddar-bacon': { name: 'Cheddar Bacon', protein: 'blend', patties: 1, cheese: 'cheddar', bread: 'brioche', ingredients: ['bacon', 'onion-crispy'] },
+  'smash-double': { name: 'Smash Duplo', protein: 'smash', patties: 2, cheese: 'prato', bread: 'brioche', ingredients: [] },
+  chicken: { name: 'Frango Crocante', protein: 'chicken', patties: 1, bread: 'brioche', ingredients: ['lemon-mayo'] },
+  veggie: { name: 'Veggie do Chef', protein: 'veggie', patties: 1, cheese: 'vegan-cheese', bread: 'brioche', ingredients: [] },
 }
 export const BURGER_INGREDIENTS: Partial<Record<BurgerAsset, { label: string; diameter: number; thickness: number }>> = {
   blend: { label: 'Carne', diameter: 1.02, thickness: .17 },
@@ -26,6 +31,21 @@ export const BURGER_INGREDIENTS: Partial<Record<BurgerAsset, { label: string; di
   egg: { label: 'Ovo', diameter: 1, thickness: .07 },
   'house-sauce': { label: 'Molho da casa', diameter: .86, thickness: .015 },
   'lemon-mayo': { label: 'Maionese de limão', diameter: .86, thickness: .015 },
+}
+
+/**
+ * O pão da receita já marcado, no formato do rascunho (grupo → modificadores).
+ *
+ * Devolve `{}` quando o produto não é burger ou quando a casa não oferece
+ * aquele pão: marcar sozinho uma opção que não existe no cardápio é inventar
+ * pedido, e é melhor o grupo continuar pedindo escolha.
+ */
+export function defaultBreadChoice(product: TotemProduct): Record<string, string[]> {
+  if (!product.burger) return {}
+  const bread = BURGER_RECIPES[product.burger.recipe].bread
+  const group = product.modifierGroups.find((g) => g.kind === 'burger-bread')
+  const modifier = group?.modifiers.find((m) => m.burgerEffect?.kind === 'bread' && m.burgerEffect.bread === bread)
+  return group && modifier ? { [group.id]: [modifier.id] } : {}
 }
 
 export function ingredientLayer(id: string, asset: BurgerAsset, attached = false): BurgerLayer {

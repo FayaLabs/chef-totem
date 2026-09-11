@@ -153,7 +153,7 @@ test.describe('M10 · cancelar', () => {
     await expect(page.getByTestId('attract')).toBeVisible()
   })
 
-  test('o cancelar não cobre a senha — os dois cabem na mesma linha', async ({ page }) => {
+  test('o topo é a marca e o cancelar, e um não cobre o outro', async ({ page }) => {
     await page.goto('/')
     await page.getByTestId('attract').tap()
     await page.getByTestId('mode-dine-in').tap()
@@ -161,14 +161,12 @@ test.describe('M10 · cancelar', () => {
   await dismissPizzaIntro(page)
 
     const cancel = (await page.getByTestId('reset').boundingBox())!
-    const ticket = (await page
-      .locator('header')
-      .getByText(/senha/i)
-      .boundingBox())!
-    // Antes o cancelar era `absolute` e caía em cima da senha.
-    expect(ticket.x + ticket.width, 'a senha termina antes de o cancelar começar').toBeLessThanOrEqual(
-      cancel.x + 1,
-    )
+    const logo = (await page.getByTestId('header-logo').boundingBox())!
+    // O cancelar já foi `absolute` e caiu em cima do que dividia a linha com
+    // ele. Divide de novo — agora com a logo.
+    expect(logo.x + logo.width, 'a logo termina antes de o cancelar começar').toBeLessThanOrEqual(cancel.x + 1)
     expect(cancel.height, 'régua de quiosque vale para o cancelar também').toBeGreaterThanOrEqual(88)
+    // Data, senha e título saíram do cabeçalho: a senha só vale no recibo.
+    await expect(page.locator('header')).not.toContainText(/senha/i)
   })
 })

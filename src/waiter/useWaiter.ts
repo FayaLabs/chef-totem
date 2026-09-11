@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { pointWhileSpeaking } from '@/waiter/pointing'
 
 // ---------------------------------------------------------------------------
 // The waiter's state of mind.
@@ -118,9 +119,18 @@ export const useWaiter = create<WaiterState>((set, get) => ({
   setPhase: (phase) => set({ phase }),
   setLive: (liveTranscript) => set({ liveTranscript }),
   setLevel: (level) => set({ level }),
-  pushTurn: (turn) => set({ turns: [...get().turns, turn] }),
-  updateTurn: (id, patch) =>
-    set({ turns: get().turns.map((turn) => (turn.id === id ? { ...turn, ...patch } : turn)) }),
+  // Falar de um prato acende o cartão dele na grade — ver waiter/pointing.ts.
+  // Mora aqui, e não em cada transporte, porque o gesto não depende de a fala
+  // ter chegado por voz ou por texto: ela passa pelos dois por este ponto.
+  pushTurn: (turn) => {
+    set({ turns: [...get().turns, turn] })
+    if (turn.from === 'waiter') pointWhileSpeaking(turn.text)
+  },
+  updateTurn: (id, patch) => {
+    set({ turns: get().turns.map((turn) => (turn.id === id ? { ...turn, ...patch } : turn)) })
+    const turn = get().turns.find((t) => t.id === id)
+    if (turn?.from === 'waiter' && patch.text !== undefined) pointWhileSpeaking(turn.text)
+  },
   // O erro APAGA SOZINHO. Ele é um aviso, não um estado: deixado aceso, a
   // faixa fica vermelha para o resto da visita — inclusive depois de o cliente
   // já ter conseguido pedir — e a próxima pessoa encontra o painel gritando
