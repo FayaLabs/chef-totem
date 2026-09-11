@@ -1,24 +1,106 @@
 import { useEffect, useState } from 'react'
 import dimensions from '../../public/demo/maxburger/burger/assets.json'
 import { BURGER_ASSETS, burgerPoses, burgerShadowPose, type BurgerLayer } from './pilot'
+import { paintStill, type StillPlan, type StillReply } from './still-paint'
 import './burger.css'
 
 export { dimensions as burgerDimensions }
+const STILL_SIZE = 640
+/** Poses are in percent of the scene; the still is STILL_SIZE px square. */
+const SCALE = STILL_SIZE / 100
 const images = new Map<string, Promise<HTMLImageElement>>()
 const stills = new Map<string, Promise<string>>()
 
-function loadImage(asset: string) {
-  let pending = images.get(asset)
+/** Where each layer and the contact shadow land on the still. */
+function stillPlan(layers: BurgerLayer[]): StillPlan {
+  const poses = burgerPoses(layers, dimensions, false)
+  const shadow = burgerShadowPose(layers, poses, dimensions, false)
+  return {
+    size: STILL_SIZE,
+    shadow: shadow && {
+      centerX: (shadow.left + shadow.width / 2) * SCALE,
+      centerY: (shadow.top + shadow.height / 2) * SCALE,
+      scaleX: shadow.width * SCALE / 2,
+      scaleY: shadow.height * SCALE / 2,
+    },
+    // Absolute, because the worker resolves relative URLs against its own
+    // script, not the page.
+    draws: layers.map((layer, i) => ({
+      url: new URL(`${BURGER_ASSETS}/${layer.asset}.webp`, document.baseURI).href,
+      centerX: poses[i].centerX * SCALE,
+      centerY: poses[i].centerY * SCALE,
+      width: poses[i].width * SCALE,
+    })),
+  }
+}
+
+function loadImage(url: string) {
+  let pending = images.get(url)
   if (!pending) {
     pending = new Promise<HTMLImageElement>((resolve, reject) => {
       const img = new Image()
       img.onload = () => resolve(img)
-      img.onerror = () => { images.delete(asset); reject(new Error(`Missing burger asset: ${asset}`)) }
-      img.src = `${BURGER_ASSETS}/${asset}.webp`
+      img.onerror = () => { images.delete(url); reject(new Error(`Missing burger asset: ${url}`)) }
+      img.src = url
     })
-    images.set(asset, pending)
+    images.set(url, pending)
   }
   return pending
+}
+
+/** Fallback for engines without module workers or OffscreenCanvas. This is
+ * the path that used to block the panel's main thread; it runs only when the
+ * worker can't. */
+async function composeOnMain(plan: StillPlan) {
+  const loaded = await Promise.all(plan.draws.map((draw) => loadImage(draw.url)))
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = plan.size
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Canvas unavailable')
+  paintStill(ctx, plan, loaded.map((img) => ({ width: img.naturalWidth, height: img.naturalHeight, source: img })))
+  return canvas.toDataURL('image/webp', .9)
+}
+
+let worker: Worker | null | undefined
+let nextId = 0
+const waiting = new Map<number, { plan: StillPlan; resolve: (url: string) => void; reject: (error: Error) => void }>()
+
+function stillWorker() {
+  if (worker !== undefined) return worker
+  if (typeof Worker !== 'function' || typeof OffscreenCanvas !== 'function') return (worker = null)
+  try {
+    worker = new Worker(new URL('./still-worker.ts', import.meta.url), { type: 'module' })
+  } catch {
+    return (worker = null)
+  }
+  worker.onmessage = (event: MessageEvent<StillReply>) => {
+    const job = waiting.get(event.data.id)
+    if (!job) return
+    waiting.delete(event.data.id)
+    if ('url' in event.data) job.resolve(event.data.url)
+    else job.reject(new Error(event.data.error))
+  }
+  // A worker that can't start (an old engine, a blocked script) must not leave
+  // stills pending forever: finish them here and stop using it.
+  worker.onerror = () => {
+    worker?.terminate()
+    worker = null
+    for (const [id, job] of waiting) {
+      waiting.delete(id)
+      composeOnMain(job.plan).then(job.resolve, job.reject)
+    }
+  }
+  return worker
+}
+
+function compose(plan: StillPlan) {
+  const target = stillWorker()
+  if (!target) return composeOnMain(plan)
+  return new Promise<string>((resolve, reject) => {
+    const id = ++nextId
+    waiting.set(id, { plan, resolve, reject })
+    target.postMessage({ id, ...plan })
+  })
 }
 
 /** A real static image of the SAME composition, cached rather than animated.
@@ -26,30 +108,7 @@ function loadImage(asset: string) {
 function still(layers: BurgerLayer[], key: string) {
   const cached = stills.get(key)
   if (cached) return cached
-  const pending = Promise.all(layers.map((layer) => loadImage(layer.asset))).then((loaded) => {
-    const canvas = document.createElement('canvas')
-    canvas.width = canvas.height = 640
-    const ctx = canvas.getContext('2d')
-    if (!ctx) throw new Error('Canvas unavailable')
-    const poses = burgerPoses(layers, dimensions, false)
-    const shadow = burgerShadowPose(layers, poses, dimensions, false)
-    if (shadow) {
-      ctx.save()
-      ctx.translate((shadow.left + shadow.width / 2) * 6.4, (shadow.top + shadow.height / 2) * 6.4)
-      ctx.scale(shadow.width * 3.2, shadow.height * 3.2)
-      const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 1)
-      gradient.addColorStop(0, '#0009'); gradient.addColorStop(.24, '#0007')
-      gradient.addColorStop(.5, '#0003'); gradient.addColorStop(.72, '#0000')
-      ctx.fillStyle = gradient
-      ctx.fillRect(-1, -1, 2, 2)
-      ctx.restore()
-    }
-    loaded.forEach((img, i) => {
-      const pose = poses[i], w = pose.width * 6.4, h = w * img.naturalHeight / img.naturalWidth
-      ctx.drawImage(img, pose.centerX * 6.4 - w / 2, pose.centerY * 6.4 - h / 2, w, h)
-    })
-    return canvas.toDataURL('image/webp', .9)
-  }).catch((error) => { stills.delete(key); throw error })
+  const pending = compose(stillPlan(layers)).catch((error) => { stills.delete(key); throw error })
   if (stills.size >= 32) stills.delete(stills.keys().next().value!)
   stills.set(key, pending)
   return pending
