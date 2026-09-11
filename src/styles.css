@@ -426,15 +426,21 @@
   }
 }
 
-@keyframes sheet-in {
-  from {
-    transform: translateY(6%);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+/* A entrada da folha, partida em duas de propósito.
+
+   Uma keyframe só animava transform E opacidade no mesmo elemento. O desfoque
+   do véu é filho de quem se move, e um `backdrop-filter` dentro de um
+   ancestral com opacidade < 1 deixa de enxergar o que está atrás — com a
+   keyframe junta, o desfoque sumia durante a entrada inteira.
+   Subida no pai, fade no dialog. */
+@keyframes sheet-rise {
+  from { transform: translateY(6%); }
+  to   { transform: translateY(0); }
+}
+
+@keyframes sheet-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 @keyframes attract-pulse {

@@ -48,24 +48,6 @@ export function Sheet({ open, onClose, footer, header, title, ariaLabel, bleed =
   const [drag, setDrag] = useState(0)
   const start = useRef<number | null>(null)
   const body = useRef<HTMLDivElement>(null)
-  /** Onde a folha começa, em px. Mede o quanto do véu alguém realmente vê. */
-  const panel = useRef<HTMLDivElement>(null)
-  const [panelTop, setPanelTop] = useState<number | null>(null)
-
-  // A altura da folha é de conteúdo, então a faixa desfocada não pode ser um
-  // número escrito à mão: ela é medida da própria folha, e remedida quando o
-  // conteúdo muda de tamanho — um prato com sete grupos de modificador é uma
-  // folha bem mais alta que um refrigerante.
-  useEffect(() => {
-    const node = panel.current
-    if (!node) return
-    const measure = () => setPanelTop(Math.round(node.getBoundingClientRect().top))
-    measure()
-    const observer = new ResizeObserver(measure)
-    observer.observe(node)
-    return () => observer.disconnect()
-  }, [])
-
   useEffect(() => {
     if (!open) return
     setDrag(0)
@@ -103,7 +85,7 @@ export function Sheet({ open, onClose, footer, header, title, ariaLabel, bleed =
   }
 
   return (
-    <div className="absolute inset-0 z-40 flex flex-col justify-end" data-sheet-open="">
+    <div className="absolute inset-0 z-40 flex flex-col justify-end overflow-hidden" data-sheet-open="">
       <button
         type="button"
         aria-label="Fechar"
@@ -121,44 +103,21 @@ export function Sheet({ open, onClose, footer, header, title, ariaLabel, bleed =
         style={{ contain: 'paint', opacity: Math.max(0.35, 1 - drag / 400) }}
         />
 
-        {/* O desfoque, recortado ao que aparece.
+      {/* A unidade que SE MOVE — arraste e subida de entrada — com o desfoque
+          dentro dela. Assim ele termina onde a folha começa por construção, e
+          anda junto: nada é medido.
 
-            Tinta e desfoque sao camadas separadas, e essa separacao e a
-            diferenca entre 60 fps e 24: desfocar a viewport inteira derrubava
-            a tela do item para 24-38 fps neste painel, medido. O que alguem
-            ve do veu e so a faixa acima da folha — o resto esta debaixo de
-            uma superficie branca opaca.
+          A versão anterior media a folha e passava o número para uma faixa
+          solta. Quebrou de dois jeitos: o ref nunca foi ligado, então a faixa
+          ficou nos 20% de fallback e parava no meio do cardápio; e mesmo
+          medindo, o arraste move a folha por `transform`, que não dispara
+          ResizeObserver — a folha descia e o desfoque ficava parado.
 
-            `panelTop` vem medido da propria folha: a altura dela e de
-            conteudo (`max-h-[86%]`), entao nao da para supor. Na primeira
-            pintura, antes da medida, a faixa assume 20%. */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 backdrop-blur-md backdrop-saturate-[0.7]"
-          style={{
-            height: panelTop ?? '20%',
-            contain: 'paint',
-            opacity: Math.max(0.35, 1 - drag / 400),
-          }}
-        />
-
+          Subida AQUI, fade no dialog. Um `backdrop-filter` dentro de um
+          ancestral com opacidade < 1 perde o que está atrás; se o fade
+          morasse neste elemento, o desfoque sumiria a entrada inteira. */}
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={ariaLabel ?? title}
-        data-testid={rest['data-testid'] ?? 'sheet'}
-        // O CORPO DO SHEET NÃO É DE VIDRO, e a tentação de fazê-lo é grande:
-        // é a maior superfície do painel e a que mais pediria o efeito. Mas é
-        // também onde mora o texto denso — descrição do prato, sete chips de
-        // modificador, as linhas do carrinho — e vidro é exatamente o material
-        // que se paga em superfície grande e se cobra em texto pequeno. Foto de
-        // comida atravessando por trás de uma lista de preços é a definição de
-        // ruído: passa em contraste e continua ilegível.
-        //
-        // O que ele ganha é a ARESTA de vidro: a quina de luz na borda de cima,
-        // que é a única parte da peça que o cliente vê contra o scrim escuro, e
-        // a que faz o sheet parecer subir por baixo da tela e não aparecer nela.
-        className="relative flex max-h-[86%] flex-col overflow-hidden rounded-t-sheet bg-white shadow-[inset_0_0.2cqw_0_var(--glass-line),0_-0.6cqw_2cqw_rgba(11,11,12,0.35)] motion-safe:animate-[sheet-in_260ms_cubic-bezier(0.16,1,0.3,1)]"
+        className="relative flex max-h-[86%] min-h-0 flex-col motion-safe:animate-[sheet-rise_260ms_cubic-bezier(0.16,1,0.3,1)]"
         style={{
           transform: drag ? `translateY(${drag}px)` : undefined,
           // No transition while the finger is down — the sheet must track it
@@ -166,82 +125,110 @@ export function Sheet({ open, onClose, footer, header, title, ariaLabel, bleed =
           transition: start.current === null ? 'transform 220ms cubic-bezier(0.16,1,0.3,1)' : 'none',
         }}
       >
-        {/* The grab area: the handle plus the title, so the whole top of the
-            sheet is draggable rather than a 4px bar nobody can hit.
-
-            Com a foto sangrada ele flutua sobre ela — mas só a FAIXA CENTRAL
-            recebe toque. A primeira versão fazia a barra inteira interceptar, e
-            o primeiro chip que rolasse para debaixo dela deixava de responder:
-            o cliente tocava em "Média" e nada acontecia, sem nada na tela
-            sugerindo por quê. */}
+        {/* Da borda da folha até o topo da tela, e só isso: o que fica debaixo
+            da folha branca opaca ninguém vê. Desfocar a viewport inteira
+            derrubava a tela do item de 60 para 24-38 fps neste painel.
+            `100vh` é só um teto — o overflow do véu corta no topo da tela. */}
         <div
-          className={[
-            'shrink-0',
-            bleed ? 'pointer-events-none absolute inset-x-0 top-0 z-10' : '',
-          ].join(' ')}
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-full backdrop-blur-md backdrop-saturate-[0.7]"
+          style={{ height: '100vh', contain: 'paint', opacity: Math.max(0.35, 1 - drag / 400) }}
+        />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={ariaLabel ?? title}
+          data-testid={rest['data-testid'] ?? 'sheet'}
+          // O CORPO DO SHEET NÃO É DE VIDRO, e a tentação de fazê-lo é grande:
+          // é a maior superfície do painel e a que mais pediria o efeito. Mas é
+          // também onde mora o texto denso — descrição do prato, sete chips de
+          // modificador, as linhas do carrinho — e vidro é exatamente o material
+          // que se paga em superfície grande e se cobra em texto pequeno. Foto de
+          // comida atravessando por trás de uma lista de preços é a definição de
+          // ruído: passa em contraste e continua ilegível.
+          //
+          // O que ele ganha é a ARESTA de vidro: a quina de luz na borda de cima,
+          // que é a única parte da peça que o cliente vê contra o scrim escuro, e
+          // a que faz o sheet parecer subir por baixo da tela e não aparecer nela.
+          className="relative flex min-h-0 flex-initial flex-col overflow-hidden rounded-t-sheet bg-white shadow-[inset_0_0.2cqw_0_var(--glass-line),0_-0.6cqw_2cqw_rgba(11,11,12,0.35)] motion-safe:animate-[sheet-fade_260ms_cubic-bezier(0.16,1,0.3,1)]"
         >
+          {/* The grab area: the handle plus the title, so the whole top of the
+              sheet is draggable rather than a 4px bar nobody can hit.
+
+              Com a foto sangrada ele flutua sobre ela — mas só a FAIXA CENTRAL
+              recebe toque. A primeira versão fazia a barra inteira interceptar, e
+              o primeiro chip que rolasse para debaixo dela deixava de responder:
+              o cliente tocava em "Média" e nada acontecia, sem nada na tela
+              sugerindo por quê. */}
           <div
-            data-testid="sheet-handle"
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={onPointerUp}
             className={[
-              'pointer-events-auto cursor-grab touch-none pt-[2.2cqw]',
-              // O PUXADOR NÃO GANHA VIDRO, e chegou a ganhar. Uma pastilha de
-              // vidro em volta dele virou um retângulo cinza arredondado
-              // boiando sobre a foto da pizza, com a barrinha branca dentro —
-              // lê como defeito de renderização, não como controle. E come a
-              // foto, que neste sheet é metade do argumento de venda.
-              //
-              // Vidro se paga onde há área e conteúdo por trás. Num traço de
-              // 11cqw por 0,85cqw não há área nenhuma: só sobra o material, que
-              // sem nada para revelar é sujeira em cima do prato.
-              bleed ? 'mx-auto w-[30cqw] pb-[2.5cqw]' : '',
+              'shrink-0',
+              bleed ? 'pointer-events-none absolute inset-x-0 top-0 z-10' : '',
             ].join(' ')}
           >
-            {/* O puxador do iOS. Ele existia a 40% de opacidade sobre a linha
-                divisória e simplesmente não era visto — e um gesto que a pessoa
-                não sabe que existe é um gesto que não existe. Agora é sólido: é
-                a única coisa na tela que diz "isto desce". */}
-            <span
-              aria-hidden
+            <div
+              data-testid="sheet-handle"
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={onPointerUp}
               className={[
-                'mx-auto block h-[0.85cqw] w-[11cqw] rounded-full',
-                // Em cima de uma foto, cinza sobre cinza some. Branco com
-                // sombra sobrevive tanto a um prato claro quanto a um mármore
-                // escuro.
-                bleed ? 'bg-white/85 shadow-[0_0_0.6cqw_rgba(0,0,0,0.35)]' : 'bg-ink/25',
+                'pointer-events-auto cursor-grab touch-none pt-[2.2cqw]',
+                // O PUXADOR NÃO GANHA VIDRO, e chegou a ganhar. Uma pastilha de
+                // vidro em volta dele virou um retângulo cinza arredondado
+                // boiando sobre a foto da pizza, com a barrinha branca dentro —
+                // lê como defeito de renderização, não como controle. E come a
+                // foto, que neste sheet é metade do argumento de venda.
+                //
+                // Vidro se paga onde há área e conteúdo por trás. Num traço de
+                // 11cqw por 0,85cqw não há área nenhuma: só sobra o material, que
+                // sem nada para revelar é sujeira em cima do prato.
+                bleed ? 'mx-auto w-[30cqw] pb-[2.5cqw]' : '',
               ].join(' ')}
-            />
-            {title ? (
-              <h2
-                className="px-[6cqw] pb-[2cqw] pt-[2.5cqw] text-center type-display"
-                style={{ fontSize: 'var(--step-title)' }}
-              >
-                {title}
-              </h2>
-            ) : (
-              <span className="block pb-[2cqw]" />
-            )}
+            >
+              {/* O puxador do iOS. Ele existia a 40% de opacidade sobre a linha
+                  divisória e simplesmente não era visto — e um gesto que a pessoa
+                  não sabe que existe é um gesto que não existe. Agora é sólido: é
+                  a única coisa na tela que diz "isto desce". */}
+              <span
+                aria-hidden
+                className={[
+                  'mx-auto block h-[0.85cqw] w-[11cqw] rounded-full',
+                  // Em cima de uma foto, cinza sobre cinza some. Branco com
+                  // sombra sobrevive tanto a um prato claro quanto a um mármore
+                  // escuro.
+                  bleed ? 'bg-white/85 shadow-[0_0_0.6cqw_rgba(0,0,0,0.35)]' : 'bg-ink/25',
+                ].join(' ')}
+              />
+              {title ? (
+                <h2
+                  className="px-[6cqw] pb-[2cqw] pt-[2.5cqw] text-center type-display"
+                  style={{ fontSize: 'var(--step-title)' }}
+                >
+                  {title}
+                </h2>
+              ) : (
+                <span className="block pb-[2cqw]" />
+              )}
+            </div>
           </div>
+
+          {header ? <div className="shrink-0" data-testid="sheet-fixed-header">{header}</div> : null}
+
+          <div
+            ref={body}
+            data-testid="sheet-body"
+            className={[
+              'min-h-0 flex-1 overflow-y-auto pb-[4cqw]',
+              header ? 'overscroll-y-contain' : '',
+              bleed ? 'px-0' : 'px-[6cqw]',
+            ].join(' ')}
+          >
+            {children}
+          </div>
+
+          {footer ? <div className="shrink-0">{footer}</div> : null}
         </div>
-
-        {header ? <div className="shrink-0" data-testid="sheet-fixed-header">{header}</div> : null}
-
-        <div
-          ref={body}
-          data-testid="sheet-body"
-          className={[
-            'min-h-0 flex-1 overflow-y-auto pb-[4cqw]',
-            header ? 'overscroll-y-contain' : '',
-            bleed ? 'px-0' : 'px-[6cqw]',
-          ].join(' ')}
-        >
-          {children}
-        </div>
-
-        {footer ? <div className="shrink-0">{footer}</div> : null}
       </div>
     </div>
   )
