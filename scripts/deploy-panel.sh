@@ -23,10 +23,19 @@ FAYZ_SDK_DIR="$SDK" npx vite build >/dev/null
 # restarts nothing extra — but they are 200KB against the bundle's 600, so the
 # default skips them.
 if [ "${1:-}" = "--shell" ]; then
-  echo "→ shell"
+  # The runtime is the version THIS repository pins, not whatever the panel
+  # happens to have. Same engine here and there, so a test run locally is a
+  # test of what the customer sees.
+  EVER=$(node -p "require('./node_modules/electron/package.json').version")
+  ESUM=$(node -p "require('./node_modules/electron/checksums.json')['electron-v$EVER-win32-x64.zip']")
+  echo "→ shell + electron $EVER"
   scp -q electron/main.cjs electron/preload.cjs electron/exit-hatch.cjs \
          electron/serve-dist.cjs electron/print-raw.ps1 electron/lockdown.ps1 \
-         electron/gpu-usage.ps1 "$HOST:$REMOTE/"
+         electron/gpu-usage.ps1 scripts/panel-runtime.ps1 "$HOST:$REMOTE/"
+  # Only downloads (once per version) and repoints the launcher; the running
+  # shell is untouched until the restart below.
+  ssh -o ConnectTimeout=30 "$HOST" \
+    "powershell -NoProfile -ExecutionPolicy Bypass -File C:/fayz-shell/panel-runtime.ps1 -Version $EVER -Sha256 $ESUM"
 fi
 
 echo "→ parando o painel"
