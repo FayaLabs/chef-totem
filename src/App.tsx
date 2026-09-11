@@ -1,4 +1,5 @@
 import { DesignCatalog } from '@/design/DesignCatalog'
+import { FpsMeter } from '@/kiosk/FpsMeter'
 import { TotemViewport } from '@/kiosk/TotemViewport'
 import { useFullscreenOnFirstTouch, useKioskLock } from '@/kiosk/useKioskLock'
 import { AttractScreen } from '@/screens/AttractScreen'
@@ -42,6 +43,7 @@ export default function App() {
     <TotemViewport>
       {isBurgerPilot ? <BurgerPilotScreen /> : isDesign ? <DesignCatalog /> : Screen ? <Screen /> : <PlaceholderScreen step={step} />}
       {isDesign || isBurgerPilot ? null : <Waiter />}
+      {import.meta.env.VITE_TOTEM_FPS === 'off' ? null : <FpsMeter />}
     </TotemViewport>
   )
 }

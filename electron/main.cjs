@@ -16,7 +16,7 @@
 // ---------------------------------------------------------------------------
 
 const { app, BrowserWindow, ipcMain, session } = require('electron')
-const { execFile } = require('node:child_process')
+const { execFile, spawn } = require('node:child_process')
 const { writeFile, unlink, mkdtemp } = require('node:fs/promises')
 const { join } = require('node:path')
 const { tmpdir } = require('node:os')
@@ -25,11 +25,16 @@ const { serveDist } = require('./serve-dist.cjs')
 
 /**
  * Where the panel points, in the order a real deployment resolves it:
- *   TOTEM_DIST  a built bundle on disk — what an installed panel runs
- *   TOTEM_URL   an explicit URL — a dev server, or a hosted build
- *   fallback    the local dev server
+ *
+ *   TOTEM_DIST   an explicit bundle on disk — a hand-staged panel
+ *   packaged     the app's OWN dist, inside the asar. Electron patches `fs`
+ *                to read through the archive, so the static server serves it
+ *                like any directory. This is what an installed panel runs,
+ *                and it must not need an env var to find itself.
+ *   TOTEM_URL    an explicit URL — a dev server, or a hosted build
+ *   fallback     the local dev server
  */
-const DIST = process.env.TOTEM_DIST
+const DIST = process.env.TOTEM_DIST ?? (app.isPackaged ? join(app.getAppPath(), 'dist') : undefined)
 const TARGET = process.env.TOTEM_URL ?? 'http://localhost:5310'
 /** Windows queue name. `Get-Printer` on the panel prints the exact string. */
 const PRINTER = process.env.TOTEM_PRINTER ?? 'POS80'
@@ -113,6 +118,40 @@ ipcMain.handle('fayz:request-exit', (_event, pin) => {
   return { ok: true }
 })
 
+/**
+ * GPU load, sampled in the main process and pushed to the page.
+ *
+ * One long-lived PowerShell rather than one spawn per sample: starting a shell
+ * costs ~200ms, and a panel that pays that every second to display a debug
+ * number is measuring the cost of its own instrument.
+ *
+ * Silent by design on failure — a missing counter must never stop a totem from
+ * selling. The meter simply shows nothing.
+ */
+function streamGpuUsage(win) {
+  if (process.platform !== 'win32') return
+  let child
+  try {
+    child = spawn('powershell',
+      ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(resourceDir(), 'gpu-usage.ps1')],
+      { windowsHide: true })
+  } catch { return }
+  let buffer = ''
+  child.stdout?.on('data', (chunk) => {
+    buffer += chunk.toString()
+    const lines = buffer.split(/\r?\n/)
+    buffer = lines.pop() ?? ''
+    for (const line of lines) {
+      const value = Number(line.trim())
+      if (Number.isFinite(value) && !win.isDestroyed()) {
+        win.webContents.send('fayz:gpu-usage', value)
+      }
+    }
+  })
+  child.on('error', () => {})
+  win.on('closed', () => child.kill())
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     kiosk: true,
@@ -140,6 +179,7 @@ function createWindow() {
     if (!win.isDestroyed()) win.setAlwaysOnTop(true, 'screen-saver')
   })
   installExitHatch(win, { pin: EXIT_PIN, onExit: () => void quitCleanly() })
+  streamGpuUsage(win)
   return win
 }
 
@@ -161,6 +201,38 @@ function grantPanelPermissions() {
   session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
     callback(permission === 'media')
   })
+}
+
+/**
+ * Let the panel talk to its own backend.
+ *
+ * `totem-voice-token` answers every preflight with a hardcoded
+ * `Access-Control-Allow-Origin: https://chef-totem.vercel.app`, whatever origin
+ * asked. The shell serves the app from `http://127.0.0.1:<port>` on a port the
+ * OS picks fresh each launch, so no allowlist on the server could ever name it
+ * — the voice assistant fails with "Failed to fetch" before it reaches the mic.
+ *
+ * Rewriting the header here is not a hole being punched. CORS exists to stop a
+ * web page from reading another origin's responses; this is a native app we
+ * ship, reading its OWN backend, with the device session it already holds. The
+ * browser rule protects a threat model the kiosk does not have.
+ *
+ * Narrow on purpose: only Supabase Edge Function responses, only the two CORS
+ * headers. The real fix is the function answering with the requesting origin,
+ * and it belongs in the function — this keeps the panel working meanwhile.
+ */
+function allowOwnBackend() {
+  session.defaultSession.webRequest.onHeadersReceived(
+    { urls: ['https://*.supabase.co/functions/v1/*'] },
+    (details, callback) => {
+      const headers = { ...details.responseHeaders }
+      for (const key of Object.keys(headers)) {
+        if (/^access-control-allow-(origin|credentials)$/i.test(key)) delete headers[key]
+      }
+      headers['Access-Control-Allow-Origin'] = ['*']
+      callback({ responseHeaders: headers })
+    },
+  )
 }
 
 /**
@@ -191,6 +263,7 @@ app.whenReady().then(async () => {
     console.warn('[fayz] TOTEM_EXIT_PIN não configurado — usando 0000. Defina antes de instalar em loja.')
   }
   grantPanelPermissions()
+  allowOwnBackend()
   await lockdown(false)
   await dropStaleAppCache()
   const origin = await targetOrigin()

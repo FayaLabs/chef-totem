@@ -29,9 +29,26 @@ export interface TotemCustomer {
 }
 
 /** What the receipt screen needs, handed over by the payment screen. */
+/** Uma linha vendida, no mínimo que o papel precisa para imprimi-la. */
+export interface SoldLine {
+  name: string
+  quantity: number
+  unitPriceCents: number
+  /** Modificadores, já juntados — "Sem cebola · Borda recheada". */
+  note?: string
+}
+
 export interface CompletedOrder {
   orderId: string
   ticket: string
+  /**
+   * O que foi vendido.
+   *
+   * Viaja no pedido porque o carrinho é ESVAZIADO no pagamento, e o cupom
+   * detalhado é impresso depois disso — sem carregar as linhas aqui, a tela de
+   * recibo só teria um total e nada para listar.
+   */
+  lines: SoldLine[]
   /** O número da fatura, quando houve uma — é por ele que o caixa acha a venda. */
   referenceNumber: string
   totalCents: number

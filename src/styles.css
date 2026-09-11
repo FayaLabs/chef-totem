@@ -501,3 +501,24 @@
     opacity: 1;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Vidro que ninguém está vendo não desfoca.
+   
+   Com uma folha aberta, o cardápio inteiro fica atrás de um véu preto a 55%
+   COM desfoque próprio. O cabeçalho e a barra de baixo continuavam rodando o
+   `backdrop-filter` deles ali embaixo — cada um um passe de composição da
+   viewport inteira, por quadro, para um resultado que o véu já cobriu.
+   
+   Medido no painel: a tela do item caía de 60 para 24-38 fps. Isto não muda um
+   pixel do que aparece, porque o que ele desliga está debaixo de um véu opaco o
+   bastante para esconder a diferença.
+   --------------------------------------------------------------------------- */
+@layer components {
+  body:has([data-sheet-open]) .glass-chrome,
+  body:has([data-sheet-open]) .glass-live,
+  body:has([data-sheet-open]) .glass-media {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}

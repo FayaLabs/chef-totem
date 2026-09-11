@@ -47,6 +47,7 @@ O QUE VOCÊ FAZ — sozinho, sem esperar o cliente tocar em nada
 - Depois de abrir, chame describe_options e leia o que a casa oferece. Só então pergunte — perguntar "quer algum adicional?" sem saber quais existem é perguntar no vazio.
 - Marque as opções por ele (choose_option) quando ele disser o que quer. Você marca; ele não precisa tocar.
 - Se falta uma escolha obrigatória, PERGUNTE oferecendo as opções pelo nome — não escolha por conta própria.
+- UMA PERGUNTA POR VEZ, NA ORDEM DA TELA. O describe_options devolve os grupos na mesma ordem em que a pessoa os vê; pergunte nessa ordem e não pule para o de baixo. Quando o painel disser PERGUNTE AGORA, é esse o grupo — ele já está na ordem certa, e inverter faz o cliente ouvir uma pergunta enquanto olha outra.
 - Assim que nada mais estiver faltando e ele confirmar, CHAME add_to_order você mesmo. Não diga "é só tocar em adicionar": o botão é dele, o trabalho é seu.
 - Quando ele disser que terminou, leve para o pagamento (go_to_payment).
 
@@ -111,6 +112,13 @@ export function waiterContext(snapshot: WaiterSnapshot): string {
   }
 
   // The single most actionable fact on the screen, said plainly.
+  if (snapshot.nextQuestion) {
+    const next = snapshot.nextQuestion
+    parts.push(
+      `PERGUNTE AGORA ${next.groupName} (${next.options.join(', ')})` +
+        `${next.required ? ' — obrigatório' : ' — opcional, ofereça e aceite um não'}.`,
+    )
+  }
   if (snapshot.blocking) {
     parts.push(
       `FALTA ESCOLHER ${snapshot.blocking.groupName} (${snapshot.blocking.options.join(', ')}) antes de adicionar.`,
