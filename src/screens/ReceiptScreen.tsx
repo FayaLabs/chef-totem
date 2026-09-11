@@ -20,6 +20,20 @@ export function ReceiptScreen() {
   const [left, setLeft] = useState(RETURN_SECONDS)
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState<DeliveryOutcome | null>(null)
+  /**
+   * Uma tira por pedido.
+   *
+   * O botão ficava vivo enquanto a tela estivesse aberta, e quinze segundos de
+   * espera com um botão que responde é tempo de sobra para sair uma pilha de
+   * cupons da mesma venda — papel gasto e, no balcão, várias senhas iguais na
+   * mão de gente diferente.
+   *
+   * `printing` durante, `printed` depois. A falha NÃO tranca: se o papel
+   * acabou, a pessoa tem de poder tentar de novo, e um botão morto ali é um
+   * cliente sem senha nenhuma.
+   */
+  const [printing, setPrinting] = useState(false)
+  const [printed, setPrinted] = useState(false)
 
   // Auto-return, with the countdown ON SCREEN. A panel that resets without
   // warning while someone is still reading their number is a panel that makes
@@ -125,9 +139,20 @@ export function ReceiptScreen() {
           size="bar"
           className="flex-1"
           data-testid="receipt-print"
-          onClick={() => printReceipt(placed, mode ?? 'dine_in')}
+          disabled={printing || printed}
+          onClick={async () => {
+            if (printing || printed) return
+            setPrinting(true)
+            // O relógio ganha fôlego: a tira leva alguns segundos e a tela
+            // sumindo no meio da impressão é a pior hora possível.
+            setLeft((n) => Math.max(n, GRACE_AFTER_SEND))
+            const result = await printReceipt(placed, mode ?? 'dine_in')
+            setPrinting(false)
+            if (result.ok) setPrinted(true)
+          }}
         >
-          <Printer strokeWidth={3} className="size-[2.4cqw]" /> Imprimir
+          <Printer strokeWidth={3} className="size-[2.4cqw]" />
+          {printed ? 'Impresso' : printing ? 'Imprimindo…' : 'Imprimir'}
         </TotemButton>
         <TotemButton tone="action" size="bar" className="flex-1" data-testid="receipt-done" onClick={reset}>
           Concluir
