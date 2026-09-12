@@ -75,3 +75,38 @@ test('parado, o botão volta a ser o microfone', async ({ page }) => {
   await expect(page.getByTestId('talk-button')).toHaveAttribute('data-action', 'start')
   await expect(page.getByTestId('waiter-stop')).toHaveCount(0)
 })
+
+test('no topo a seta aponta para baixo, e as aberturas somem', async ({ page }) => {
+  await toMenu(page)
+  const dock = page.getByTestId('waiter-dock')
+  // Embaixo, parado: a seta sobe e as aberturas ensinam o que fazer com ele.
+  await expect(dock).toHaveAttribute('data-anchor', 'bottom')
+  await expect(page.getByTestId('waiter-expand')).toHaveAttribute('data-direction', 'up')
+  await expect(page.locator('[data-testid^=waiter-suggestion-]').first()).toBeVisible()
+
+  await setPhase(page, 'speaking')
+  await page.locator('button[data-testid^=product-]:not([disabled])').first().tap()
+  await page.getByTestId('sheet-handle').waitFor()
+
+  await expect(dock).toHaveAttribute('data-anchor', 'top')
+  // A conversa abre para longe da faixa: colada no topo, ela abre para baixo.
+  await expect(page.getByTestId('waiter-expand')).toHaveAttribute('data-direction', 'down')
+  await expect(page.locator('[data-testid^=waiter-suggestion-]')).toHaveCount(0)
+})
+
+test('a faixa só sobe se o garçom estiver atendendo', async ({ page }) => {
+  await toMenu(page)
+  const dock = page.getByTestId('waiter-dock')
+  await expect(dock).toBeVisible()
+
+  // Parado e sem conversa nenhuma: em cima da folha ele não tem o que dizer, e
+  // repetir o convite ali é roubar a primeira faixa da tela de quem já está
+  // escolhendo.
+  await page.locator('button[data-testid^=product-]:not([disabled])').first().tap()
+  await page.getByTestId('sheet-handle').waitFor()
+  await expect(dock).toHaveCount(0)
+
+  // Atendendo, ele volta — no topo.
+  await setPhase(page, 'connecting')
+  await expect(dock).toHaveAttribute('data-anchor', 'top')
+})

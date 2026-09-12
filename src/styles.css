@@ -565,18 +565,23 @@
    always fits it. Nothing appears for a customer who never opened a session:
    the dock only exists from `connecting` on.
 
+   A âncora é decidida pelo componente (`data-anchor`), não por um `:has()`
+   olhando o documento: a mesma pergunta — "há uma folha aberta?" — também troca
+   o ícone da seta e cala as aberturas, e isso o CSS não faz. Ver
+   `design/sheet-state.ts`.
+
    Unlayered on purpose — these have to outrank the `z-30` and the entrance
    animation the dock carries as Tailwind utilities, and `bottom` arrives on
    the element as an inline style.
    --------------------------------------------------------------------------- */
-body:has([data-sheet-open]) [data-testid='waiter-dock'] {
+[data-testid='waiter-dock'][data-anchor='top'] {
   top: 0;
   bottom: auto !important;
   z-index: 50;
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  body:has([data-sheet-open]) [data-testid='waiter-dock'] {
+  [data-testid='waiter-dock'][data-anchor='top'] {
     animation: waiter-dock-to-top 320ms cubic-bezier(0.16, 1, 0.3, 1);
   }
 }

@@ -1,6 +1,7 @@
-import { ChevronUp, Square } from 'lucide-react'
+import { ChevronDown, ChevronUp, Square } from 'lucide-react'
 import { isWaiterBusy, lastWaiterLine, useWaiter } from '@/waiter/useWaiter'
 import { activeWaiterPersona } from '@/waiter/persona'
+import { useSheetOpen } from '@/design/sheet-state'
 import { TalkButton } from '@/waiter/TalkButton'
 
 // ---------------------------------------------------------------------------
@@ -66,6 +67,11 @@ export function WaiterDock({
   const turns = useWaiter((s) => s.turns)
   const error = useWaiter((s) => s.error)
   const setExpanded = useWaiter((s) => s.setExpanded)
+  // Com uma folha aberta a faixa deixa de morar embaixo: ela sobe para a banda
+  // livre acima da folha (o movimento é do CSS, ancorado no `data-anchor`
+  // abaixo). O que muda AQUI é o que só o componente pode mudar — para onde a
+  // seta aponta, e o que não faz mais sentido oferecer.
+  const atTop = useSheetOpen()
   const controls = useWaiter((s) => s.controls)
 
   if (phase === 'off') return null
@@ -90,10 +96,22 @@ export function WaiterDock({
   // vazia no pagamento só porque o componente foi montado.
   if (!line) return null
 
+  // NO TOPO, SÓ QUEM ESTÁ ATENDENDO.
+  //
+  // Embaixo, a faixa parada ainda faz um trabalho: ela ensina que existe um
+  // garçom, para quem nunca falou com um painel. Em cima de uma folha aberta
+  // ela não ensina nada — rouba a primeira faixa da tela para repetir um
+  // convite a quem já está escolhendo o ponto da carne. Então ela só sobe se
+  // houver atendimento de verdade acontecendo: conectando, ouvindo, pensando,
+  // falando, uma conversa já começada, ou um erro que precisa ser lido.
+  const serving = isWaiterBusy(phase) || listening || turns.length > 0 || Boolean(error)
+  if (atTop && !serving) return null
+
   return (
     <div
       data-testid="waiter-dock"
       data-phase={phase}
+      data-anchor={atTop ? 'top' : 'bottom'}
       // A faixa é o MESMO MATERIAL da barra de baixo, e tem de ser: as duas se
       // encostam, e a de baixo já era de vidro. Uma faixa branca chapada colada
       // numa barra translúcida lê como dois pedaços de interface de sistemas
@@ -148,7 +166,24 @@ export function WaiterDock({
             {line}
           </span>
         </span>
-        <ChevronUp strokeWidth={3} className="size-[2.4cqw] shrink-0 text-muted" />
+        {/* A seta diz para onde a conversa ABRE, e a conversa abre para longe da
+            faixa. Uma seta para cima numa faixa colada no topo aponta para
+            fora da tela. */}
+        {atTop ? (
+          <ChevronDown
+            data-testid="waiter-expand"
+            data-direction="down"
+            strokeWidth={3}
+            className="size-[2.4cqw] shrink-0 text-muted"
+          />
+        ) : (
+          <ChevronUp
+            data-testid="waiter-expand"
+            data-direction="up"
+            strokeWidth={3}
+            className="size-[2.4cqw] shrink-0 text-muted"
+          />
+        )}
       </button>
 
       {/* PARAR, com nome e longe do orbe.
@@ -171,7 +206,11 @@ export function WaiterDock({
 
       {/* Idle openers. They teach the affordance without a tutorial nobody
           would read, and they disappear the moment a conversation starts. */}
-      {phase === 'idle' && turns.length === 0 && suggestions.length > 0 ? (
+      {/* As aberturas ensinam o que fazer com o garçom para quem ainda não fez
+          nada. Com uma folha aberta não há nada a ensinar: o cliente está
+          escolhendo o ponto da carne, e duas perguntas prontas ao lado da
+          escolha dele são uma terceira pergunta. */}
+      {!atTop && phase === 'idle' && turns.length === 0 && suggestions.length > 0 ? (
         <div className="hidden shrink-0 gap-[1.5cqw] min-[900px]:flex">
           {suggestions.slice(0, 2).map((text) => (
             <button
