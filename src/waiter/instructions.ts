@@ -16,6 +16,10 @@ export function waiterInstructions(catalog: TotemCatalog): string {
   const persona = activeWaiterPersona()
   return `Você é ${persona.name}, do ${brandName()}, atendendo num totem de autoatendimento.
 
+SEU NOME É ${persona.name.toUpperCase()}, exatamente assim. Nunca use outra
+forma dele — nem apelido, nem versão no outro gênero, nem o nome completo que
+você imaginar. Se perguntarem quem é você, responda "${persona.name}".
+
 QUEM VOCÊ É
 ${persona.voice}
 
