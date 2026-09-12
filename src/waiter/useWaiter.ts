@@ -15,12 +15,43 @@ import { pointWhileSpeaking } from '@/waiter/pointing'
 // ---------------------------------------------------------------------------
 
 export type WaiterPhase =
-  | 'off'        // not configured / disabled — the dock does not render
-  | 'idle'       // present, waiting
-  | 'listening'  // microphone open, transcribing
-  | 'thinking'   // model is working
-  | 'speaking'   // reading a reply out loud
+  | 'off'         // not configured / disabled — the dock does not render
+  | 'connecting'  // opening the voice session: token, microphone, WebRTC
+  | 'idle'        // present, waiting
+  | 'listening'   // microphone open, transcribing
+  | 'thinking'    // model is working
+  | 'speaking'    // reading a reply out loud
   | 'error'
+
+/**
+ * The phases in which the panel is BUSY on the customer's behalf, and therefore
+ * the ones where the orb stops meaning "talk to me" and starts meaning "stop".
+ *
+ * `connecting` is deliberately separate from `thinking`: they look the same to
+ * the code and are opposite things to the person standing there. Thinking is
+ * the waiter working on something they asked for; connecting is nothing having
+ * happened yet, which is the moment a silent panel gets read as broken.
+ */
+export function isWaiterBusy(phase: WaiterPhase): boolean {
+  return phase === 'connecting' || phase === 'thinking' || phase === 'speaking'
+}
+
+/**
+ * What a tap on the orb means right now.
+ *
+ * One control, three meanings, and the third one is why this exists: while the
+ * waiter is connecting, thinking or talking the button used to be DISABLED, so
+ * a session that started saying the wrong thing could only be stopped by
+ * killing the application. A kiosk in front of a queue cannot have a mouth with
+ * no off switch.
+ */
+export type TalkAction = 'start' | 'stop-listening' | 'end'
+
+export function talkAction(phase: WaiterPhase): TalkAction | null {
+  if (phase === 'off') return null
+  if (phase === 'listening') return 'stop-listening'
+  return isWaiterBusy(phase) ? 'end' : 'start'
+}
 
 export interface WaiterTurn {
   id: string
@@ -50,7 +81,18 @@ interface WaiterState {
    * callbacks por prop atravessaria todas essas telas para nada. Quem tem o
    * transporte registra aqui, e o botao chama daqui.
    */
-  controls: { start: () => void; stop: () => void } | null
+  controls: {
+    start: () => void
+    stop: () => void
+    /**
+     * Close the voice session outright — microphone, peer connection, audio.
+     *
+     * Not the same as `stop`, which only shuts the microphone: a reply already
+     * in flight keeps playing, and that is exactly the case a customer needs to
+     * be able to end. Starting again reopens the session from scratch.
+     */
+    end: () => void
+  } | null
   /**
    * Como a TELA fala com o garçom.
    *
@@ -83,7 +125,31 @@ interface WaiterState {
   updateTurn: (id: string, patch: Partial<WaiterTurn>) => void
   setError: (message: string | null) => void
   setExpanded: (expanded: boolean) => void
+  /**
+   * The customer shut the waiter up.
+   *
+   * Clears the conversation and drops back to idle WITHOUT forgetting that they
+   * asked to be served by voice: `reset` is for a new visit and takes `engaged`
+   * with it, which on the screens before the menu would take the orb off the
+   * glass entirely — leaving someone who pressed stop with no way to start
+   * again. The session itself is closed by the transport.
+   */
+  endSession: () => void
   reset: () => void
+}
+
+/**
+ * O store, alcançável do navegador — SÓ em desenvolvimento.
+ *
+ * As fases que mais importam (conectando, falando) dependem de uma sessão de
+ * voz real, com microfone e rede, o que torna a UI delas a única parte do
+ * painel que nenhum teste alcançava. Com esta porta um teste põe a fase na mão
+ * e verifica o que o cliente vê. `import.meta.env.DEV` a mantém fora de
+ * qualquer build que chegue a um painel.
+ */
+function exposeForTests(store: unknown): void {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return
+  ;(window as unknown as { __waiter?: unknown }).__waiter = store
 }
 
 /** Quanto tempo uma frase de erro fica na faixa antes de sair de cena. */
@@ -151,9 +217,17 @@ export const useWaiter = create<WaiterState>((set, get) => ({
   // A new customer gets a new waiter. Nothing from the last visit survives —
   // not the transcript, not the conversation, not the error, e nem o convite
   // aceito: quem chega agora não pediu para ser atendido falando.
+  endSession: () => {
+    if (errorTimer) clearTimeout(errorTimer)
+    errorTimer = null
+    set({ ...empty })
+  },
+
   reset: () => {
     if (errorTimer) clearTimeout(errorTimer)
     errorTimer = null
     set({ ...empty, engaged: false })
   },
 }))
+
+exposeForTests(useWaiter)

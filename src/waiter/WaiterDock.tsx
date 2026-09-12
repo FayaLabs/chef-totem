@@ -1,5 +1,5 @@
-import { ChevronUp } from 'lucide-react'
-import { lastWaiterLine, useWaiter } from '@/waiter/useWaiter'
+import { ChevronUp, Square } from 'lucide-react'
+import { isWaiterBusy, lastWaiterLine, useWaiter } from '@/waiter/useWaiter'
 import { activeWaiterPersona } from '@/waiter/persona'
 import { TalkButton } from '@/waiter/TalkButton'
 
@@ -66,17 +66,25 @@ export function WaiterDock({
   const turns = useWaiter((s) => s.turns)
   const error = useWaiter((s) => s.error)
   const setExpanded = useWaiter((s) => s.setExpanded)
+  const controls = useWaiter((s) => s.controls)
 
   if (phase === 'off') return null
 
   const listening = phase === 'listening'
-  const busy = phase === 'thinking' || phase === 'speaking'
+  const connecting = phase === 'connecting'
+  const busy = isWaiterBusy(phase)
+  const persona = activeWaiterPersona()
 
   // One line, chosen by what matters most at this instant: what the customer is
   // saying beats what the waiter last said beats an invitation.
-  const fallback =
-    invitation === undefined ? `Peça como pediria a ${activeWaiterPersona().name}.` : invitation
-  const line = error ?? (live || null) ?? lastWaiterLine(turns) ?? fallback
+  const fallback = invitation === undefined ? `Peça como pediria a ${persona.name}.` : invitation
+  // ABRIR A SESSÃO GANHA DE TUDO menos de um erro. Enquanto o token é emitido, o
+  // microfone é pedido e o WebRTC sobe, o cliente já tocou e nada respondeu —
+  // e o que a faixa mostrava era o convite genérico ("peça como pediria à
+  // Bia"), ou seja, exatamente a instrução que ele acabou de seguir. Uma frase
+  // parada depois de um toque lê como painel travado.
+  const line = error ?? (connecting ? `Um instante — chamando ${persona.name}` : null)
+    ?? (live || null) ?? lastWaiterLine(turns) ?? fallback
 
   // Sem frase e sem convite não há faixa. É o que impede a barra de aparecer
   // vazia no pagamento só porque o componente foi montado.
@@ -118,7 +126,13 @@ export function WaiterDock({
             {/* O nome do tenant, não "garçom". A Bia da cafeteria e o Téo da
                 pizzaria são pessoas diferentes, e essa é a linha em que o
                 cliente descobre com quem está falando. */}
-            {listening ? 'ouvindo' : phase === 'thinking' ? 'só um instante' : activeWaiterPersona().name}
+            {listening
+              ? 'ouvindo'
+              : connecting
+                ? 'conectando'
+                : phase === 'thinking'
+                  ? 'só um instante'
+                  : persona.name}
           </span>
           <span
             data-testid="waiter-line-text"
@@ -136,6 +150,24 @@ export function WaiterDock({
         </span>
         <ChevronUp strokeWidth={3} className="size-[2.4cqw] shrink-0 text-muted" />
       </button>
+
+      {/* PARAR, com nome e longe do orbe.
+          Ele já foi um quadrado branco desenhado por cima do orbe, e aquele é o
+          pior lugar possível: cobre a animação que diz o que está acontecendo,
+          e pede que o cliente decifre um glifo sobre um gradiente em movimento.
+          Aqui é palavra, no canto oposto da faixa, do tamanho de um toque. */}
+      {busy && controls ? (
+        <button
+          type="button"
+          data-testid="waiter-stop"
+          onClick={controls.end}
+          className="press flex min-h-[var(--tap)] shrink-0 items-center gap-[1.4cqw] rounded-totem border-2 border-edge px-[2.5cqw] uppercase tracking-[0.16em]"
+          style={{ fontSize: 'var(--step-label)' }}
+        >
+          <Square strokeWidth={0} className="size-[1.6cqw] shrink-0 fill-current" />
+          Parar
+        </button>
+      ) : null}
 
       {/* Idle openers. They teach the affordance without a tutorial nobody
           would read, and they disappear the moment a conversation starts. */}

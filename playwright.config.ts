@@ -55,7 +55,15 @@ export default defineConfig({
     // at zero), so the suite runs against the demo menu. What is under test is
     // the SCREEN; the live provider is covered by its own contract test.
     command: `npm run dev -- --port ${PORT}`,
-    env: { VITE_TOTEM_CATALOG: 'demo' },
+    // `pool` aqui é uma TRAVA, não uma preferência: com o backend do cluster
+    // ligado no `.env` da máquina, um `pay-now` de teste vira uma venda de
+    // verdade — comanda, pagamento e fatura num tenant real. A suíte roda no
+    // cardápio de demonstração, e o pedido dela tem de morrer no navegador.
+    //
+    // Cuidado com `reuseExistingServer`: um `npm run dev` já aberto mantém o
+    // `.env` de quem o abriu. Quando a suíte for gravar em algum lugar, é esse
+    // servidor que decide onde.
+    env: { VITE_TOTEM_CATALOG: 'demo', VITE_TOTEM_ORDER_BACKEND: 'pool' },
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ArrowUp, Mic, Square } from 'lucide-react'
 import { Sheet } from '@/design'
 import { VoiceOrb } from '@/waiter/VoiceOrb'
-import { useWaiter } from '@/waiter/useWaiter'
+import { talkAction, useWaiter } from '@/waiter/useWaiter'
 import { activeWaiterPersona } from '@/waiter/persona'
 
 // The whole conversation, when the customer wants to see it — plus a keyboard,
@@ -17,6 +17,9 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
   const controls = useWaiter((s) => s.controls)
   const [draft, setDraft] = useState('')
   const listening = phase === 'listening'
+  // O mesmo controle da faixa, com o mesmo sentido: falar, calar o microfone,
+  // ou derrubar a sessão. Ver `talkAction` e TalkButton.
+  const panelAction = talkAction(phase)
   const thread = useRef<HTMLDivElement>(null)
 
   // Rola para o fim a cada turno novo. Sem isto a conversa cresce para baixo,
@@ -59,11 +62,13 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
           >
             {phase === 'listening'
               ? 'ouvindo'
-              : phase === 'thinking'
-                ? 'só um instante'
-                : phase === 'speaking'
-                  ? 'falando'
-                  : 'pronto quando você estiver'}
+              : phase === 'connecting'
+                ? 'conectando…'
+                : phase === 'thinking'
+                  ? 'só um instante'
+                  : phase === 'speaking'
+                    ? 'falando'
+                    : 'pronto quando você estiver'}
           </span>
         </span>
       </div>
@@ -140,7 +145,7 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
             if (event.key === 'Enter') send()
           }}
           placeholder={listening ? 'Ouvindo…' : 'Fale ou escreva aqui'}
-          disabled={phase === 'thinking'}
+          disabled={phase === 'thinking' || phase === 'connecting'}
           className="min-h-[var(--tap)] min-w-0 flex-1 bg-transparent pl-[3cqw] text-ink outline-none placeholder:text-muted disabled:opacity-50"
           style={{ fontSize: 'var(--step-body)' }}
         />
@@ -159,7 +164,7 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
             aria-label="Enviar"
             data-testid="waiter-send"
             onClick={send}
-            disabled={phase === 'thinking'}
+            disabled={phase === 'thinking' || phase === 'connecting'}
             className="press grid size-[var(--tap)] shrink-0 place-items-center rounded-full bg-ink text-white transition-colors disabled:bg-black/[0.07] disabled:text-ink/35"
           >
             <ArrowUp strokeWidth={3} className="size-[3cqw]" />
@@ -167,21 +172,29 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
         ) : controls ? (
           <button
             type="button"
-            aria-label={listening ? 'Parar de falar' : 'Falar'}
+            aria-label={panelAction === 'stop-listening' ? 'Parar de falar' : panelAction === 'end' ? 'Parar o assistente' : 'Falar'}
             aria-pressed={listening}
             data-testid="panel-mic"
-            disabled={phase === 'thinking' || phase === 'speaking'}
-            onClick={listening ? controls.stop : controls.start}
+            data-action={panelAction ?? 'none'}
+            onClick={
+              panelAction === 'stop-listening'
+                ? controls.stop
+                : panelAction === 'end'
+                  ? controls.end
+                  : controls.start
+            }
             className={[
               'press grid size-[var(--tap)] shrink-0 place-items-center rounded-full transition-colors',
               listening ? 'bg-action text-on-action' : 'bg-black/[0.07] text-ink/70',
               'disabled:opacity-40',
             ].join(' ')}
           >
-            {listening ? (
-              <Square strokeWidth={3} className="size-[2.4cqw]" fill="currentColor" />
-            ) : (
+            {/* Quadrado sempre que o toque PARA alguma coisa — o microfone
+                aberto ou a sessão inteira. Microfone só quando ele começa. */}
+            {panelAction === 'start' ? (
               <Mic strokeWidth={2.5} className="size-[3cqw]" />
+            ) : (
+              <Square strokeWidth={3} className="size-[2.4cqw]" fill="currentColor" />
             )}
           </button>
         ) : null}
