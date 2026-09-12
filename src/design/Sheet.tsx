@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { useRegisterSheet } from '@/design/sheet-state'
 
 // ---------------------------------------------------------------------------
 // The bottom sheet. Product detail, cart, payment method — all of it.
@@ -48,6 +49,9 @@ export function Sheet({ open, onClose, footer, header, title, ariaLabel, bleed =
   const [drag, setDrag] = useState(0)
   const start = useRef<number | null>(null)
   const body = useRef<HTMLDivElement>(null)
+  // Quem mais precisa saber que existe uma folha aberta — hoje a faixa do
+  // garçom, que sobe para o topo e muda de forma. Ver `sheet-state.ts`.
+  useRegisterSheet(open)
   useEffect(() => {
     if (!open) return
     setDrag(0)

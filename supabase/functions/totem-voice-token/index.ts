@@ -29,6 +29,13 @@ const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')
 const MODEL = Deno.env.get('TOTEM_REALTIME_MODEL') ?? 'gpt-realtime-2.1'
 const VOICE = Deno.env.get('TOTEM_REALTIME_VOICE') ?? 'ash'
 
+// As vozes que a Realtime aceita. A lista existe para que o painel possa
+// escolher a voz da casa que está no vidro SEM que este endpoint vire um
+// repassador de qualquer string para a OpenAI.
+const VOICES = new Set([
+  'alloy', 'ash', 'ballad', 'cedar', 'coral', 'echo', 'marin', 'sage', 'shimmer', 'verse',
+])
+
 // A lista de origens é fixa e curta: um totem tem endereço conhecido. Deixar
 // `*` aqui é deixar qualquer página da internet gastar a cota do lojista.
 const ALLOWED = (Deno.env.get('TOTEM_ALLOWED_ORIGINS') ?? 'http://localhost:5310,http://localhost:5311,http://127.0.0.1:5310')
@@ -96,12 +103,29 @@ Deno.serve(async (req) => {
     })
   }
 
-  let body: { instructions?: string } = {}
+  let body: { instructions?: string; voice?: string; audio?: Record<string, unknown> } = {}
   try {
     body = await req.json()
   } catch {
-    // Sem corpo é legítimo: as instruções são opcionais.
+    // Sem corpo é legítimo: instruções, voz e áudio são todos opcionais.
   }
+
+  // A VOZ E O ÁUDIO NASCEM COM A SESSÃO.
+  //
+  // Antes esta função cunhava sempre com `VOICE` e o painel tentava corrigir
+  // num `session.update` depois de conectar. A Realtime não deixa trocar de voz
+  // depois que o modelo já produziu áudio, então qual casa falava dependia de
+  // uma corrida: às vezes a voz da persona, às vezes a daqui. Pelo mesmo
+  // caminho, a sessão nascia sem supressão de ruído e com o VAD no padrão da
+  // OpenAI — os valores calibrados só entravam depois.
+  //
+  // Quem chama é um APARELHO autenticado do lojista (ver a nota no topo), e o
+  // que ele configura é a própria sessão dele. A voz ainda é validada contra a
+  // lista, que é o único campo em que uma string solta chegaria à OpenAI.
+  const voice = typeof body.voice === 'string' && VOICES.has(body.voice) ? body.voice : VOICE
+  const audio = body.audio && typeof body.audio === 'object' && !Array.isArray(body.audio)
+    ? { ...body.audio, output: { ...(body.audio.output as Record<string, unknown> ?? {}), voice } }
+    : { output: { voice } }
 
   const upstream = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
     method: 'POST',
@@ -113,7 +137,7 @@ Deno.serve(async (req) => {
       session: {
         type: 'realtime',
         model: MODEL,
-        audio: { output: { voice: VOICE } },
+        audio,
         ...(body.instructions ? { instructions: body.instructions } : {}),
       },
     }),
@@ -129,7 +153,11 @@ Deno.serve(async (req) => {
   }
 
   const data = JSON.parse(text) as { value?: string; expires_at?: number }
-  return new Response(JSON.stringify({ value: data.value, expires_at: data.expires_at, model: MODEL }), {
+  // `voice` volta junto porque é a única forma de alguém de fora saber com que
+  // voz a sessão NASCEU. Enquanto a voz era corrigida depois, esse dado só
+  // existia dentro da sessão — e a pergunta "por que ele falou com outra voz
+  // hoje?" não tinha como ser respondida sem abrir uma sessão nova.
+  return new Response(JSON.stringify({ value: data.value, expires_at: data.expires_at, model: MODEL, voice }), {
     headers: { ...cors, 'Content-Type': 'application/json' },
   })
 })

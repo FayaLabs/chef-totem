@@ -102,6 +102,67 @@ function toolSchemas() {
 }
 
 /**
+ * O ÁUDIO DA SESSÃO, num lugar só.
+ *
+ * Estes valores viviam apenas no `session.update` que o painel manda depois de
+ * conectar, e a sessão nascia sem nenhum deles. Toda resposta que começasse
+ * antes do update — e havia como isso acontecer — rodava com os padrões da
+ * OpenAI: VAD em 0.5 e sem supressão de ruído, que é exatamente o "ele escuta a
+ * mesa do lado" que estes números foram calibrados para matar.
+ *
+ * Agora o mesmo objeto vai nos dois lugares: na cunhagem da sessão e no update.
+ * Um valor afinado aqui vale desde o primeiro milissegundo da sessão.
+ */
+export function sessionAudio(voice: string) {
+  return {
+    output: { voice },
+    input: {
+      transcription: { model: 'gpt-4o-mini-transcribe', language: 'pt' },
+      // O supressor de ruído da própria Realtime. `near_field` é o perfil
+      // de quem fala A CENTÍMETROS do microfone — que é exatamente a
+      // postura de alguém em pé na frente de um totem. `far_field` é para
+      // microfone de sala de reunião e, num salão, deixa entrar a mesa ao
+      // lado como se fosse o cliente.
+      noise_reduction: { type: 'near_field' },
+      // Energy gate over smart endpointing — see decision 1 in the
+      // header. Values validated by ear in the realtime console rig
+      // before landing here.
+      turn_detection: {
+        type: 'server_vad',
+        // The whole point. The 0.5 default admits far-field speech, so
+        // the next table opens a turn. 0.75 needs someone close and
+        // deliberate. This is the knob to walk DOWN (0.70, then 0.65) if
+        // quiet customers report it is not listening — the failure mode
+        // of too high is silence, and it looks like a broken totem.
+        threshold: 0.75,
+        // Left at the default deliberately. A high threshold trips
+        // slightly late, and this padding is what keeps the first
+        // syllable from being clipped. Lowering it to "let in less
+        // noise" eats word onsets instead.
+        prefix_padding_ms: 300,
+        // 500 (the default) commits half a sentence in a loud room,
+        // because the gaps people leave get filled by other voices.
+        // 700 rides over the pause of someone reading the menu aloud,
+        // and buys it for ~200 ms of extra latency. This is what pays
+        // for dropping semantic endpointing.
+        silence_duration_ms: 700,
+        create_response: true,
+        // NOT interruptible by noise. With `true`, any sound the VAD
+        // reads as speech cancels the reply mid-sentence — in a food
+        // court that is a dropped tray, the next table, the blender.
+        // Customers saw the waiter go mute for no reason and concluded
+        // it had frozen.
+        //
+        // The cost is real and smaller: to cut the waiter off, the
+        // customer taps the orb (ou o "parar" na faixa). Replies are one
+        // or two sentences by design, so the wait is seconds.
+        interrupt_response: false,
+      },
+    },
+  }
+}
+
+/**
  * Dev-only escape hatch: mint the ephemeral secret from a plain local endpoint
  * instead of the edge function.
  *
@@ -158,6 +219,14 @@ async function mintToken(instructions: string): Promise<{ key: string; model: st
   const localUrl = import.meta.env.VITE_TOTEM_VOICE_TOKEN_URL
   if (import.meta.env.DEV && localUrl) return mintTokenLocally(localUrl)
 
+  // A VOZ VAI NA CUNHAGEM, não depois. A sessão nascia sempre com a voz padrão
+  // da função (`ash`) e o painel tentava trocá-la num `session.update` — mas a
+  // Realtime recusa trocar de voz depois que o modelo já produziu áudio, então
+  // a casa que fala era decidida por uma corrida. É por isso que a Bia às vezes
+  // falava com voz masculina, e por isso que o nome dela às vezes saía torto: o
+  // modelo ajusta o nome ao que ele ouve de si mesmo.
+  const audio = sessionAudio(activeWaiterPersona().voiceId)
+
   const base = import.meta.env.VITE_SUPABASE_URL
   const anon = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
   if (!base || !anon) throw new Error('Totem sem VITE_SUPABASE_URL/PUBLISHABLE_KEY.')
@@ -173,7 +242,7 @@ async function mintToken(instructions: string): Promise<{ key: string; model: st
   const res = await fetch(`${base}/functions/v1/totem-voice-token`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${jwt}`, apikey: anon, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ instructions }),
+    body: JSON.stringify({ instructions, voice: activeWaiterPersona().voiceId, audio }),
   })
   const body = (await res.json().catch(() => ({}))) as TokenResponse
   if (!res.ok || !body.value) {
@@ -483,52 +552,12 @@ export function createRealtimeTransport(): WaiterTransport {
       session: {
         type: 'realtime',
         instructions: `${waiterInstructions(catalog)}\n\n${waiterContext(buildSnapshot(catalog))}`,
-        audio: {
-          output: { voice: activeWaiterPersona().voiceId },
-          input: {
-            transcription: { model: 'gpt-4o-mini-transcribe', language: 'pt' },
-            // O supressor de ruído da própria Realtime. `near_field` é o perfil
-            // de quem fala A CENTÍMETROS do microfone — que é exatamente a
-            // postura de alguém em pé na frente de um totem. `far_field` é para
-            // microfone de sala de reunião e, num salão, deixa entrar a mesa ao
-            // lado como se fosse o cliente.
-            noise_reduction: { type: 'near_field' },
-            // Energy gate over smart endpointing — see decision 1 in the
-            // header. Values validated by ear in the realtime console rig
-            // before landing here.
-            turn_detection: {
-              type: 'server_vad',
-              // The whole point. The 0.5 default admits far-field speech, so
-              // the next table opens a turn. 0.75 needs someone close and
-              // deliberate. This is the knob to walk DOWN (0.70, then 0.65) if
-              // quiet customers report it is not listening — the failure mode
-              // of too high is silence, and it looks like a broken totem.
-              threshold: 0.75,
-              // Left at the default deliberately. A high threshold trips
-              // slightly late, and this padding is what keeps the first
-              // syllable from being clipped. Lowering it to "let in less
-              // noise" eats word onsets instead.
-              prefix_padding_ms: 300,
-              // 500 (the default) commits half a sentence in a loud room,
-              // because the gaps people leave get filled by other voices.
-              // 700 rides over the pause of someone reading the menu aloud,
-              // and buys it for ~200 ms of extra latency. This is what pays
-              // for dropping semantic endpointing.
-              silence_duration_ms: 700,
-              create_response: true,
-              // NOT interruptible by noise. With `true`, any sound the VAD
-              // reads as speech cancels the reply mid-sentence — in a food
-              // court that is a dropped tray, the next table, the blender.
-              // Customers saw the waiter go mute for no reason and concluded
-              // it had frozen.
-              //
-              // The cost is real and smaller: to cut the waiter off, the
-              // customer taps the orb. Replies are one or two sentences by
-              // design, so the wait is seconds, not a monologue.
-              interrupt_response: false,
-            },
-          },
-        },
+        // A MESMA configuração com que a sessão foi cunhada (ver
+        // `sessionAudio`). Aqui ela é confirmação, não correção: a voz da
+        // persona já é a voz da sessão desde o primeiro áudio, e trocar voz
+        // depois que o modelo já falou não é permitido pela Realtime — era
+        // essa a corrida que fazia a Bia às vezes falar com voz masculina.
+        audio: sessionAudio(activeWaiterPersona().voiceId),
         tools: toolSchemas(),
         tool_choice: 'auto',
       },
@@ -586,10 +615,22 @@ export function createRealtimeTransport(): WaiterTransport {
         // Um evento que não é JSON é da própria OpenAI e não nosso para tratar.
       }
     }
-    channel.onopen = () => {
-      configure(catalog)
-      store().setPhase('idle')
-    }
+    // O CANAL ABERTO É O FIM DA CONEXÃO, não o `setRemoteDescription`.
+    //
+    // `connect()` resolvia antes de o canal abrir, e `send()` descarta em
+    // SILÊNCIO o que for mandado com o canal fechado. Quem chamava logo em
+    // seguida — o `greet`, que manda a instrução e pede a resposta — podia ter
+    // as duas mensagens evaporadas sem erro nenhum: sessão conectada, garçom
+    // mudo, e nenhuma pista de por quê.
+    const opened = new Promise<void>((resolve, reject) => {
+      channel!.onopen = () => {
+        configure(catalog)
+        store().setPhase('idle')
+        resolve()
+      }
+      channel!.onerror = () => reject(new Error('o canal de voz não abriu'))
+      channel!.onclose = () => reject(new Error('o canal de voz fechou antes de abrir'))
+    })
 
     const offer = await pc.createOffer()
     await pc.setLocalDescription(offer)
@@ -602,6 +643,11 @@ export function createRealtimeTransport(): WaiterTransport {
     if (!res.ok) throw new Error(`a chamada de voz foi recusada (${res.status})`)
 
     await pc.setRemoteDescription({ type: 'answer', sdp: await res.text() })
+    await opened
+    // O `onclose` acima só existia para não deixar esta promessa pendurada. A
+    // partir daqui um fechamento é o fim normal da sessão, e rejeitar seria
+    // inventar um erro em cima de um `dispose()` pedido pelo cliente.
+    if (channel) channel.onclose = null
     startLevelPump()
   }
 
