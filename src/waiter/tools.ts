@@ -1,6 +1,7 @@
 import { useCart } from '@/cart/useCart'
 import { commitProductDraft, draftBlocking, draftModifiers, useProductDraft } from '@/menu/useProductDraft'
 import { useMenuUi } from '@/menu/useMenuUi'
+import { POINTING_ENABLED } from '@/waiter/pointing'
 import { useTotemSession } from '@/session/useTotemSession'
 import { useWaiter } from '@/waiter/useWaiter'
 import type { TotemCatalog, TotemProduct } from '@/menu/types'
@@ -70,7 +71,15 @@ function openProductOrNull(catalog: TotemCatalog): TotemProduct | null {
   return catalog.products.find((p) => p.id === id) ?? null
 }
 
-export const WAITER_TOOLS: WaiterTool[] = [
+/**
+ * As ferramentas que o modelo enxerga.
+ *
+ * `highlight_product` está fora enquanto `POINTING_ENABLED` for falso: ela não
+ * só acende um cartão, ela TROCA a categoria e limpa o filtro para conseguir
+ * acender — numa grade que pode estar atrás de um sheet aberto. Ver
+ * `pointing.ts` para o porquê e para o que precisa mudar antes de voltar.
+ */
+const ALL_WAITER_TOOLS: WaiterTool[] = [
   // ---- antes do cardápio -----------------------------------------------------
   //
   // As duas telas que vêm antes do cardápio são UMA pergunta cada, e um garçom
@@ -403,6 +412,10 @@ export const WAITER_TOOLS: WaiterTool[] = [
     },
   },
 ]
+
+export const WAITER_TOOLS: WaiterTool[] = ALL_WAITER_TOOLS.filter(
+  (tool) => POINTING_ENABLED || tool.name !== 'highlight_product',
+)
 
 export function executeWaiterTool(
   name: string,

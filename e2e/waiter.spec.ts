@@ -132,7 +132,11 @@ test.describe('V3 · o erro que sai', () => {
   })
 })
 
-test.describe('V3 · o garçom aponta', () => {
+// APONTAR ESTÁ DESLIGADO (ver `POINTING_ENABLED` em src/waiter/pointing.ts): o
+// gesto mexia na grade por trás de um prato aberto, que é onde o painel do
+// evento começa. Estes testes descrevem a regra certa do gesto e voltam com
+// ele — o que precisa mudar antes é QUANDO apontar.
+test.describe.skip('V3 · o garçom aponta', () => {
   test('recomendar desce até o prato, destaca ele e apaga os outros', async ({ page }) => {
     // O problema clássico do assistente de voz: ele diz "o mac and cheese é o
     // mais pedido" e o cliente fica procurando qual dos doze é. Um nome falado
@@ -179,7 +183,11 @@ test.describe('V3 · o garçom aponta', () => {
   })
 })
 
-test.describe('V3 · apontar OU abrir', () => {
+// APONTAR ESTÁ DESLIGADO (ver `POINTING_ENABLED` em src/waiter/pointing.ts): o
+// gesto mexia na grade por trás de um prato aberto, que é onde o painel do
+// evento começa. Estes testes descrevem a regra certa do gesto e voltam com
+// ele — o que precisa mudar antes é QUANDO apontar.
+test.describe.skip('V3 · apontar OU abrir', () => {
   test('abrir o prato apaga o destaque — nunca os dois ao mesmo tempo', async ({ page }) => {
     // Apontar e abrir são duas formas de dizer "é este". As duas juntas são o
     // prato crescendo na grade enquanto um sheet sobe por cima dele: dois

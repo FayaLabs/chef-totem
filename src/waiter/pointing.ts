@@ -26,6 +26,23 @@ import type { TotemCatalog, TotemProduct } from '@/menu/types'
 //    desejo, e apontar de novo é oferecer o que ele já levou.
 // ---------------------------------------------------------------------------
 
+/**
+ * APONTAR ESTÁ DESLIGADO — decisão de feira, 11/09/2026.
+ *
+ * O gesto atropelava o cliente em vez de ajudá-lo. O painel do evento abre um
+ * prato assim que entra no cardápio, e o garçom, no meio da primeira fala,
+ * saía recomendando: acendia cartão, e para acender trocava a categoria e
+ * limpava o filtro — mexendo numa grade que está ATRÁS de um sheet, que o
+ * cliente não está vendo e não pediu para mexer. O cliente abre um item, e a
+ * tela por baixo dele muda sozinha.
+ *
+ * Desligado num lugar só, e nos três lugares que dependem disso: a ferramenta
+ * sai da lista que o modelo enxerga, a instrução de apontar sai do prompt, e
+ * este piso automático para de acender. O código fica de pé para voltar — o
+ * que precisa mudar antes é a REGRA de quando apontar, não o mecanismo.
+ */
+export const POINTING_ENABLED = false
+
 const norm = (value: string): string =>
   value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 
@@ -48,6 +65,7 @@ export function spokenProducts(text: string, catalog: TotemCatalog): TotemProduc
  * comparação. Nesse caso a tela fica quieta e quem decide é a ferramenta.
  */
 export function pointWhileSpeaking(text: string): void {
+  if (!POINTING_ENABLED) return
   const catalog = catalogNow()
   if (!catalog || !text.trim()) return
   if (useTotemSession.getState().step !== 'menu') return
