@@ -50,6 +50,26 @@ test('o mesmo botão derruba a sessão enquanto ela conecta, pensa ou fala', asy
   await expect(page.getByTestId('voice-orb').first()).toHaveAttribute('data-phase', 'idle')
 })
 
+test('com uma folha aberta, a faixa sobe para o topo', async ({ page }) => {
+  await toMenu(page)
+  await setPhase(page, 'speaking')
+  const dock = page.getByTestId('waiter-dock')
+  const embaixo = (await dock.boundingBox())!
+
+  await page.locator('button[data-testid^=product-]:not([disabled])').first().tap()
+  await page.getByTestId('sheet-handle').waitFor()
+  await expect.poll(async () => (await dock.boundingBox())!.y).toBeLessThan(10)
+
+  // E não encosta na folha: ela para em 86% da tela, e a faixa cabe inteira na
+  // banda que sobra. Uma faixa por baixo da folha é uma conversa que sumiu.
+  const noTopo = (await dock.boundingBox())!
+  const folha = (await page.locator('[data-sheet-open] [role=dialog]').first().boundingBox())!
+  expect(noTopo.y + noTopo.height).toBeLessThanOrEqual(folha.y)
+
+  await page.keyboard.press('Escape')
+  await expect.poll(async () => (await dock.boundingBox())!.y).toBeGreaterThan(embaixo.y - 1)
+})
+
 test('parado, o botão volta a ser o microfone', async ({ page }) => {
   await toMenu(page)
   await expect(page.getByTestId('talk-button')).toHaveAttribute('data-action', 'start')
