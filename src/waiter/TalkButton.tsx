@@ -1,5 +1,4 @@
 import { useEffect } from 'react'
-import { Square } from 'lucide-react'
 import { VoiceOrb } from '@/waiter/VoiceOrb'
 import { talkAction, useWaiter } from '@/waiter/useWaiter'
 
@@ -24,8 +23,12 @@ import { talkAction, useWaiter } from '@/waiter/useWaiter'
 // ficava DESABILITADO — então uma sessão que começasse a falar besteira só
 // terminava fechando a aplicação, na frente da fila. Agora o mesmo controle
 // muda de sentido conforme a fase (ver `talkAction`): fala, cala o microfone,
-// ou DERRUBA a sessão inteira. O ícone muda junto, porque um botão que faz
-// outra coisa tem de parecer outra coisa.
+// ou DERRUBA a sessão inteira.
+//
+// O QUE ELE NÃO FAZ É MUDAR DE CARA. O ícone de parar chegou a ser desenhado
+// por cima do orbe, e ali ele cobria a única coisa da faixa que mostra o que
+// está acontecendo. Parar é palavra, na outra ponta da faixa (ver WaiterDock);
+// aqui fica o orbe e nada mais.
 // ---------------------------------------------------------------------------
 
 /** Teto da escuta. Ninguém pede um lanche em vinte segundos de fala contínua. */
@@ -50,11 +53,6 @@ export function TalkButton() {
   if (!action) return null
 
   const stops = action === 'end'
-  // Abrir a sessão é o único momento "parado" da fase: ninguém falou ainda, e a
-  // pergunta do cliente é "carregou ou travou?". O orbe já responde isso — é
-  // exatamente o estado `thinking` da lib, churn alto e silhueta parada — e o
-  // quadrado branco, com 35% do botão, cobria justo a animação que responde.
-  const connecting = phase === 'connecting'
   const label =
     action === 'stop-listening'
       ? 'Parar de falar'
@@ -72,21 +70,11 @@ export function TalkButton() {
       onClick={action === 'stop-listening' ? controls.stop : stops ? controls.end : controls.start}
       className="press relative grid size-[var(--tap-lg)] shrink-0 place-items-center rounded-full"
     >
+      {/* NADA POR CIMA DO ORBE. O quadrado de parar morou aqui, com 35% do
+          botão, e cobria a única coisa da faixa que diz o que está
+          acontecendo — justamente enquanto acontecia. Parar virou um controle
+          com nome, do outro lado da faixa. */}
       <VoiceOrb size="var(--tap-lg)" />
-      {/* O quadrado de parar, por cima do orbe. Sem ele o botão continua
-          parecendo "fale comigo" exatamente quando faz o contrário — e quem
-          está tentando calar o painel não tem tempo de descobrir isso tocando.
-
-          Só depois que o garçom começa a trabalhar: enquanto conecta, o toque
-          continua derrubando a sessão, mas quem está esperando precisa ver o
-          orbe, não um botão de parar algo que ainda não começou. */}
-      {stops && !connecting ? (
-        <Square
-          data-testid="talk-stop"
-          strokeWidth={0}
-          className="pointer-events-none absolute size-[35%] fill-white drop-shadow-[0_0_0.4cqw_rgba(0,0,0,0.45)]"
-        />
-      ) : null}
     </button>
   )
 }
