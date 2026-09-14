@@ -126,8 +126,12 @@ export function greetingInstruction(customerName: string | null, step: TotemStep
   return [
     'O cliente tocou no orbe para ser atendido FALANDO. Esta é a sua primeira frase da visita.',
     customerName ? `Ele é ${customerName} — chame pelo nome.` : 'Você ainda não sabe o nome dele.',
-    `Cumprimente em uma frase, diga seu nome, e ${question}.`,
-    'Nada de lista, nada de explicar o painel. Uma frase e a pergunta.',
+    // SEM APRESENTAÇÃO. "Oi, eu sou o Dudu" gasta a primeira frase da visita
+    // com o nome de quem atende, que não é o que a pessoa veio resolver — e num
+    // painel o nome já está escrito na faixa, ao lado do orbe. Quem pergunta
+    // quem ele é, ouve; ninguém pergunta.
+    `Cumprimente em uma frase curta, sem dizer seu nome, e ${question}.`,
+    'Nada de lista, nada de explicar o painel, nada de se apresentar. Uma frase e a pergunta.',
   ].join(' ')
 }
 
