@@ -1,4 +1,5 @@
 import { useWaiter } from '@/waiter/useWaiter'
+import { traceWaiter } from '@/waiter/trace'
 import type { TotemStep } from '@/session/useTotemSession'
 
 // ---------------------------------------------------------------------------
@@ -19,6 +20,40 @@ import type { TotemStep } from '@/session/useTotemSession'
 // "pode aproximar quando quiser". Uma tabela de frases fixas aqui apagaria a
 // persona que o resto do sistema constrói.
 // ---------------------------------------------------------------------------
+
+/**
+ * O GARÇOM MOVEU A TELA — então a tela não precisa contar para ele.
+ *
+ * Quando ele chama `set_service_mode` ou `skip_identification`, duas coisas
+ * disparam ao mesmo tempo: o retorno da ferramenta ("Pulei. Estamos no
+ * cardápio — pergunte o que ele vai querer"), que já pede uma resposta, e o
+ * anúncio automático do passo novo, que pede outra. O resultado é o garçom
+ * falando por cima de si mesmo — "Bora pro lanche primeiro: qual sanduíche?"
+ * seguido de "Manda o sanduíche: o carro-chefe é o Cheddar Bacon" —, e num
+ * quiosque isso lê como painel com defeito.
+ *
+ * O anúncio existe para o que o CLIENTE faz com o dedo. Quando o passo mudou
+ * porque o próprio garçom o mudou, ele já sabe: estava dentro da ferramenta.
+ */
+let drivenStep: TotemStep | null = null
+
+/** Chamado pelas ferramentas que avançam a tela. */
+export function waiterDroveTo(step: TotemStep): void {
+  drivenStep = step
+}
+
+/** Verdadeiro UMA vez, para o passo que o garçom acabou de causar. */
+export function consumeWaiterDrive(step: TotemStep): boolean {
+  if (drivenStep !== step) return false
+  drivenStep = null
+  traceWaiter('screen', `aviso de "${step}" suprimido — quem virou a tela foi ele`)
+  return true
+}
+
+/** Uma visita nova não herda o volante da anterior. */
+export function forgetWaiterDrive(): void {
+  drivenStep = null
+}
 
 export type WaiterEvent =
   | { type: 'identification_open' }
@@ -91,8 +126,12 @@ export function greetingInstruction(customerName: string | null, step: TotemStep
   return [
     'O cliente tocou no orbe para ser atendido FALANDO. Esta é a sua primeira frase da visita.',
     customerName ? `Ele é ${customerName} — chame pelo nome.` : 'Você ainda não sabe o nome dele.',
-    `Cumprimente em uma frase, diga seu nome, e ${question}.`,
-    'Nada de lista, nada de explicar o painel. Uma frase e a pergunta.',
+    // SEM APRESENTAÇÃO. "Oi, eu sou o Dudu" gasta a primeira frase da visita
+    // com o nome de quem atende, que não é o que a pessoa veio resolver — e num
+    // painel o nome já está escrito na faixa, ao lado do orbe. Quem pergunta
+    // quem ele é, ouve; ninguém pergunta.
+    `Cumprimente em uma frase curta, sem dizer seu nome, e ${question}.`,
+    'Nada de lista, nada de explicar o painel, nada de se apresentar. Uma frase e a pergunta.',
   ].join(' ')
 }
 
@@ -106,6 +145,10 @@ export function greetingInstruction(customerName: string | null, step: TotemStep
  */
 export function announceToWaiter(event: WaiterEvent): void {
   const { phase, announce } = useWaiter.getState()
-  if (phase === 'off' || !announce) return
+  if (phase === 'off' || !announce) {
+    traceWaiter('screen', `${event.type} ignorado — sem sessão de voz`)
+    return
+  }
+  traceWaiter('screen', event.type)
   announce(describeEvent(event))
 }
