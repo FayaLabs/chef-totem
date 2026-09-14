@@ -1,6 +1,7 @@
 import { useCart } from '@/cart/useCart'
-import { commitProductDraft, draftBlocking, draftModifiers, useProductDraft } from '@/menu/useProductDraft'
+import { commitProductDraft, draftBlocking, draftModifiers, draftNextQuestion, useProductDraft } from '@/menu/useProductDraft'
 import { useMenuUi } from '@/menu/useMenuUi'
+import { scrollToStepSoon } from '@/menu/useStepFlow'
 import { POINTING_ENABLED } from '@/waiter/pointing'
 import { waiterDroveTo } from '@/waiter/events'
 import { useTotemSession } from '@/session/useTotemSession'
@@ -80,6 +81,24 @@ function openProductOrNull(catalog: TotemCatalog): TotemProduct | null {
  * acender — numa grade que pode estar atrás de um sheet aberto. Ver
  * `pointing.ts` para o porquê e para o que precisa mudar antes de voltar.
  */
+/**
+ * O QUE ELE PERGUNTA TEM DE ESTAR NA TELA.
+ *
+ * O painel diz ao modelo qual grupo perguntar (`PERGUNTE AGORA`, via
+ * `draftNextQuestion`) — e não levava a tela até lá. O resultado é o que se vê
+ * numa foto do sheet: "qual ponto da carne?" com o cliente olhando o pão e o
+ * lanche, e a etapa perguntada duas rolagens abaixo. Pelo dedo isso já
+ * funcionava: tocar numa opção desce para a próxima etapa (`useStepFlow`).
+ * Pela voz, ninguém descia.
+ *
+ * Então toda ferramenta que muda a próxima pergunta termina aqui. É a mesma
+ * rolagem do toque — a tela acompanha quem está falando, seja o dedo ou a boca.
+ */
+function showNextQuestion(product: TotemProduct): void {
+  const next = draftNextQuestion(product, useProductDraft.getState().chosen)
+  if (next) scrollToStepSoon(next.groupId)
+}
+
 const ALL_WAITER_TOOLS: WaiterTool[] = [
   // ---- antes do cardápio -----------------------------------------------------
   //
@@ -151,6 +170,7 @@ const ALL_WAITER_TOOLS: WaiterTool[] = [
       if (product.modifierGroups.length === 0) return `${product.name} não tem opções — é só adicionar.`
 
       const chosen = useProductDraft.getState().chosen
+      showNextQuestion(product)
       return JSON.stringify({
         prato: product.name,
         grupos: product.modifierGroups.map((group) => ({
@@ -294,6 +314,7 @@ const ALL_WAITER_TOOLS: WaiterTool[] = [
         if (modifier.pizzaFlavor) useProductDraft.getState().setPizzaMode('half')
         useProductDraft.getState().toggle(group.id, modifier.id, group.maxSelections, group.required)
         const on = (useProductDraft.getState().chosen[group.id] ?? []).includes(modifier.id)
+        showNextQuestion(product)
         return `${modifier.name} ${on ? 'marcado' : 'desmarcado'} em ${group.name}.`
       }
       return `"${str(args, 'option')}" não é uma opção de ${product.name}.`

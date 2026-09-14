@@ -4,7 +4,7 @@ import { Chip, Sheet, Stepper, TotemButton } from '@/design'
 import { brl, useCart } from '@/cart/useCart'
 import { playItemSound } from '@/feedback/itemSound'
 import { useCatalog } from '@/menu/useCatalog'
-import { commitProductDraft, draftBlocking, draftModifiers, draftUnitCents, useProductDraft } from '@/menu/useProductDraft'
+import { commitProductDraft, draftBlocking, draftModifiers, draftNextQuestion, draftUnitCents, useProductDraft } from '@/menu/useProductDraft'
 import { StepHeading, stepHint } from '@/menu/StepHeading'
 import { scrollToStepSoon, stepDone, stepFilled, stepFull, useStepFlow } from '@/menu/useStepFlow'
 import type { TotemModifierGroup, TotemProduct } from '@/menu/types'
@@ -63,12 +63,20 @@ export function BurgerProductSheet({ product, onClose }: { product: TotemProduct
   // tocou no cartão do Cheddar Bacon já respondeu "qual lanche"; abrir o sheet
   // na lista de lanches é pedir a mesma resposta de novo, e a segunda pergunta
   // igual é onde o cliente conclui que o totem não entendeu a primeira.
+  //
+  // E abre na PRIMEIRA ETAPA EM ABERTO, que nem sempre é o pão: quem pediu
+  // falando ("cheddar bacon com brioche") já respondeu o pão, e abrir ali é
+  // mostrar uma pergunta respondida enquanto o garçom pergunta a seguinte — foi
+  // exatamente assim que o painel ficou perguntando o ponto da carne com o
+  // ponto da carne fora da tela.
   const openedChosen = useRef(draft.burgerRecipeChosen)
   useEffect(() => {
     if (!openedChosen.current) return
+    const pending = draftNextQuestion(product, useProductDraft.getState().chosen)
     const bread = product.modifierGroups.find((g) => g.kind === 'burger-bread')
-    if (bread) scrollToStepSoon(bread.id)
-  }, [product.modifierGroups])
+    const target = pending?.groupId ?? bread?.id
+    if (target) scrollToStepSoon(target)
+  }, [product.modifierGroups, product])
 
   function remove(id: string) {
     const option = findRemoval(id) ?? findExtra(id)
