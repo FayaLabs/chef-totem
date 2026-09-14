@@ -115,17 +115,23 @@ function toolSchemas() {
  * Um valor afinado aqui vale desde o primeiro milissegundo da sessão.
  */
 /**
- * O modelo que TRANSCREVE o cliente.
+ * O modelo que TRANSCREVE o cliente — e SÓ ele.
  *
- * `gpt-4o-transcribe` e não o `mini` de antes: a queixa era transcrição
- * trocando de idioma no meio do atendimento, e o mini é o que mais chuta
- * quando o áudio vem sujo — que é todo áudio de praça de alimentação.
+ * Não confundir com o modelo da sessão, que é e continua sendo o
+ * `gpt-realtime-2.1` (ver `DEFAULT_MODEL` aqui e `TOTEM_REALTIME_MODEL` na
+ * função de token). Isto é um sub-campo de `audio.input`: quem vira a fala do
+ * cliente em texto. A sessão segue `type: 'realtime'` — a API tem um
+ * `type: 'transcription'`, que é outra coisa e que este painel não usa.
  *
- * `languages` e `keywords`, que seriam a trava certa, NÃO existem nesta versão
- * da API: mandá-los faz a cunhagem inteira voltar 400 e o painel fica sem voz
- * nenhuma (testado contra a API, não suposto). Sobra `language` mais `prompt`.
+ * Mantido no `mini` de sempre: trocá-lo por um maior é uma decisão de ouvido,
+ * e ouvido ninguém tem daqui. Uma linha para experimentar.
+ *
+ * `languages` e `keywords`, que seriam a trava certa de idioma, NÃO existem
+ * nesta versão da API: mandá-los faz a cunhagem inteira voltar 400 e o painel
+ * fica sem voz nenhuma (testado contra a API, não suposto). Sobra `language`
+ * mais `prompt`, e é no prompt que o vocabulário da casa entra.
  */
-const TRANSCRIBE_MODEL = 'gpt-4o-transcribe'
+const TRANSCRIBE_MODEL = 'gpt-4o-mini-transcribe'
 
 /** Teto do sopro. Prompt de transcrição é dica, não dicionário. */
 const PROMPT_LIMIT = 800
