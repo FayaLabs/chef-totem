@@ -2,6 +2,7 @@ import { useCart } from '@/cart/useCart'
 import { commitProductDraft, draftBlocking, draftModifiers, useProductDraft } from '@/menu/useProductDraft'
 import { useMenuUi } from '@/menu/useMenuUi'
 import { POINTING_ENABLED } from '@/waiter/pointing'
+import { waiterDroveTo } from '@/waiter/events'
 import { useTotemSession } from '@/session/useTotemSession'
 import { useWaiter } from '@/waiter/useWaiter'
 import type { TotemCatalog, TotemProduct } from '@/menu/types'
@@ -118,6 +119,9 @@ const ALL_WAITER_TOOLS: WaiterTool[] = [
         return 'Modo inválido. Use dine_in (comer aqui) ou takeaway (levar).'
       }
       session.chooseMode(mode)
+      // Ele mesmo virou a tela: o aviso automático do passo novo seria uma
+      // segunda resposta por cima desta. Ver `waiterDroveTo`.
+      waiterDroveTo('identify')
       return `Marquei ${mode === 'takeaway' ? 'para levar' : 'para comer aqui'}. Agora a tela pergunta o telefone, e dá para pular.`
     },
   },
@@ -131,6 +135,7 @@ const ALL_WAITER_TOOLS: WaiterTool[] = [
       const session = useTotemSession.getState()
       if (session.step !== 'identify') return 'Não estamos na tela de identificação.'
       session.identify(null)
+      waiterDroveTo('menu')
       return 'Pulei. Estamos no cardápio — pergunte o que ele vai querer.'
     },
   },

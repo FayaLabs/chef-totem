@@ -4,6 +4,7 @@ import { Sheet } from '@/design'
 import { VoiceOrb } from '@/waiter/VoiceOrb'
 import { talkAction, useWaiter } from '@/waiter/useWaiter'
 import { activeWaiterPersona } from '@/waiter/persona'
+import { traceClock, useWaiterTrace, waiterTraceEnabled } from '@/waiter/trace'
 
 // The whole conversation, when the customer wants to see it — plus a keyboard,
 // because a noisy room, a strong accent or a sore throat should never be the
@@ -20,6 +21,9 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
   // O mesmo controle da faixa, com o mesmo sentido: falar, calar o microfone,
   // ou derrubar a sessão. Ver `talkAction` e TalkButton.
   const panelAction = talkAction(phase)
+  // O log da sessão. Fora de `?debug=waiter` (e fora de dev) ele não existe na
+  // tela nem no store — ver `trace.ts`.
+  const trace = useWaiterTrace((s) => s.entries)
   const thread = useRef<HTMLDivElement>(null)
 
   // Rola para o fim a cada turno novo. Sem isto a conversa cresce para baixo,
@@ -115,6 +119,26 @@ export function WaiterPanel({ onSend }: { onSend: (text: string) => void }) {
             ) : null}
           </div>
         ))}
+
+        {waiterTraceEnabled() && trace.length > 0 ? (
+          <details data-testid="waiter-trace" className="mt-[2cqw] rounded-totem border-2 border-edge p-[2cqw]">
+            <summary className="cursor-pointer uppercase tracking-[0.2em] text-muted" style={{ fontSize: 'var(--step-label)' }}>
+              sessão · {trace.length} eventos
+            </summary>
+            {/* O que a conversa NÃO mostra: quem pediu cada resposta. Duas
+                falas seguidas do garçom são sempre dois `response.create`, e
+                aqui dá para ver qual dos dois sobrou. */}
+            <ul className="mt-[1.5cqw] flex flex-col gap-[0.6cqw] font-mono" style={{ fontSize: 'calc(var(--step-label) * 0.92)' }}>
+              {trace.slice(-24).map((entry, index) => (
+                <li key={`${entry.at}-${index}`} className="flex gap-[1.2cqw] text-muted">
+                  <span className="shrink-0 tabular-nums">{traceClock(entry.at)}</span>
+                  <span className="shrink-0 uppercase">{entry.kind}</span>
+                  <span className="min-w-0 flex-1 break-words text-ink">{entry.text}</span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
 
         {live ? (
           <div

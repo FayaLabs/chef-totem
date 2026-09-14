@@ -1,4 +1,5 @@
 import { useWaiter } from '@/waiter/useWaiter'
+import { traceWaiter } from '@/waiter/trace'
 import type { TotemStep } from '@/session/useTotemSession'
 
 // ---------------------------------------------------------------------------
@@ -19,6 +20,40 @@ import type { TotemStep } from '@/session/useTotemSession'
 // "pode aproximar quando quiser". Uma tabela de frases fixas aqui apagaria a
 // persona que o resto do sistema constrói.
 // ---------------------------------------------------------------------------
+
+/**
+ * O GARÇOM MOVEU A TELA — então a tela não precisa contar para ele.
+ *
+ * Quando ele chama `set_service_mode` ou `skip_identification`, duas coisas
+ * disparam ao mesmo tempo: o retorno da ferramenta ("Pulei. Estamos no
+ * cardápio — pergunte o que ele vai querer"), que já pede uma resposta, e o
+ * anúncio automático do passo novo, que pede outra. O resultado é o garçom
+ * falando por cima de si mesmo — "Bora pro lanche primeiro: qual sanduíche?"
+ * seguido de "Manda o sanduíche: o carro-chefe é o Cheddar Bacon" —, e num
+ * quiosque isso lê como painel com defeito.
+ *
+ * O anúncio existe para o que o CLIENTE faz com o dedo. Quando o passo mudou
+ * porque o próprio garçom o mudou, ele já sabe: estava dentro da ferramenta.
+ */
+let drivenStep: TotemStep | null = null
+
+/** Chamado pelas ferramentas que avançam a tela. */
+export function waiterDroveTo(step: TotemStep): void {
+  drivenStep = step
+}
+
+/** Verdadeiro UMA vez, para o passo que o garçom acabou de causar. */
+export function consumeWaiterDrive(step: TotemStep): boolean {
+  if (drivenStep !== step) return false
+  drivenStep = null
+  traceWaiter('screen', `aviso de "${step}" suprimido — quem virou a tela foi ele`)
+  return true
+}
+
+/** Uma visita nova não herda o volante da anterior. */
+export function forgetWaiterDrive(): void {
+  drivenStep = null
+}
 
 export type WaiterEvent =
   | { type: 'identification_open' }
@@ -106,6 +141,10 @@ export function greetingInstruction(customerName: string | null, step: TotemStep
  */
 export function announceToWaiter(event: WaiterEvent): void {
   const { phase, announce } = useWaiter.getState()
-  if (phase === 'off' || !announce) return
+  if (phase === 'off' || !announce) {
+    traceWaiter('screen', `${event.type} ignorado — sem sessão de voz`)
+    return
+  }
+  traceWaiter('screen', event.type)
   announce(describeEvent(event))
 }

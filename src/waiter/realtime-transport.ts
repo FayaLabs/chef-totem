@@ -1,4 +1,5 @@
 import { detach, meterMicrophone, meterRemote, currentLevel } from '@/waiter/audio-meter'
+import { traceWaiter } from '@/waiter/trace'
 import { executeWaiterTool, WAITER_TOOLS } from '@/waiter/tools'
 import { buildSnapshot } from '@/waiter/snapshot'
 import { waiterContext, waiterInstructions } from '@/waiter/instructions'
@@ -319,8 +320,10 @@ export function createRealtimeTransport(): WaiterTransport {
   const requestResponse = () => {
     if (responseActive) {
       responsePending = true
+      traceWaiter('session', 'response.create adiado — já há uma resposta em curso')
       return
     }
+    traceWaiter('session', 'response.create enviado')
     responseActive = true
     if (responseGuard) clearTimeout(responseGuard)
     responseGuard = setTimeout(() => {
@@ -414,6 +417,7 @@ export function createRealtimeTransport(): WaiterTransport {
 
     // ---- ferramentas ---------------------------------------------------------
     if (type === 'response.function_call_arguments.done') {
+      traceWaiter('tool', `${String(event.name ?? '?')}(${String(event.arguments ?? '').slice(0, 80)})`)
       const name = String(event.name ?? '')
       let args: Record<string, unknown> = {}
       try {
@@ -483,6 +487,7 @@ export function createRealtimeTransport(): WaiterTransport {
       return store().setPhase('thinking')
     }
     if (type === 'response.created') {
+      traceWaiter('server', 'response.created')
       responseActive = true
       activeResponseId =
         ((event.response as { id?: string } | undefined)?.id ?? null) || null
@@ -490,6 +495,7 @@ export function createRealtimeTransport(): WaiterTransport {
     }
     if (type === 'output_audio_buffer.started') return store().setPhase('speaking')
     if (type === 'response.done') {
+      traceWaiter('server', 'response.done')
       const doneId =
         ((event.response as { id?: string } | undefined)?.id ?? null) || null
       // A `done` for a response we already replaced must not unlock the current
@@ -513,6 +519,7 @@ export function createRealtimeTransport(): WaiterTransport {
       return
     }
     if (type === 'error') {
+      traceWaiter('error', JSON.stringify(event).slice(0, 200))
       const raw = (event.error as { message?: string } | undefined)?.message ?? ''
 
       // "Conversation already has an active response in progress: resp_X" is

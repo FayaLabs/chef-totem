@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { pointWhileSpeaking } from '@/waiter/pointing'
+import { traceWaiter } from '@/waiter/trace'
 
 // ---------------------------------------------------------------------------
 // The waiter's state of mind.
@@ -182,7 +183,11 @@ export const useWaiter = create<WaiterState>((set, get) => ({
   setEngaged: (engaged) => set({ engaged }),
   setControls: (controls) => set({ controls }),
   setAnnounce: (announce) => set({ announce }),
-  setPhase: (phase) => set({ phase }),
+  setPhase: (phase) =>
+    set((state) => {
+      if (state.phase !== phase) traceWaiter('phase', `${state.phase} → ${phase}`)
+      return { phase }
+    }),
   setLive: (liveTranscript) => set({ liveTranscript }),
   setLevel: (level) => set({ level }),
   // Falar de um prato acende o cartão dele na grade — ver waiter/pointing.ts.

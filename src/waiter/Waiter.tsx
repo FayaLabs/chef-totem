@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useCatalog } from '@/menu/useCatalog'
 import { useTotemSession, type TotemStep } from '@/session/useTotemSession'
-import { announceToWaiter, greetingInstruction } from '@/waiter/events'
+import { announceToWaiter, consumeWaiterDrive, forgetWaiterDrive, greetingInstruction } from '@/waiter/events'
 import { WaiterDock } from '@/waiter/WaiterDock'
 import { WaiterPanel } from '@/waiter/WaiterPanel'
 import { useWaiter } from '@/waiter/useWaiter'
@@ -148,6 +148,7 @@ export function Waiter() {
   const guided = useRef<TotemStep | null>(null)
   useEffect(() => {
     guided.current = null
+    forgetWaiterDrive()
   }, [visitId])
 
   useEffect(() => {
@@ -166,6 +167,10 @@ export function Waiter() {
       void transport.greet?.(greetingInstruction(customerName, step), catalogState.catalog)
       return
     }
+    // Se foi ELE quem virou a tela, o retorno da ferramenta já pediu a fala —
+    // anunciar aqui seria a segunda resposta seguida, o garçom falando por cima
+    // de si mesmo. Ver `waiterDroveTo` em events.ts.
+    if (consumeWaiterDrive(step)) return
     if (step === 'identify') announceToWaiter({ type: 'identification_open' })
     else if (step === 'menu') announceToWaiter({ type: 'menu_open' })
   }, [transport, engaged, step, catalogState, customerName, visitId])
