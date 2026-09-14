@@ -114,11 +114,55 @@ function toolSchemas() {
  * Agora o mesmo objeto vai nos dois lugares: na cunhagem da sessão e no update.
  * Um valor afinado aqui vale desde o primeiro milissegundo da sessão.
  */
-export function sessionAudio(voice: string) {
+/**
+ * O modelo que TRANSCREVE o cliente.
+ *
+ * `gpt-4o-transcribe` e não o `mini` de antes: a queixa era transcrição
+ * trocando de idioma no meio do atendimento, e o mini é o que mais chuta
+ * quando o áudio vem sujo — que é todo áudio de praça de alimentação.
+ *
+ * `languages` e `keywords`, que seriam a trava certa, NÃO existem nesta versão
+ * da API: mandá-los faz a cunhagem inteira voltar 400 e o painel fica sem voz
+ * nenhuma (testado contra a API, não suposto). Sobra `language` mais `prompt`.
+ */
+const TRANSCRIBE_MODEL = 'gpt-4o-transcribe'
+
+/** Teto do sopro. Prompt de transcrição é dica, não dicionário. */
+const PROMPT_LIMIT = 800
+
+/**
+ * O que a transcrição precisa saber ANTES de ouvir.
+ *
+ * Duas coisas, e a segunda é a que ninguém lembra: o idioma, e as palavras que
+ * este cardápio usa. "Smash Duplo", "brioche", "ao ponto para menos" não são o
+ * que um modelo de fala espera num áudio qualquer — e é exatamente o que o
+ * cliente fala aqui. Sem a lista, cada nome próprio é um convite para o modelo
+ * adivinhar outro idioma.
+ */
+export function transcriptionPrompt(catalog?: TotemCatalog | null): string {
+  const base = 'Áudio em português do Brasil (pt-BR). Cliente pedindo comida num totem de autoatendimento de restaurante. Transcreva SEMPRE em português do Brasil.'
+  if (!catalog) return base
+  const words = new Set<string>()
+  for (const product of catalog.products) {
+    words.add(product.name)
+    for (const group of product.modifierGroups ?? []) {
+      for (const modifier of group.modifiers) words.add(modifier.name)
+    }
+  }
+  if (words.size === 0) return base
+  const vocabulary = `${base} Palavras do cardápio: ${[...words].join(', ')}.`
+  return vocabulary.length > PROMPT_LIMIT ? `${vocabulary.slice(0, PROMPT_LIMIT - 1)}.` : vocabulary
+}
+
+export function sessionAudio(voice: string, catalog?: TotemCatalog | null) {
   return {
     output: { voice },
     input: {
-      transcription: { model: 'gpt-4o-mini-transcribe', language: 'pt' },
+      transcription: {
+        model: TRANSCRIBE_MODEL,
+        language: 'pt',
+        prompt: transcriptionPrompt(catalog),
+      },
       // O supressor de ruído da própria Realtime. `near_field` é o perfil
       // de quem fala A CENTÍMETROS do microfone — que é exatamente a
       // postura de alguém em pé na frente de um totem. `far_field` é para
@@ -216,7 +260,7 @@ export function responseIdFrom(raw: string): string | null {
   return /resp_[A-Za-z0-9]+/.exec(raw)?.[0] ?? null
 }
 
-async function mintToken(instructions: string): Promise<{ key: string; model: string }> {
+async function mintToken(instructions: string, catalog: TotemCatalog): Promise<{ key: string; model: string }> {
   const localUrl = import.meta.env.VITE_TOTEM_VOICE_TOKEN_URL
   if (import.meta.env.DEV && localUrl) return mintTokenLocally(localUrl)
 
@@ -226,7 +270,7 @@ async function mintToken(instructions: string): Promise<{ key: string; model: st
   // a casa que fala era decidida por uma corrida. É por isso que a Bia às vezes
   // falava com voz masculina, e por isso que o nome dela às vezes saía torto: o
   // modelo ajusta o nome ao que ele ouve de si mesmo.
-  const audio = sessionAudio(activeWaiterPersona().voiceId)
+  const audio = sessionAudio(activeWaiterPersona().voiceId, catalog)
 
   const base = import.meta.env.VITE_SUPABASE_URL
   const anon = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
@@ -564,7 +608,7 @@ export function createRealtimeTransport(): WaiterTransport {
         // persona já é a voz da sessão desde o primeiro áudio, e trocar voz
         // depois que o modelo já falou não é permitido pela Realtime — era
         // essa a corrida que fazia a Bia às vezes falar com voz masculina.
-        audio: sessionAudio(activeWaiterPersona().voiceId),
+        audio: sessionAudio(activeWaiterPersona().voiceId, catalog),
         tools: toolSchemas(),
         tool_choice: 'auto',
       },
@@ -581,7 +625,7 @@ export function createRealtimeTransport(): WaiterTransport {
     // and the customer joins the till queue.
     store().setPhase('connecting')
 
-    const { key, model } = await mintToken(waiterInstructions(catalog))
+    const { key, model } = await mintToken(waiterInstructions(catalog), catalog)
 
     mic = await navigator.mediaDevices.getUserMedia({
       audio: {
