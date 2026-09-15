@@ -70,13 +70,15 @@ test('parado no repouso, o painel começa a se apresentar sozinho', async ({ pag
     .toBe(true)
 })
 
-test('quem está pedindo não é interrompido pela vitrine', async ({ page }) => {
+test('parado em QUALQUER tela, a vitrine assume — inclusive num pedido abandonado', async ({ page }) => {
+  // O pior caso não é o repouso: é o painel largado no meio de um pedido, com
+  // carrinho montado, que é exatamente como alguém vai embora. A apresentação
+  // começa reiniciando a visita, então ela também limpa o que ficou.
   await page.goto('/?tenant=maxburger&showreel-idle=3')
   await page.getByTestId('attract').tap()
   await expect(page.getByTestId('screen-mode')).toBeVisible()
 
-  // Fora do repouso a contagem não vale: a tela é de quem está decidindo.
-  await page.waitForTimeout(6000)
-  expect(await page.evaluate(() => (window as any).fayzShowreel?.running?.())).toBe(false)
-  await expect(page.getByTestId('screen-mode')).toBeVisible()
+  await expect
+    .poll(async () => page.evaluate(() => (window as any).fayzShowreel?.running?.()), { timeout: 15_000 })
+    .toBe(true)
 })
