@@ -71,8 +71,41 @@ function overlayScript(pin) {
         return b
       }
 
+      // PIN CERTO ABRE UM MENU, e não a porta direto.
+      //
+      // Sair era a única coisa que havia atrás do PIN; a feira acrescentou uma
+      // segunda: ligar a apresentação automática, que é o painel se mostrando
+      // sozinho para quem passa no corredor. As duas são do operador, e as duas
+      // têm de estar atrás do mesmo PIN — um botão de demonstração ao alcance
+      // do cliente é a tela trocando de assunto no meio do pedido dele.
+      const menu = () => {
+        box.textContent = ''
+        const heading = document.createElement('div')
+        heading.textContent = 'Manutenção'
+        heading.style.cssText = 'opacity:.65;margin-bottom:14px'
+        const wide = (label, onTap, bg) => {
+          const b = document.createElement('button')
+          b.textContent = label
+          b.style.cssText = 'width:100%;margin-top:10px;padding:16px;border:0;border-radius:12px;' +
+            'background:' + bg + ';color:#fff;font-size:16px;touch-action:manipulation'
+          b.onclick = onTap
+          return b
+        }
+        const demo = window.fayzShowreel
+        box.append(
+          heading,
+          wide(demo?.running?.() ? 'Parar demonstração' : 'Modo demonstração', () => {
+            close()
+            if (demo?.running?.()) demo.stop()
+            else demo?.start()
+          }, '#4f46e5'),
+          wide('Sair do painel', () => window.fayzShell?.requestExit(${JSON.stringify(pin)}), '#c2410c'),
+          wide('Voltar ao atendimento', close, '#2a2a2e'),
+        )
+      }
+
       const submit = () => {
-        if (entry === ${JSON.stringify(pin)}) window.fayzShell?.requestExit(entry)
+        if (entry === ${JSON.stringify(pin)}) menu()
         else { msg.textContent = 'PIN incorreto'; entry = ''; paint() }
       }
       const digit = (d) => () => {
