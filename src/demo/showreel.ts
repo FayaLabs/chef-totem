@@ -231,6 +231,13 @@ export async function startShowreel(): Promise<void> {
     const house = nextHouse()
     if (house) {
       if (!(await beat(`trocando para ${house}`, BEAT.breath))) break
+      // O `?showreel` VAI JUNTO na URL que o seletor reescreve — sem isso, uma
+      // apresentação ligada pelo PIN morria na primeira troca de casa: o painel
+      // recarregava na pizzaria e ficava parado, esperando os noventa segundos
+      // de ocioso para voltar. O loop tem de atravessar o recarregamento.
+      const url = new URL(window.location.href)
+      url.searchParams.set('showreel', '1')
+      window.history.replaceState(null, '', url)
       selectDemo(house)
       return
     }
@@ -250,10 +257,16 @@ export async function startShowreel(): Promise<void> {
  * numa tela de atrair parada até a próxima pessoa. Esses minutos são os mesmos
  * em que alguém passa no corredor — e um painel parado não convida ninguém.
  *
- * Só do REPOUSO. Se a pessoa está no meio de um pedido, a demonstração seria a
- * tela tomando a vez dela; quem cuida disso é o `idleSeconds` da sessão, que
- * devolve o painel ao repouso primeiro. Daqui em diante, qualquer toque zera a
- * contagem — e também encerra a apresentação, pela regra 1 lá em cima.
+ * DE QUALQUER TELA. A primeira versão só ligava no repouso, e isso deixava o
+ * pior caso de fora: o painel abandonado NO MEIO de um pedido — carrinho com
+ * três itens, tela de pagamento aberta — que é exatamente onde alguém vai
+ * embora sem terminar. Parado é parado, e a apresentação começa reiniciando a
+ * visita, então ela também limpa o pedido que ninguém fechou.
+ *
+ * Quem está decidindo não é atropelado por causa do relógio: noventa segundos
+ * sem ENCOSTAR na tela é mais do que o `idleSeconds` da própria sessão, que já
+ * pergunta "ainda está aí?" antes disso. E qualquer toque zera a contagem — e
+ * encerra a apresentação, pela regra 1 lá em cima.
  */
 const IDLE_DEFAULT_S = 90
 
@@ -284,8 +297,6 @@ export function installShowreelIdle(): () => void {
 
   const timer = setInterval(() => {
     if (useShowreel.getState().running) return
-    // Só do repouso, e só quando ninguém tocou desde então.
-    if (useTotemSession.getState().step !== 'attract') return
     if (Date.now() - last < wait) return
     void startShowreel()
   }, 1000)
