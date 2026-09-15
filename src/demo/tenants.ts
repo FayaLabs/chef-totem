@@ -610,9 +610,14 @@ const BURGER_PONTO: TotemModifierGroup = {
   required: true,
   minSelections: 1,
   maxSelections: 1,
+  // NA ORDEM DA CHAPA, do menos para o mais passado — e não na ordem em que
+  // alguém digitou. Uma fileira de três pontos de carne é lida como uma régua:
+  // o dedo procura o "menos" à esquerda e o "mais" à direita antes de ler as
+  // palavras. Com o meio-termo na ponta esquerda, quem quer mal passado toca no
+  // primeiro cartão e leva o do meio.
   modifiers: [
-    { id: 'mb-m-ponto', name: 'Ao ponto', surchargeCents: 0 },
     { id: 'mb-m-ponto-menos', name: 'Ao ponto para menos', surchargeCents: 0 },
+    { id: 'mb-m-ponto', name: 'Ao ponto', surchargeCents: 0 },
     { id: 'mb-m-bem-passado', name: 'Bem passado', surchargeCents: 0 },
   ],
 }
@@ -786,7 +791,7 @@ export const MAXBURGER: DemoTenant = {
     ].join(' '),
     playbook: [
       'LANCHE PRIMEIRO. Descubra qual sanduíche antes de qualquer outra coisa — é a decisão que trouxe o cliente até aqui.',
-      'Se o lanche é de carne, pergunte o PONTO com as três opções de uma vez: "ao ponto, ao ponto pra menos ou bem passado?". Frango e veggie não têm ponto: não pergunte.',
+      'Se o lanche é de carne, pergunte o PONTO com as três opções de uma vez: "ao ponto pra menos, ao ponto ou bem passado?". Frango e veggie não têm ponto: não pergunte.',
       'Aí o pão, com as três opções e a diferença de preço quando houver.',
       'Ofereça o COMBO uma vez, dizendo o que entra e quanto custa a mais: "vira combo com fritas e refri por dezesseis reais?". Se recusarem, siga.',
       'Se o lanche escolhido está em PROMOÇÃO (preço riscado), diga o quanto economiza — uma frase, na hora de confirmar.',
