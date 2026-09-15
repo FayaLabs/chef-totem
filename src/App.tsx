@@ -21,6 +21,12 @@ import { BurgerPilotScreen } from '@/burger/BurgerPilotScreen'
 //
 // `?design` is the one exception: an internal catalog of every primitive, not
 // reachable from any customer-facing tap.
+/** O medidor de quadros só existe quando alguém pede para medir. */
+function showsFps(): boolean {
+  if (import.meta.env.VITE_TOTEM_FPS === 'on') return true
+  return typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('fps')
+}
+
 const SCREENS: Partial<Record<TotemStep, () => JSX.Element | null>> = {
   attract: AttractScreen,
   mode: ModeScreen,
@@ -48,7 +54,12 @@ export default function App() {
     <TotemViewport>
       {isBurgerPilot ? <BurgerPilotScreen /> : isDesign ? <DesignCatalog /> : Screen ? <Screen /> : <PlaceholderScreen step={step} />}
       {isDesign || isBurgerPilot ? null : <Waiter />}
-      {import.meta.env.VITE_TOTEM_FPS === 'off' ? null : <FpsMeter />}
+      {/* O medidor NÃO aparece sozinho. Ele nasceu aceso porque durante o
+          ajuste de desempenho era ele que dizia se o painel estava engasgando —
+          e num corredor de feira o que ele diz para quem passa é "isto aqui é
+          um protótipo". Liga com `?fps` (ou VITE_TOTEM_FPS=on) na hora de
+          medir. Ver `kiosk/FpsMeter.tsx`. */}
+      {showsFps() ? <FpsMeter /> : null}
     </TotemViewport>
   )
 }
