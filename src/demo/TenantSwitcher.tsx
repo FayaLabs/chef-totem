@@ -3,7 +3,7 @@ import { Check } from 'lucide-react'
 import { Sheet, TotemButton } from '@/design'
 import { totemConfig, TOTEM_RELEASE } from '@/config/totem.config'
 import { beautyplaceConfig, isBeautyplaceBackend, missingBeautyplaceConfig } from '@/config/beautyplace.config'
-import { beautyplaceCatalog } from '@/orders/beautyplace'
+import { activeHouseName, beautyplaceCatalog, unitForHouse } from '@/orders/beautyplace'
 import {
   activeDemoTenant,
   activeSelection,
@@ -146,6 +146,7 @@ function Debug() {
   // discovers mid-queue that the tenant never heard of its burgers has already
   // taken the money. See `orders/beautyplace.ts`.
   const [cluster, setCluster] = useState('—')
+  const [unit, setUnit] = useState('—')
 
   useEffect(() => {
     const box = document.querySelector('[data-totem-stage]')?.getBoundingClientRect()
@@ -168,6 +169,12 @@ function Debug() {
           catalog.mismatched.length > 0 ? `${catalog.mismatched.length} com preço diferente` : null,
         ].filter(Boolean)
         setCluster(problems.length > 0 ? problems.join(' · ') : `${catalog.byInternalCode.size} produtos conferem`)
+        // EM QUAL UNIDADE a venda cai. Cada casa da feira é uma empresa do
+        // mesmo tenant, e uma venda na unidade errada some no Fechamento da
+        // casa certa — é o tipo de erro que só aparece no fim do dia, quando
+        // não dá mais para desfazer.
+        const unit = unitForHouse(catalog, activeHouseName())
+        setUnit(unit ? `${unit.name} (${unit.id})` : 'nenhuma — cai na matriz')
       })
       .catch((cause: unknown) => {
         if (alive) setCluster(cause instanceof Error ? cause.message : 'indisponível')
@@ -192,6 +199,7 @@ function Debug() {
     ['Projeto', host],
     ['Pedidos', isBeautyplaceBackend() ? `ChefControl · tenant ${beautyplaceConfig.tenantId}` : 'pool (resto-saas)'],
     ['Catálogo do cluster', cluster],
+    ['Unidade da venda', unit],
     ['Assistente', totemConfig.flags.assistant ? (env.VITE_TOTEM_WAITER ?? 'scripted') : 'desligado'],
     ['Palco', stage],
   ]
