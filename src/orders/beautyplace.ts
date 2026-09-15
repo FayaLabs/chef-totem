@@ -1,5 +1,6 @@
 import { beautyplaceConfig } from '@/config/beautyplace.config'
 import { totemConfig } from '@/config/totem.config'
+import { brandName } from '@/config/tenant-brand'
 import { DEMO_TENANTS } from '@/demo/tenants'
 import { pizzaName } from '@/pizza/composition'
 import type { CartLine } from '@/cart/useCart'
@@ -42,13 +43,59 @@ interface RemoteProduct {
   groups: RemoteOptionGroup[]
 }
 
+interface RemoteUnit {
+  id: number
+  name: string
+  isHeadquarters: boolean
+}
+
 export interface BeautyplaceCatalog {
   /** Keyed by the panel's own product id, which the seed stored as internal_code. */
   byInternalCode: Map<string, RemoteProduct>
+  /** The tenant's active units — one per house, when the house sells as one. */
+  units: RemoteUnit[]
   /** Products the panel can sell that the cluster does not know about. */
   missing: string[]
   /** Products whose cluster price is not the price on the glass. */
   mismatched: { internalCode: string; panelCents: number; clusterCents: number }[]
+}
+
+/** Sem acento e sem caixa: "Café Sabor" e "cafe sabor" são a mesma casa. */
+const plainName = (value: string): string =>
+  value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()
+
+/**
+ * A UNIDADE DA CASA QUE ESTÁ NO VIDRO.
+ *
+ * O lojista monta a feira como três empresas do mesmo tenant — Pizza House,
+ * Café Sabor, MaxBurger — e cada venda tem de cair na sua. Mandar sempre a
+ * matriz é o que faz o Fechamento do Dia de três casas virar um só número, e
+ * ninguém consegue desfazer isso depois.
+ *
+ * A ligação é por NOME, e não por uma tabela de ids no `.env`: quem cria a
+ * unidade é quem opera o ERP, e o painel descobre no boot. Sem casa
+ * correspondente ele cai na unidade configurada (ou na matriz) em vez de
+ * recusar a venda — um pedido na unidade errada se conserta; um pedido perdido
+ * na frente do cliente, não. O painel de serviço diz em qual unidade está
+ * vendendo, para o erro ser visível antes da fila.
+ */
+export function activeHouseName(): string | null {
+  // A casa no vidro: a de demonstração quando há uma, senão o nome do próprio
+  // tenant (que o painel já resolve para o recibo e para a persona).
+  return brandName() || totemConfig.brand.name || null
+}
+
+export function unitForHouse(catalog: BeautyplaceCatalog, houseName: string | null): RemoteUnit | null {
+  if (houseName) {
+    const wanted = plainName(houseName)
+    const match = catalog.units.find((unit) => plainName(unit.name) === wanted)
+    if (match) return match
+  }
+  if (beautyplaceConfig.unitId) {
+    const configured = catalog.units.find((unit) => unit.id === beautyplaceConfig.unitId)
+    if (configured) return configured
+  }
+  return catalog.units.find((unit) => unit.isHeadquarters) ?? catalog.units[0] ?? null
 }
 
 export class BeautyplaceError extends Error {
@@ -110,9 +157,10 @@ export function beautyplaceCatalog(force = false): Promise<BeautyplaceCatalog> {
   if (!catalogPromise) {
     catalogPromise = (async () => {
       const internalCodes = panelProductIds()
-      const remote = await call<{ products: RemoteProduct[] }>('totem-catalog', { internalCodes })
+      const remote = await call<{ products: RemoteProduct[]; units?: RemoteUnit[] }>('totem-catalog', { internalCodes })
       const byInternalCode = new Map<string, RemoteProduct>()
       for (const product of remote.products ?? []) byInternalCode.set(product.internalCode, product)
+      const units = remote.units ?? []
 
       const missing = internalCodes.filter((code) => !byInternalCode.has(code))
       const mismatched: BeautyplaceCatalog['mismatched'] = []
@@ -122,7 +170,7 @@ export function beautyplaceCatalog(force = false): Promise<BeautyplaceCatalog> {
           mismatched.push({ internalCode: code, panelCents, clusterCents: product.priceCents })
         }
       }
-      return { byInternalCode, missing, mismatched }
+      return { byInternalCode, units, missing, mismatched }
     })().catch((cause) => {
       catalogPromise = null
       throw cause
@@ -192,6 +240,7 @@ interface TotemOrderResponse {
 
 export async function placeBeautyplaceOrder(input: PlaceOrderInput): Promise<PlacedOrder> {
   const catalog = await beautyplaceCatalog()
+  const unit = unitForHouse(catalog, activeHouseName())
   const lines = input.lines.map((line) => toRemoteLine(line, catalog))
 
   const subtotalCents = input.lines.reduce((sum, line) => sum + line.unitCents * line.quantity, 0)
@@ -209,7 +258,8 @@ export async function placeBeautyplaceOrder(input: PlaceOrderInput): Promise<Pla
   const placed = await call<TotemOrderResponse>('submit-totem-order', {
     totemId: totemConfig.totemId,
     serviceMode: input.mode,
-    ...(beautyplaceConfig.unitId ? { unitId: beautyplaceConfig.unitId } : {}),
+    // A unidade da casa no vidro, não a matriz. Ver `unitForHouse`.
+    ...(unit ? { unitId: unit.id } : {}),
     idempotencyKey,
     customer: input.customer
       ? {
