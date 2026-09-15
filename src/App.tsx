@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { DesignCatalog } from '@/design/DesignCatalog'
-import { installShowreelHatch } from '@/demo/showreel'
+import { installShowreelHatch, installShowreelIdle } from '@/demo/showreel'
 import { FpsMeter } from '@/kiosk/FpsMeter'
 import { TotemViewport } from '@/kiosk/TotemViewport'
 import { useFullscreenOnFirstTouch, useKioskLock } from '@/kiosk/useKioskLock'
@@ -41,6 +41,8 @@ export default function App() {
   // O PIN de manutenção do shell não conhece React: ele só alcança `window`.
   // Ver `installShowreelHatch`.
   useEffect(installShowreelHatch, [])
+  // E sozinho, depois de um tempo parado no repouso. Ver `installShowreelIdle`.
+  useEffect(installShowreelIdle, [])
   useFullscreenOnFirstTouch()
   const step = useTotemSession((s) => s.step)
 
