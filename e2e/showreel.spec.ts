@@ -7,14 +7,14 @@ import { expect, test } from '@playwright/test'
 test('ela anda sozinha pelas telas', async ({ page }) => {
   await page.goto('/?showreel=1&tenant=maxburger')
   // Sai do repouso sem ninguém tocar em nada.
-  await expect(page.getByTestId('screen-menu')).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByTestId('screen-menu')).toBeVisible({ timeout: 30_000 })
   // E segue até a conta — o ponto alto da volta.
-  await expect(page.getByTestId('screen-payment')).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByTestId('screen-payment')).toBeVisible({ timeout: 90_000 })
 })
 
 test('o dedo do cliente encerra a apresentação e o painel vira dele', async ({ page }) => {
   await page.goto('/?showreel=1&tenant=maxburger')
-  await expect(page.getByTestId('screen-menu')).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByTestId('screen-menu')).toBeVisible({ timeout: 30_000 })
 
   // Um dedo em qualquer lugar do vidro, como o de quem chegou na frente do
   // painel — não um clique num alvo escolhido pelo teste.
@@ -40,7 +40,21 @@ test('ninguém paga: a volta não fecha pedido', async ({ page }) => {
     return route.abort()
   })
   await page.goto('/?showreel=1&tenant=maxburger')
-  await expect(page.getByTestId('screen-payment')).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByTestId('screen-payment')).toBeVisible({ timeout: 90_000 })
   // Uma volta inteira sem uma única chamada de pedido ao cluster.
   expect(posted.filter((url) => url.includes('public-booking'))).toEqual([])
+})
+
+test('a volta troca de casa: burger e pizza, que são as que montam na tela', async ({ page }) => {
+  // Uma volta inteira leva ~50 s de propósito (é vitrine, não operação), e a
+  // troca só acontece no fim dela — o limite padrão de 60 s do Playwright não
+  // cabe nisso.
+  test.setTimeout(180_000)
+  await page.goto('/?showreel=1&tenant=maxburger')
+  // Uma volta inteira na MaxBurger e a seguinte já é a pizzaria — a troca
+  // recarrega o painel, e a apresentação volta sozinha do outro lado.
+  await expect
+    .poll(async () => new URL(page.url()).searchParams.get('tenant'), { timeout: 120_000 })
+    .toBe('pizza-house')
+  await expect(page.getByTestId('attract').or(page.getByTestId('screen-mode'))).toBeVisible({ timeout: 20_000 })
 })
