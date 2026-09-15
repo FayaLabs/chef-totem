@@ -3,6 +3,7 @@ import {
   type BillJob, type CustomerTicket, type EscPosOptions, type PrinterPort, type PrintJob,
   type PrintResult,
 } from '@fayz-ai/core/printing'
+import qrcode from 'qrcode-generator'
 import { totemConfig } from '@/config/totem.config'
 import type { CompletedOrder, ServiceMode } from '@/session/useTotemSession'
 import { brandName } from '@/config/tenant-brand'
@@ -53,6 +54,28 @@ export function orderBill(order: CompletedOrder, mode: ServiceMode): BillJob {
   }
 }
 
+/**
+ * O RODAPÉ DE FEIRA.
+ *
+ * O cupom é a única coisa que a pessoa leva do estande, e quem o segura é
+ * quem decide se compra o painel. Por isso ele fala do ChefControl — e por isso
+ * é `promo` e não `footer`: um QR não é uma frase, e uma oferta em corpo de
+ * rodapé é letra miúda que ninguém resgata.
+ *
+ * Vazio DESLIGA o bloco inteiro. Quando este painel estiver num restaurante de
+ * verdade, `VITE_TOTEM_PROMO=off` devolve o cupom de sempre — um cliente do
+ * Pertinho do Céu não tem por que levar para casa um anúncio do totem.
+ */
+export function fairPromo(): CustomerTicket['promo'] {
+  if (import.meta.env.VITE_TOTEM_PROMO === 'off') return undefined
+  return {
+    headline: 'Seja bem-vindo ao ChefControl',
+    offer: 'VOCE GANHOU 1 MES GRATIS DE TESTE',
+    site: 'chefcontrol.ai',
+    qr: 'https://chefcontrol.ai/qr',
+  }
+}
+
 /** The sale, as a document. The only totem-specific knowledge in this module. */
 export function customerTicket(order: CompletedOrder, mode: ServiceMode): CustomerTicket {
   return {
@@ -64,6 +87,7 @@ export function customerTicket(order: CompletedOrder, mode: ServiceMode): Custom
     totalCents: order.totalCents,
     paid: order.paid,
     footer: 'Obrigado!',
+    promo: fairPromo(),
   }
 }
 
@@ -105,7 +129,11 @@ function browserPrinter(): TotemPrinter {
       <p>${job.reference}</p>
       <p>Total: ${(job.totalCents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
       ${job.paid ? '' : '<p><b>PENDENTE — PASSE NO CAIXA</b></p>'}
-      <p>${job.footer ?? ''}</p>`)
+      <p>${job.footer ?? ''}</p>
+      ${job.promo ? `<hr />
+      <p><b>${job.promo.headline ?? ''}</b></p>
+      <p class="n" style="font-size:28px">${job.promo.offer ?? ''}</p>
+      <p>${job.promo.site ?? ''}</p>` : ''}`)
       doc.close()
       frame.contentWindow?.print()
       setTimeout(() => frame.remove(), 1000)
@@ -128,7 +156,25 @@ function browserPrinter(): TotemPrinter {
  * A different printer may want different values; they belong in the tenant's
  * terminal config the day a second model appears, not hard-coded deeper.
  */
-const PANEL_ESCPOS: EscPosOptions = { codepage: 'cp860', dots: 384, qrModuleScale: 5 }
+/**
+ * O codificador de QR.
+ *
+ * O renderizador do SDK desenha os módulos como raster de propósito (os clones
+ * de POS80 ignoram o `GS ( k` nativo), mas ele não gera o QR — quem gera é
+ * quem imprime. `qrcode-generator` porque é a implementação sem dependências
+ * que cabe num bundle de quiosque; correção de erro média, que é o que aguenta
+ * papel térmico dobrado no bolso.
+ */
+export const qrMatrix = (payload: string): boolean[][] => {
+  const code = qrcode(0, 'M')
+  code.addData(payload)
+  code.make()
+  const size = code.getModuleCount()
+  return Array.from({ length: size }, (_, row) =>
+    Array.from({ length: size }, (_, column) => code.isDark(row, column)))
+}
+
+const PANEL_ESCPOS: EscPosOptions = { codepage: 'cp860', dots: 384, qrModuleScale: 5, qr: qrMatrix }
 
 /**
  * A printer that can put several documents on ONE strip of paper.
