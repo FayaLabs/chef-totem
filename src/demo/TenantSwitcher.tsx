@@ -4,6 +4,7 @@ import { Sheet, TotemButton } from '@/design'
 import { totemConfig, TOTEM_RELEASE } from '@/config/totem.config'
 import { beautyplaceConfig, isBeautyplaceBackend, missingBeautyplaceConfig } from '@/config/beautyplace.config'
 import { activeHouseName, beautyplaceCatalog, unitForHouse } from '@/orders/beautyplace'
+import { startShowreel, stopShowreel, useShowreel } from '@/demo/showreel'
 import {
   activeDemoTenant,
   activeSelection,
@@ -60,6 +61,49 @@ export function activeHouseLabel(): { name: string; colour: string } {
   return { name: tenant.brand.name, colour: tenant.theme.action ?? defaultTheme.action }
 }
 
+/**
+ * A apresentação automática, ligada por quem cuida do painel.
+ *
+ * Fica aqui e não numa tecla qualquer porque quem liga é o operador da feira —
+ * e porque desligar tem de ser trivial: qualquer toque na tela já para (ver
+ * `showreel.ts`), este botão é só o jeito de ligar de novo.
+ */
+function Showreel({ onClose }: { onClose: () => void }) {
+  const running = useShowreel((s) => s.running)
+  const beat = useShowreel((s) => s.beat)
+
+  return (
+    <div className="mb-[3cqw] rounded-totem border-2 border-edge p-[3cqw]">
+      <p className="uppercase tracking-[0.25em] text-muted" style={{ fontSize: 'var(--step-label)' }}>
+        Modo demonstração
+      </p>
+      <p className="mt-[1cqw] text-ink" style={{ fontSize: 'var(--step-label)' }}>
+        {running
+          ? `Rodando sozinho — ${beat ?? 'começando'}. Qualquer toque na tela devolve o painel ao cliente.`
+          : 'O painel se apresenta sozinho em loop: monta um lanche, põe no pedido e mostra a conta. Ninguém paga, e o primeiro toque encerra.'}
+      </p>
+      <TotemButton
+        tone={running ? 'bar-quiet' : 'action'}
+        size="bar"
+        className="mt-[2cqw] w-full"
+        data-testid="showreel-toggle"
+        onClick={() => {
+          if (running) {
+            stopShowreel()
+            return
+          }
+          // Fecha o painel antes de começar: a apresentação é para quem passa
+          // no corredor, e ela abaixo de um sheet de serviço não é vitrine.
+          onClose()
+          void startShowreel()
+        }}
+      >
+        {running ? 'Parar demonstração' : 'Começar demonstração'}
+      </TotemButton>
+    </div>
+  )
+}
+
 export function ServicePanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   // A escolha EFETIVA, não a explícita: sem ninguém ter escolhido nada o painel
   // já está numa casa (a do `.env`), e uma lista sem marca nenhuma assinalada
@@ -87,6 +131,8 @@ export function ServicePanel({ open, onClose }: { open: boolean; onClose: () => 
         <p className="pb-[3cqw] text-muted" style={{ fontSize: 'var(--step-label)' }}>
           Trocar de casa recarrega o painel e leva junto a marca, o cardápio e a voz do assistente.
         </p>
+
+        <Showreel onClose={onClose} />
 
         <ul className="flex flex-col gap-[2cqw]">
           {DEMO_TENANT_IDS.map((id) => {

@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import { DesignCatalog } from '@/design/DesignCatalog'
+import { installShowreelHatch } from '@/demo/showreel'
 import { FpsMeter } from '@/kiosk/FpsMeter'
 import { TotemViewport } from '@/kiosk/TotemViewport'
 import { useFullscreenOnFirstTouch, useKioskLock } from '@/kiosk/useKioskLock'
@@ -30,6 +32,9 @@ const SCREENS: Partial<Record<TotemStep, () => JSX.Element | null>> = {
 
 export default function App() {
   useKioskLock()
+  // O PIN de manutenção do shell não conhece React: ele só alcança `window`.
+  // Ver `installShowreelHatch`.
+  useEffect(installShowreelHatch, [])
   useFullscreenOnFirstTouch()
   const step = useTotemSession((s) => s.step)
 
