@@ -58,3 +58,25 @@ test('a volta troca de casa: burger e pizza, que são as que montam na tela', as
     .toBe('pizza-house')
   await expect(page.getByTestId('attract').or(page.getByTestId('screen-mode'))).toBeVisible({ timeout: 20_000 })
 })
+
+test('parado no repouso, o painel começa a se apresentar sozinho', async ({ page }) => {
+  // `showreel-idle` em segundos: o padrão do painel é 90, que um teste não
+  // espera. A regra é a mesma.
+  await page.goto('/?tenant=maxburger&showreel-idle=3')
+  await expect(page.getByTestId('attract')).toBeVisible()
+
+  await expect
+    .poll(async () => page.evaluate(() => (window as any).fayzShowreel?.running?.()), { timeout: 15_000 })
+    .toBe(true)
+})
+
+test('quem está pedindo não é interrompido pela vitrine', async ({ page }) => {
+  await page.goto('/?tenant=maxburger&showreel-idle=3')
+  await page.getByTestId('attract').tap()
+  await expect(page.getByTestId('screen-mode')).toBeVisible()
+
+  // Fora do repouso a contagem não vale: a tela é de quem está decidindo.
+  await page.waitForTimeout(6000)
+  expect(await page.evaluate(() => (window as any).fayzShowreel?.running?.())).toBe(false)
+  await expect(page.getByTestId('screen-mode')).toBeVisible()
+})

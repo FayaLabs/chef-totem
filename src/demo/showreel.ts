@@ -243,6 +243,62 @@ export async function startShowreel(): Promise<void> {
 }
 
 /**
+ * O PAINEL SOZINHO VOLTA A SE APRESENTAR.
+ *
+ * Ligar a demonstração pelo PIN serve para quem está ao lado do totem. O resto
+ * do dia ninguém está: o cliente termina o pedido, vai embora, e o painel fica
+ * numa tela de atrair parada até a próxima pessoa. Esses minutos são os mesmos
+ * em que alguém passa no corredor — e um painel parado não convida ninguém.
+ *
+ * Só do REPOUSO. Se a pessoa está no meio de um pedido, a demonstração seria a
+ * tela tomando a vez dela; quem cuida disso é o `idleSeconds` da sessão, que
+ * devolve o painel ao repouso primeiro. Daqui em diante, qualquer toque zera a
+ * contagem — e também encerra a apresentação, pela regra 1 lá em cima.
+ */
+const IDLE_DEFAULT_S = 90
+
+function idleSeconds(): number {
+  const asked = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('showreel-idle')
+    : null
+  const configured = asked ?? import.meta.env.VITE_TOTEM_SHOWREEL_IDLE
+  const seconds = Number(configured)
+  // Zero ou negativo DESLIGA — é como um painel de cliente real fica quando a
+  // vitrine não é o que ele quer.
+  if (Number.isFinite(seconds) && seconds <= 0) return 0
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : IDLE_DEFAULT_S
+}
+
+export function installShowreelIdle(): () => void {
+  if (typeof window === 'undefined') return () => {}
+  const wait = idleSeconds() * 1000
+  if (wait <= 0) return () => {}
+
+  let last = Date.now()
+  const touched = () => {
+    last = Date.now()
+  }
+  for (const event of ['pointerdown', 'touchstart', 'keydown', 'wheel'] as const) {
+    window.addEventListener(event, touched, { capture: true, passive: true })
+  }
+
+  const timer = setInterval(() => {
+    if (useShowreel.getState().running) return
+    // Só do repouso, e só quando ninguém tocou desde então.
+    if (useTotemSession.getState().step !== 'attract') return
+    if (Date.now() - last < wait) return
+    void startShowreel()
+  }, 1000)
+
+  return () => {
+    clearInterval(timer)
+    for (const event of ['pointerdown', 'touchstart', 'keydown', 'wheel'] as const) {
+      window.removeEventListener(event, touched, { capture: true })
+    }
+  }
+}
+
+/**
  * A porta para quem está de fora do React: o PIN de manutenção do shell.
  *
  * O teclado de PIN é injetado pelo Electron e não conhece o app — ele só
