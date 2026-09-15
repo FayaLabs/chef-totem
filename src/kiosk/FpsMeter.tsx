@@ -8,8 +8,9 @@ import { useEffect, useRef, useState } from 'react'
 // same GPU that a mini-PC under a counter barely has. The number has to be
 // readable from in front of the totem, for the same reason the build label is.
 //
-// `VITE_TOTEM_FPS=off` removes it — the day a customer would be the one reading
-// it, it should not be there.
+// DESLIGADO POR PADRÃO. Ele passou a feira aceso no canto da tela, e para quem
+// passa no corredor um número de diagnóstico sobre a comida diz "protótipo".
+// Liga com `?fps` na URL ou `VITE_TOTEM_FPS=on` — ver `showsFps` em App.tsx.
 // ---------------------------------------------------------------------------
 
 /** Frames sampled before the average is worth showing. */
