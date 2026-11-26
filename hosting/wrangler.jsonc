@@ -1,0 +1,26 @@
+// The hosted totem gate. Deploy with `npm run hosted` from the repo root,
+// which builds the totem into public/chefcontrol first. See hosting/README.md.
+{
+  "name": "chef-totem",
+  "account_id": "4adeb52fc4c385aa94d2512a5b545127",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "totem.chefcontrol.ai", "custom_domain": true }],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    // Every request goes through the gate first; nothing is public.
+    "run_worker_first": true,
+    // The worker maps `/` to `/<app>/index.html` itself; no slash redirects.
+    "html_handling": "none",
+    "not_found_handling": "none"
+  },
+  "ratelimits": [
+    // Five PIN attempts per minute per IP. PINs are 8 digits, so one address
+    // needs ~19 years on average to guess one.
+    { "name": "PIN_LIMITER", "namespace_id": "1701", "simple": { "limit": 5, "period": 60 } }
+  ],
+  "observability": { "enabled": true }
+}

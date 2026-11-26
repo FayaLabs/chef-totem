@@ -24,3 +24,8 @@ certs/
 .env.local
 release/
 .sdk/
+
+# Hosted totem: the builds copied in by scripts/deploy-hosted.sh.
+/hosting/public/
+/hosting/.wrangler/
+/hosting/.dev.vars

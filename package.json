@@ -18,6 +18,7 @@
     "pack": "npm run build && electron-builder --win --publish never",
     "panel": "./scripts/deploy-panel.sh",
     "panel:shell": "./scripts/deploy-panel.sh --shell",
+    "hosted": "./scripts/deploy-hosted.sh",
     "link-sdk": "./scripts/link-sdk.sh",
     "typecheck:published": "tsc -p tsconfig.json --noEmit"
   },
