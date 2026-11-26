@@ -30,6 +30,12 @@ same as not having written it.
 5. **Say the version out loud** in the report. "Deployed" is not an answer
    anyone can check; "the glass says v1.6" is.
 
+## The hosted copy
+
+`npm run hosted` publishes the same build to `totem.chefcontrol.ai`, behind a
+PIN gate (see `hosting/README.md`). It is not the panel: deploying one does not
+deploy the other, so after a release run both.
+
 ## Things that look like bugs and are not
 
 - **The panel is unreachable.** It travels. `tailscale status | grep win-frqk`
