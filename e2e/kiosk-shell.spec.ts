@@ -17,6 +17,25 @@ test.describe('M0 · casca de quiosque', () => {
     expect(box!.height).toBeCloseTo(1920, 0)
   })
 
+  // Outside the Electron shell the stage fills the screen instead of
+  // letterboxing to 9:16 (iPad: a quarter of the glass was black bars).
+  for (const [label, width, height, expected] of [
+    ['iPad em pé', 820, 1180, { width: 820, height: 1180 }],
+    ['iPad deitado', 1180, 820, { width: 615, height: 820 }],
+  ] as const) {
+    test(`fora do shell, o palco ocupa a tela: ${label}`, async ({ page }) => {
+      await page.setViewportSize({ width, height })
+      await page.goto('/')
+      await expect(page.getByTestId('attract')).toBeVisible()
+      const stage = page.locator('[data-totem-stage]')
+      await expect(stage).toHaveAttribute('data-fit', 'screen')
+      const box = (await stage.boundingBox())!
+      expect(box.width).toBeCloseTo(expected.width, 0)
+      expect(box.height).toBeCloseTo(expected.height, 0)
+      expect(box.y).toBeCloseTo(0, 0)
+    })
+  }
+
   test('toque avança a máquina de estados e o reset volta ao attract', async ({ page }) => {
     await page.goto('/')
     await page.getByTestId('attract').tap()

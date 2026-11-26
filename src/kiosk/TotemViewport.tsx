@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import { TOTEM_RELEASE } from '@/config/totem.config'
 import { activeHouseLabel, ServicePanel } from '@/demo/TenantSwitcher'
 import { GlassDefs } from '@/design/Glass'
@@ -14,11 +14,41 @@ import { useTotemSession } from '@/session/useTotemSession'
 // on a 16:10 laptop show the same composition, and every `cqw` token stays
 // proportional because it resolves against this box, not the window.
 //
+// OUTSIDE THE SHELL, THE STAGE FILLS THE SCREEN. A browser on a tablet is not a
+// preview of the panel, it is the device someone is using: a 9:16 box on an
+// iPad wastes a quarter of the glass to black bars. So in a browser the stage
+// takes the whole height and as much width as a portrait composition can hold
+// (up to 3:4); only a landscape screen keeps side bars. Inside the Electron
+// shell nothing changes: the panel still gets the exact 9:16 box.
+//
+// The size is measured against the fixed wrapper as a size container (`cqw` /
+// `cqh` of the WRAPPER, since a container's own size resolves against its
+// ancestor), not `dvh`/`dvw`. iPad Safari is where the viewport units and the
+// visible area disagree, and the wrapper is the visible area by definition.
+//
 // Reach mode surrenders the top of the stage rather than scaling the UI down:
 // the content area shrinks and scrolls, and every tap target keeps its physical
 // size. Shrinking would make the panel harder to hit for the exact person who
 // asked for help reaching it.
 // ---------------------------------------------------------------------------
+
+/** True inside the Electron shell (see electron/preload.cjs). */
+export function inShell(): boolean {
+  return typeof window !== 'undefined' && window.fayzShell?.isShell === true
+}
+
+/**
+ * The stage box, in `cqw`/`cqh` of the full-screen wrapper.
+ *
+ * Panel: exactly 9:16, letterboxed. Screen: full height, width up to 3:4 —
+ * wider than that the portrait composition stretches past what it was drawn
+ * for, so a landscape screen keeps side bars.
+ */
+export function stageSize(panel: boolean): CSSProperties {
+  return panel
+    ? { width: 'min(100cqw, calc(100cqh * 9 / 16))', height: 'min(100cqh, calc(100cqw * 16 / 9))' }
+    : { width: 'min(100cqw, calc(100cqh * 3 / 4))', height: '100cqh' }
+}
 
 export function TotemViewport({ children }: { children: ReactNode }) {
   const reach = useReachMode((s) => s.enabled)
@@ -28,17 +58,13 @@ export function TotemViewport({ children }: { children: ReactNode }) {
   const atRest = useTotemSession((s) => s.step) === 'attract'
 
   return (
-    <div className="fixed inset-0 grid place-items-center bg-black">
+    <div className="fixed inset-0 grid place-items-center bg-black" style={{ containerType: 'size' }}>
       <div
         data-totem-stage
         data-reach={reach ? 'on' : 'off'}
+        data-fit={inShell() ? 'panel' : 'screen'}
         className="relative overflow-hidden bg-ink"
-        style={{
-          aspectRatio: '9 / 16',
-          height: 'min(100dvh, calc(100dvw * 16 / 9))',
-          width: 'min(100dvw, calc(100dvh * 9 / 16))',
-          containerType: 'size',
-        }}
+        style={{ ...stageSize(inShell()), containerType: 'size' }}
       >
         {/* Os `defs` do vidro moram no palco, uma vez só: um `<filter>` por
             peça seria um `id` repetido, e `id` repetido é a classe de bug em
